@@ -35,6 +35,27 @@ Verified on a Pixel 10 (Android 16) against YouTube 21.32.4 and Instagram
 
 Not yet built: TikTok rules.
 
+## Installing it
+
+There is no store listing yet. Grab the APK from Releases, allow your browser to
+install unknown apps when Android asks, then open Doorman and follow the prompt
+to grant accessibility access.
+
+Doorman asks for one permission and nothing else. It has no network permission
+at all, so nothing it reads can leave the phone even in principle. No ads, no
+subscription, no accounts, no analytics.
+
+### When it stops working
+
+Apps redesign themselves and fingerprints break. Doorman fails open -- it stops
+blocking rather than blocking the wrong thing -- so the symptom is silence.
+
+Open Doorman, scroll to **Something not working?**, tap **Capture a report**,
+switch to the app that is misbehaving, wait five seconds, and share the report
+in an issue. Reports contain the screen's structure only: all text is replaced
+with `<redacted>` before the file is written, so a report captured on a
+conversation contains none of your messages.
+
 ## Building
 
 Requires Android Studio (bundled JDK is fine) and an Android device with USB
@@ -124,6 +145,16 @@ and `./tools/compare-dumps.py dumps/**/*.json`.
   Ask `AccessibilityManager.getEnabledAccessibilityServiceList()` instead — it
   answers from the registry that actually decides whether events arrive.
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Fixing a broken rule is a JSON edit and
+needs no Kotlin.
+
+Translations are welcome. English and Catalan ship today; every user-facing
+string lives in `res/values/strings.xml`, and nothing in the blocking rules
+depends on language.
+
 ## Licence
 
-GPLv3.
+GPLv3. Free as in freedom, and free as in the thing every comparable app
+charges a subscription for.
