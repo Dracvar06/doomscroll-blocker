@@ -22,9 +22,10 @@ Free, open source, and translated. No ads, no subscription, no telemetry.
 - Instagram: Reels, the home feed, and Explore/search are blocked. **Direct
   messages and your profile are left alone**, and the block never covers the tab
   bar, so your inbox is always one tap away.
-- **A reel someone sends you plays.** Swipe to the next one and it stops. Go
-  back to the conversation and open another reel they sent, and that one plays
-  too.
+- **Any single reel you open plays, and stops there.** From a conversation, from
+  a post in the feed, from someone's story, from a link -- it plays, and the
+  swipe to the next one is blocked. Go back and open another reel deliberately
+  and that one plays too.
 
 Every screen is an individual switch in the app, with Strict / Balanced /
 Nothing presets. To get into a blocked screen you open Doorman, wait out a
@@ -95,10 +96,16 @@ Three traps, all found the hard way and all encoded in the tests:
 
 ### Watchable once, without becoming a feed
 
-A reel a friend sends opens in the very same vertical pager the Reels tab uses,
-so "which screen is this" cannot tell them apart on its own. Two things do: the
-shared viewer carries `sender_username_or_fullname` and a reply bar -- the screen
-itself says someone sent this -- and it has no bottom tab bar.
+A reel opens in the very same vertical pager the Reels tab uses, so "which
+screen is this" cannot tell them apart on its own. The tab bar does: the Reels
+tab keeps it, a standalone reel viewer has none.
+
+An earlier version matched the sender views a DM-shared reel carries, which was
+too narrow by half. It recognised reels arriving from a conversation and left
+every other route wide open -- open a reel from a post in the feed or from
+someone's story and you had an unlimited feed again. The rule is now "any reel
+viewer that is not the Reels tab", because reaching one always means a single
+reel was opened deliberately.
 
 That screen gets the `ALLOW_ONCE` verdict: watchable, with a budget of one item.
 Scroll events spend the budget when the pager reports a new index *or* when

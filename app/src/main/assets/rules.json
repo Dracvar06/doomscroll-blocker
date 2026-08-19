@@ -56,15 +56,14 @@
       "labelKey": "app_instagram",
       "screens": [
         {
-          "id": "ig_shared_reel",
-          "labelKey": "screen_ig_shared_reel",
+          "id": "ig_single_reel",
+          "labelKey": "screen_ig_single_reel",
           "defaultEnabled": true,
           "verdict": "ALLOW_ONCE",
           "budget": 1,
           "match": {
             "allViewId": [
-              "clips_viewer_view_pager",
-              "sender_username_or_fullname"
+              "clips_viewer_view_pager"
             ],
             "noneViewId": [
               "clips_tab"

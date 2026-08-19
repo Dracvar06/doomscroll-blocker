@@ -46,8 +46,8 @@
     <string name="screen_ig_reels">Reels</string>
     <string name="screen_ig_feed">Pàgina d\'inici</string>
     <string name="screen_ig_explore">Explora i cerca</string>
-    <string name="screen_ig_shared_reel">Seguir passant des d\'un reel enviat</string>
-    <string name="blocked_body_budget_spent">Aquell era el que t\'havien enviat. La resta ja és el flux.</string>
+    <string name="screen_ig_single_reel">Seguir passant des d\'un reel obert</string>
+    <string name="blocked_body_budget_spent">Ja has vist el que havies obert. La resta ja és el flux.</string>
     <string name="section_diagnostics">No funciona?</string>
     <string name="diagnostics_explainer">Les aplicacions es redissenyen, i quan ho fan Doorman pot deixar de reconèixer una pantalla. Captura un informe i envia\'l al projecte perquè es pugui arreglar la regla.</string>
     <string name="diagnostics_last_seen">Última pantalla reconeguda: %1$s</string>

@@ -34,10 +34,10 @@ class ScreenEvaluatorTest {
 
     private val allScreens = setOf(
         "yt_shorts", "yt_home_feed", "yt_subscriptions_feed",
-        "ig_reels", "ig_feed", "ig_explore", "ig_shared_reel",
+        "ig_reels", "ig_feed", "ig_explore", "ig_single_reel",
     )
     private val defaults =
-        setOf("yt_shorts", "yt_home_feed", "ig_reels", "ig_feed", "ig_explore", "ig_shared_reel")
+        setOf("yt_shorts", "yt_home_feed", "ig_reels", "ig_feed", "ig_explore", "ig_single_reel")
 
     @Test
     fun `shorts is blocked`() {
@@ -87,7 +87,7 @@ class ScreenEvaluatorTest {
         for (screen in listOf(
             "youtube-shorts", "youtube-home", "youtube-subs", "youtube-you", "youtube-watch",
             "instagram-clips", "instagram-feed", "instagram-search", "instagram-profile",
-            "instagram-shared-reel", "instagram-dm-thread",
+            "instagram-shared-reel", "instagram-dm-thread", "instagram-reel-from-feed",
         )) {
             assertFalse(screen, ScreenEvaluator.evaluate(fixture(screen), rules(), emptySet()).blocked)
         }
@@ -141,12 +141,37 @@ class ScreenEvaluatorTest {
      * but it must not be a free feed either. It is ALLOW_ONCE: watchable, and
      * blocked once a swipe moves past it.
      */
+    /**
+     * Every way into a single reel gets the same treatment: watchable, and one
+     * item only. Matching just the sender views a DM-shared reel carries left
+     * every other route open -- opening a reel from a post in the feed gave an
+     * unlimited feed, which is the whole thing this app exists to prevent.
+     */
     @Test
-    fun `a reel someone sent you is allowed once, not blocked`() {
-        val verdict = ScreenEvaluator.evaluate(fixture("instagram-shared-reel"), rules(), defaults)
-        assertEquals(ScreenEvaluator.Outcome.ALLOW_ONCE, verdict.outcome)
-        assertEquals("ig_shared_reel", verdict.screenId)
-        assertFalse("it must be watchable", verdict.blocked)
+    fun `every route into a single reel is allowed once, not blocked`() {
+        for (route in listOf("instagram-shared-reel", "instagram-reel-from-feed")) {
+            val verdict = ScreenEvaluator.evaluate(fixture(route), rules(), defaults)
+            assertEquals(route, ScreenEvaluator.Outcome.ALLOW_ONCE, verdict.outcome)
+            assertEquals(route, "ig_single_reel", verdict.screenId)
+            assertFalse("$route must be watchable", verdict.blocked)
+        }
+    }
+
+    /**
+     * The discriminator: a standalone reel viewer has no tab bar, the Reels tab
+     * does. If that ever stops holding, one of these two tests fails rather than
+     * the app silently letting a feed through.
+     */
+    @Test
+    fun `a single reel viewer has no tab bar and the reels tab does`() {
+        assertFalse(
+            "a standalone reel viewer must not carry the tab bar",
+            fixture("instagram-reel-from-feed").nodes.any { it.viewIdMatches("clips_tab") },
+        )
+        assertTrue(
+            "the reels tab must carry the tab bar",
+            fixture("instagram-clips").nodes.any { it.viewIdMatches("clips_tab") },
+        )
     }
 
     /**

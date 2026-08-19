@@ -54,8 +54,8 @@
     <string name="screen_ig_reels" tools:ignore="UnusedResources">Reels</string>
     <string name="screen_ig_feed" tools:ignore="UnusedResources">Home feed</string>
     <string name="screen_ig_explore" tools:ignore="UnusedResources">Explore and search</string>
-    <string name="screen_ig_shared_reel" tools:ignore="UnusedResources">Scrolling on from a sent reel</string>
-    <string name="blocked_body_budget_spent">That was the one you were sent. The rest is just the feed.</string>
+    <string name="screen_ig_single_reel" tools:ignore="UnusedResources">Scrolling on from a single reel</string>
+    <string name="blocked_body_budget_spent">You have seen the one you opened. The rest is just the feed.</string>
     <string name="section_diagnostics">Something not working?</string>
     <string name="diagnostics_explainer">Apps redesign themselves, and when they do Doorman can stop recognising a screen. Capture a report and send it to the project so the rule can be fixed.</string>
     <string name="diagnostics_last_seen">Last screen Doorman recognised: %1$s</string>
