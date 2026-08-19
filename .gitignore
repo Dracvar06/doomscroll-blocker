@@ -1,3 +1,4 @@
+*.hprof
 *.iml
 *.jks
 *.keystore
