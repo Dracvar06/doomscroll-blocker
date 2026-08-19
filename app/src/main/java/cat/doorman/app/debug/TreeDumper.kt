@@ -41,6 +41,8 @@ object TreeDumper {
         val scrollable: Boolean = false,
         val clickable: Boolean = false,
         val selected: Boolean = false,
+        val focused: Boolean = false,
+        val editable: Boolean = false,
         val visible: Boolean = false,
         val childCount: Int = 0,
     )
@@ -120,6 +122,8 @@ object TreeDumper {
                 scrollable = node.isScrollable,
                 clickable = node.isClickable,
                 selected = node.isSelected,
+                focused = node.isFocused,
+                editable = node.isEditable,
                 visible = node.isVisibleToUser,
                 childCount = node.childCount,
             )

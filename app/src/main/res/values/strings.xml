@@ -76,4 +76,5 @@
     <string name="pending_change_preset">Applying in %1$d s</string>
     <string name="pending_change_hint">Leave this screen and the change is cancelled.</string>
     <string name="action_cancel_change">Cancel</string>
+    <string name="pending_change_delay">Shortening the wait in %1$d s</string>
 </resources>

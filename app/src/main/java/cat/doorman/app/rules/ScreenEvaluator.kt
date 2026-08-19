@@ -71,6 +71,14 @@ object ScreenEvaluator {
                 return false
             }
         }
+        matcher.visibleViewId?.let { wanted ->
+            if (!wanted.all { id ->
+                    snapshot.nodes.any { node -> node.visible && node.viewIdMatches(id) }
+                }
+            ) {
+                return false
+            }
+        }
         matcher.anyViewId?.let { wanted ->
             if (snapshot.nodes.none { node -> wanted.any(node::viewIdMatches) }) return false
         }

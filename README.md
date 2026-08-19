@@ -20,9 +20,10 @@ Free, open source, and translated. No ads, no subscription, no telemetry.
 - YouTube: the Shorts feed and the home feed are blocked. Watch page, search,
   subscriptions and library are left alone. A Short opened on its own -- from a
   link someone sent you -- plays, and the swipe to the next one is blocked.
-- Instagram: Reels, the home feed, and Explore/search are blocked. **Direct
-  messages and your profile are left alone**, and the block never covers the tab
-  bar, so your inbox is always one tap away.
+- Instagram: Reels, the home feed, and the Explore grid are blocked. **Direct
+  messages, your profile, and searching for people are left alone.** The block
+  never covers the tab bar or the search bar, so your inbox is one tap away and
+  you can still look somebody up.
 - **Any single reel you open plays, and stops there.** From a conversation, from
   a post in the feed, from someone's story, from a link -- it plays, and the
   swipe to the next one is blocked. Go back and open another reel deliberately
@@ -121,12 +122,20 @@ would be a one-tap bypass. Arriving from a *different* screen does refill it,
 because going back to the conversation and opening the next reel someone sent is
 not doomscrolling.
 
-### The block must never cover the tab bar
+### The block must never corner the user
 
-A blocked feed with a fully covered screen corners the user: Back often lands on
-another blocked screen, so the only exit left is switching Doorman off -- the
-exact habit this app exists to break. Each app's rules name the views that must
-stay reachable (`keepVisibleViewIds`), and the overlay stops above them.
+A fully covered screen leaves no way out but switching Doorman off -- the exact
+habit this app exists to break. Two controls have to survive every block:
+
+- **the tab bar**, or the way to your messages is gone and Back often lands on
+  another blocked screen;
+- **the search bar**, because Instagram puts search and the Explore grid behind
+  one tab. Blocking that tab to keep the grid away also took away looking
+  someone up, which has nothing to do with doomscrolling.
+
+So the overlay is a band, not a curtain: it starts below `keepVisibleTopViewIds`
+and ends above `keepVisibleViewIds`. On Instagram's Explore tab that works out
+as `Rect(0, 301 - 1080, 2235)` -- grid covered, search bar and tabs live.
 
 Making that work needs `FLAG_LAYOUT_IN_SCREEN`, `FLAG_LAYOUT_NO_LIMITS` and
 `fitInsetsTypes = 0`. Without them the overlay window is inset below the status

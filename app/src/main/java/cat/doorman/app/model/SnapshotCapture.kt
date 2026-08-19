@@ -71,6 +71,8 @@ object SnapshotCapture {
                 scrollable = node.isScrollable,
                 clickable = node.isClickable,
                 selected = node.isSelected,
+                focused = node.isFocused,
+                editable = node.isEditable,
                 visible = node.isVisibleToUser,
                 childCount = node.childCount,
             )

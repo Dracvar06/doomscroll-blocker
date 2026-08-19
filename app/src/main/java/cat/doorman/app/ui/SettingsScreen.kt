@@ -31,6 +31,7 @@ fun BlockingSettings(
     rules: RuleSet,
     enabledScreenIds: Set<String>,
     pendingLabel: String?,
+    pendingIsDelay: Boolean,
     pendingSeconds: Int,
     changeDelaySeconds: Int,
     onScreenToggled: (String, Boolean) -> Unit,
@@ -61,10 +62,12 @@ fun BlockingSettings(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(
-                        text = if (pendingLabel != null) {
-                            stringResource(R.string.pending_change_screen, pendingLabel, pendingSeconds)
-                        } else {
-                            stringResource(R.string.pending_change_preset, pendingSeconds)
+                        text = when {
+                            pendingIsDelay ->
+                                stringResource(R.string.pending_change_delay, pendingSeconds)
+                            pendingLabel != null ->
+                                stringResource(R.string.pending_change_screen, pendingLabel, pendingSeconds)
+                            else -> stringResource(R.string.pending_change_preset, pendingSeconds)
                         },
                         style = MaterialTheme.typography.titleMedium,
                     )

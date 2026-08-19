@@ -66,6 +66,9 @@
       ],
       "keepVisibleViewIds": [
         "pivot_bar"
+      ],
+      "keepVisibleTopViewIds": [
+        "toolbar"
       ]
     },
     "com.instagram.android": {
@@ -78,7 +81,7 @@
           "verdict": "ALLOW_ONCE",
           "budget": 1,
           "match": {
-            "allViewId": [
+            "visibleViewId": [
               "clips_viewer_view_pager"
             ],
             "noneViewId": [
@@ -123,6 +126,9 @@
         "direct_tab",
         "search_tab",
         "profile_tab"
+      ],
+      "keepVisibleTopViewIds": [
+        "action_bar_search_edit_text"
       ]
     }
   }

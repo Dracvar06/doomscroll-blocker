@@ -12,6 +12,7 @@ import android.view.WindowManager
 import android.widget.Button
 import android.widget.TextView
 import cat.doorman.app.R
+import cat.doorman.app.rules.OverlayBounds
 
 /**
  * Puts an opaque screen over a blocked feed.
@@ -31,23 +32,24 @@ class BlockOverlayController(private val service: AccessibilityService) {
 
     private var overlay: View? = null
     private var shownForScreenId: String? = null
-    private var shownHeightPx: Int? = null
+    private var shownBand: OverlayBounds.Band? = null
 
     val isShowing: Boolean get() = overlay != null
 
     /**
-     * [coverHeightPx] limits the overlay to the top of the app's tab bar, so
-     * that bar stays tappable and the user can walk to their messages instead of
-     * being cornered. Null covers the whole screen, which is the safe fallback
-     * when the tab bar cannot be located.
+     * [band] is the slice of screen to cover. It stops short of the search bar
+     * above and the tab bar below, so the user can still look someone up or
+     * walk to their messages rather than being cornered into switching Doorman
+     * off. A band with a null height covers everything below its top, which is
+     * the safe fallback when those controls cannot be located.
      */
     fun show(
         screenId: String,
         screenLabel: String,
-        coverHeightPx: Int? = null,
+        band: OverlayBounds.Band = OverlayBounds.Band(0, null),
         bodyRes: Int = R.string.blocked_body,
     ) {
-        if (shownForScreenId == screenId && shownHeightPx == coverHeightPx && overlay != null) return
+        if (shownForScreenId == screenId && shownBand == band && overlay != null) return
         hide()
 
         // Null root is right here: the view's layout params come from
@@ -67,7 +69,7 @@ class BlockOverlayController(private val service: AccessibilityService) {
 
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
-            coverHeightPx ?: WindowManager.LayoutParams.MATCH_PARENT,
+            band.heightPx ?: WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             // Touchable, so it swallows every tap and swipe meant for the feed,
             // but not focusable, so it never steals the keyboard or the back key.
@@ -84,7 +86,7 @@ class BlockOverlayController(private val service: AccessibilityService) {
             PixelFormat.OPAQUE,
         ).apply {
             gravity = Gravity.TOP
-            y = 0
+            y = band.topPx
             // The measured tab-bar coordinate is absolute, so the window has to
             // start at absolute zero for a height to mean the same thing. Left
             // to itself the frame is inset below the status bar -- measured at
@@ -100,7 +102,7 @@ class BlockOverlayController(private val service: AccessibilityService) {
             .onSuccess {
                 overlay = view
                 shownForScreenId = screenId
-                shownHeightPx = coverHeightPx
+                shownBand = band
                 Log.i(TAG, "overlay shown for $screenId")
             }
             .onFailure { Log.e(TAG, "overlay failed for $screenId", it) }
@@ -113,7 +115,7 @@ class BlockOverlayController(private val service: AccessibilityService) {
         }
         overlay = null
         shownForScreenId = null
-        shownHeightPx = null
+        shownBand = null
     }
 
     private companion object {

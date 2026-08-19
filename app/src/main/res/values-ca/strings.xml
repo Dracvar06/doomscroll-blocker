@@ -68,4 +68,5 @@
     <string name="pending_change_preset">S\'aplicarà en %1$d s</string>
     <string name="pending_change_hint">Si surts d\'aquesta pantalla, el canvi es cancel·la.</string>
     <string name="action_cancel_change">Cancel·la</string>
+    <string name="pending_change_delay">L\'espera s\'escurçarà en %1$d s</string>
 </resources>

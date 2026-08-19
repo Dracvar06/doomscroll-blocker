@@ -42,6 +42,13 @@ data class UiNode(
     val scrollable: Boolean = false,
     val clickable: Boolean = false,
     val selected: Boolean = false,
+    /**
+     * Whether this node holds input focus. It is what separates a search field
+     * sitting idle above a grid of recommendations from one the user is
+     * actually typing into.
+     */
+    val focused: Boolean = false,
+    val editable: Boolean = false,
     val visible: Boolean = false,
     val childCount: Int = 0,
 ) {
@@ -51,4 +58,7 @@ data class UiNode(
 
     /** Top edge in screen pixels, or null if bounds were not recorded. */
     fun topPx(): Int? = bounds?.split(',')?.getOrNull(1)?.toIntOrNull()
+
+    /** Bottom edge in screen pixels, or null if bounds were not recorded. */
+    fun bottomPx(): Int? = bounds?.split(',')?.getOrNull(3)?.toIntOrNull()
 }

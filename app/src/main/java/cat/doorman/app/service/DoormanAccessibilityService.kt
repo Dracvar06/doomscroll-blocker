@@ -21,7 +21,7 @@ import cat.doorman.app.model.SnapshotCapture
 import cat.doorman.app.rules.RuleLoader
 import cat.doorman.app.rules.RuleSet
 import cat.doorman.app.rules.ScreenEvaluator
-import cat.doorman.app.rules.TabBarLocator
+import cat.doorman.app.rules.OverlayBounds
 import cat.doorman.app.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -296,10 +296,7 @@ class DoormanAccessibilityService : AccessibilityService() {
                 overlay.show(
                     verdict.screenId,
                     labelFor(verdict.labelKey),
-                    coverHeightPx = TabBarLocator.topOf(
-                        snapshot,
-                        rules.apps[snapshot.packageName]?.keepVisibleViewIds.orEmpty(),
-                    ),
+                    band = bandFor(snapshot),
                     bodyRes = R.string.blocked_body_budget_spent,
                 )
             }
@@ -308,14 +305,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         budgetKey = null
         lastEvaluatedScreenId = verdict.screenId
         if (verdict.blocked && verdict.screenId != null) {
-            overlay.show(
-                verdict.screenId,
-                labelFor(verdict.labelKey),
-                coverHeightPx = TabBarLocator.topOf(
-                    snapshot,
-                    rules.apps[snapshot.packageName]?.keepVisibleViewIds.orEmpty(),
-                ),
-            )
+            overlay.show(verdict.screenId, labelFor(verdict.labelKey), band = bandFor(snapshot))
         } else if (overlay.isShowing) {
             overlay.hide()
         }
@@ -362,6 +352,19 @@ class DoormanAccessibilityService : AccessibilityService() {
     override fun onInterrupt() {
         // Required by the framework. Doorman has nothing to interrupt: it never
         // speaks, vibrates or holds feedback the system might need to cancel.
+    }
+
+    /**
+     * The slice of screen this block should cover, leaving the search bar above
+     * and the tab bar below reachable.
+     */
+    private fun bandFor(snapshot: cat.doorman.app.model.ScreenSnapshot): OverlayBounds.Band {
+        val app = rules.apps[snapshot.packageName]
+        return OverlayBounds.compute(
+            snapshot = snapshot,
+            keepVisibleTopViewIds = app?.keepVisibleTopViewIds.orEmpty(),
+            keepVisibleViewIds = app?.keepVisibleViewIds.orEmpty(),
+        )
     }
 
     /** What the service last decided, for the diagnostics screen. */

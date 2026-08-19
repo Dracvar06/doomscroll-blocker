@@ -52,6 +52,13 @@ private enum class Screen { HOME, UNLOCK }
 private sealed interface PendingChange {
     data class Screen(val id: String, val enabled: Boolean) : PendingChange
     data class Preset(val ids: Set<String>) : PendingChange
+
+    /**
+     * Shortening the wait is itself a way of weakening the app, and the most
+     * direct one: set it to Immediate and every other switch becomes instant.
+     * So it waits too.
+     */
+    data class Delay(val seconds: Int) : PendingChange
 }
 
 class MainActivity : ComponentActivity() {
@@ -211,14 +218,13 @@ class MainActivity : ComponentActivity() {
             enabledScreenIds = enabledScreens,
             pendingLabel = (pendingChange as? PendingChange.Screen)
                 ?.let { change -> labelFor(labelKeyFor(change.id)) },
+            pendingIsDelay = pendingChange is PendingChange.Delay,
             pendingSeconds = pendingSeconds,
             changeDelaySeconds = changeDelaySeconds,
             onScreenToggled = { id, on -> requestScreenChange(id, on) },
             onPreset = { ids -> requestPreset(ids) },
             onCancelPending = { cancelPendingChange() },
-            onChangeDelay = { seconds ->
-                lifecycleScope.launch { prefs.setChangeDelaySeconds(seconds) }
-            },
+            onChangeDelay = { seconds -> requestDelayChange(seconds) },
             labelFor = ::labelFor,
         )
 
@@ -270,6 +276,19 @@ class MainActivity : ComponentActivity() {
         startPending(PendingChange.Preset(ids))
     }
 
+    /**
+     * Lengthening the wait takes effect at once; shortening it has to sit out
+     * the wait that is currently in force. Without this the delay is one tap
+     * from being switched off, and everything it protects with it.
+     */
+    private fun requestDelayChange(seconds: Int) {
+        if (seconds >= changeDelaySeconds || changeDelaySeconds <= 0) {
+            lifecycleScope.launch { prefs.setChangeDelaySeconds(seconds) }
+            return
+        }
+        startPending(PendingChange.Delay(seconds))
+    }
+
     private fun startPending(change: PendingChange) {
         pendingCountdown?.cancel()
         pendingChange = change
@@ -289,6 +308,8 @@ class MainActivity : ComponentActivity() {
                 lifecycleScope.launch { prefs.setScreenEnabled(change.id, change.enabled) }
             is PendingChange.Preset ->
                 lifecycleScope.launch { prefs.setEnabledScreens(change.ids, screenDefaults.keys) }
+            is PendingChange.Delay ->
+                lifecycleScope.launch { prefs.setChangeDelaySeconds(change.seconds) }
             null -> Unit
         }
         pendingChange = null

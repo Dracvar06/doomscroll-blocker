@@ -28,6 +28,13 @@ data class AppRules(
      * design exists to avoid. So the feed is covered and the tab bar is not.
      */
     val keepVisibleViewIds: List<String> = emptyList(),
+    /**
+     * Views at the top of the screen the block must stay clear of -- the search
+     * bar. Instagram hides search behind the same tab as the Explore grid, so
+     * covering the whole tab to keep the grid away also removed the ability to
+     * look somebody up.
+     */
+    val keepVisibleTopViewIds: List<String> = emptyList(),
     val screens: List<ScreenRule> = emptyList(),
 )
 
@@ -63,6 +70,17 @@ data class Matcher(
      * grid all sit in the tree at once no matter which tab you are looking at.
      */
     val selectedViewId: List<String>? = null,
+    /**
+     * These views must be present *and* actually on screen.
+     *
+     * Presence alone is a trap on Instagram: its ViewPager keeps neighbouring
+     * tabs alive, so the Reels pager sits in the tree while you are searching,
+     * reading your profile or looking at the Explore grid. Matching on presence
+     * made the search screen look like a reel viewer, which would have blocked
+     * someone mid-search. Visibility is what distinguishes a screen that is in
+     * front from one that merely exists.
+     */
+    val visibleViewId: List<String>? = null,
     val anyViewId: List<String>? = null,
     val allViewId: List<String>? = null,
     val noneViewId: List<String>? = null,

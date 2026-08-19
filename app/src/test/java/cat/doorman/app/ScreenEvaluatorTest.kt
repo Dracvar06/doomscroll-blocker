@@ -103,6 +103,7 @@ class ScreenEvaluatorTest {
             "youtube-shorts", "youtube-home", "youtube-subs", "youtube-you", "youtube-watch",
             "instagram-clips", "instagram-feed", "instagram-search", "instagram-profile",
             "instagram-shared-reel", "instagram-dm-thread", "instagram-reel-from-feed",
+            "instagram-search-active", "instagram-explore-idle",
         )) {
             assertFalse(screen, ScreenEvaluator.evaluate(fixture(screen), rules(), emptySet()).blocked)
         }
@@ -209,6 +210,29 @@ class ScreenEvaluatorTest {
             ScreenEvaluator.Outcome.ALLOW,
             ScreenEvaluator.evaluate(fixture("instagram-dm-thread"), rules(), defaults).outcome,
         )
+    }
+
+    /**
+     * Searching for a person is not doomscrolling, and it happens on a screen
+     * whose tree contains the Reels pager because Instagram keeps neighbouring
+     * tabs alive. Matching that pager by presence made the search screen look
+     * like a reel viewer -- one scroll through the results and the user would
+     * have been blocked mid-search. The pager has to be *visible* to count.
+     */
+    @Test
+    fun `searching is never blocked or limited`() {
+        for (screen in listOf("instagram-search-active", "instagram-profile")) {
+            val verdict = ScreenEvaluator.evaluate(fixture(screen), rules(), defaults)
+            assertEquals(screen, ScreenEvaluator.Outcome.ALLOW, verdict.outcome)
+        }
+    }
+
+    /** The Explore grid itself must still be blocked, or the toggle does nothing. */
+    @Test
+    fun `the explore grid is still blocked`() {
+        val verdict = ScreenEvaluator.evaluate(fixture("instagram-explore-idle"), rules(), defaults)
+        assertEquals(ScreenEvaluator.Outcome.BLOCK, verdict.outcome)
+        assertEquals("ig_explore", verdict.screenId)
     }
 
     @Test
