@@ -29,7 +29,9 @@ Free, open source, and translated. No ads, no subscription, no telemetry.
   and that one plays too.
 
 Every screen is an individual switch in the app, with Strict / Balanced /
-Nothing presets. To get into a blocked screen you open Doorman, wait out a
+Nothing presets. Switching a block **off** waits a configurable delay (30 s by
+default) and is cancelled if you leave the app; switching one **on** is
+immediate, because friction belongs on the decision you would regret. To get into a blocked screen you open Doorman, wait out a
 countdown that restarts if you walk away, and take a short timed pass.
 
 Verified on a Pixel 10 (Android 16) against YouTube 21.32.4 and Instagram

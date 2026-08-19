@@ -25,6 +25,7 @@ class Prefs(private val context: Context) {
         val DECIDED_SCREENS = stringSetPreferencesKey("decided_screens")
         val WAIT_SECONDS = intPreferencesKey("wait_seconds")
         val PASS_MINUTES = intPreferencesKey("pass_minutes")
+        val CHANGE_DELAY_SECONDS = intPreferencesKey("change_delay_seconds")
         val PASS_PACKAGE = stringPreferencesKey("pass_package")
         val PASS_EXPIRES_AT = longPreferencesKey("pass_expires_at")
     }
@@ -86,6 +87,19 @@ class Prefs(private val context: Context) {
     }
 
     /** The one pass that may be active, as (package, expiry). */
+    /**
+     * How long weakening a block waits before it takes effect.
+     *
+     * Switching a block *on* is never delayed: friction belongs on the decision
+     * you would regret, not on the one you would thank yourself for.
+     */
+    val changeDelaySeconds: Flow<Int> =
+        context.dataStore.data.map { it[Keys.CHANGE_DELAY_SECONDS] ?: DEFAULT_CHANGE_DELAY_SECONDS }
+
+    suspend fun setChangeDelaySeconds(seconds: Int) {
+        context.dataStore.edit { it[Keys.CHANGE_DELAY_SECONDS] = seconds }
+    }
+
     val activePass: Flow<Pass?> =
         context.dataStore.data.map { prefs ->
             val pkg = prefs[Keys.PASS_PACKAGE] ?: return@map null
@@ -114,5 +128,7 @@ class Prefs(private val context: Context) {
     companion object {
         const val DEFAULT_WAIT_SECONDS = 30
         const val DEFAULT_PASS_MINUTES = 2
+        const val DEFAULT_CHANGE_DELAY_SECONDS = 30
+        val CHANGE_DELAY_CHOICES = listOf(0, 10, 30, 120)
     }
 }

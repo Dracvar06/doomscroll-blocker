@@ -59,4 +59,13 @@
     <string name="diagnostics_failed">No hi ha res a capturar. Doorman està activat?</string>
     <string name="action_share_report">Comparteix l\'informe</string>
     <string name="screen_yt_single_short">Seguir passant des d\'un Short obert</string>
+    <string name="section_change_delay">Canviar aquesta configuració</string>
+    <string name="change_delay_explainer">Desactivar un bloqueig espera abans de fer efecte, perquè un impuls no pugui desfer una decisió. Activar-lo és immediat.</string>
+    <string name="change_delay_instant">Immediat</string>
+    <string name="change_delay_seconds">%1$d s</string>
+    <string name="change_delay_minutes">%1$d min</string>
+    <string name="pending_change_screen">Es desactivarà %1$s en %2$d s</string>
+    <string name="pending_change_preset">S\'aplicarà en %1$d s</string>
+    <string name="pending_change_hint">Si surts d\'aquesta pantalla, el canvi es cancel·la.</string>
+    <string name="action_cancel_change">Cancel·la</string>
 </resources>

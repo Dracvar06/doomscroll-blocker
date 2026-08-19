@@ -48,6 +48,12 @@ import kotlinx.coroutines.launch
 
 private enum class Screen { HOME, UNLOCK }
 
+/** A settings change that has been asked for but has not taken effect yet. */
+private sealed interface PendingChange {
+    data class Screen(val id: String, val enabled: Boolean) : PendingChange
+    data class Preset(val ids: Set<String>) : PendingChange
+}
+
 class MainActivity : ComponentActivity() {
 
     private lateinit var prefs: Prefs
@@ -71,6 +77,11 @@ class MainActivity : ComponentActivity() {
     private var reportFailed by mutableStateOf(false)
     private var lastSeen by mutableStateOf<String?>(null)
 
+    private var changeDelaySeconds by mutableIntStateOf(Prefs.DEFAULT_CHANGE_DELAY_SECONDS)
+    private var pendingChange by mutableStateOf<PendingChange?>(null)
+    private var pendingSeconds by mutableIntStateOf(0)
+    private var pendingCountdown: Job? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -84,6 +95,9 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch { prefs.activePass.collectLatest { activePass = it } }
         lifecycleScope.launch { prefs.waitSeconds.collectLatest { waitSeconds = it } }
         lifecycleScope.launch { prefs.passMinutes.collectLatest { passMinutes = it } }
+        lifecycleScope.launch {
+            prefs.changeDelaySeconds.collectLatest { changeDelaySeconds = it }
+        }
 
         setContent {
             DoormanTheme {
@@ -195,11 +209,15 @@ class MainActivity : ComponentActivity() {
         BlockingSettings(
             rules = rules,
             enabledScreenIds = enabledScreens,
-            onScreenToggled = { id, on ->
-                lifecycleScope.launch { prefs.setScreenEnabled(id, on) }
-            },
-            onPreset = { ids ->
-                lifecycleScope.launch { prefs.setEnabledScreens(ids, screenDefaults.keys) }
+            pendingLabel = (pendingChange as? PendingChange.Screen)
+                ?.let { change -> labelFor(labelKeyFor(change.id)) },
+            pendingSeconds = pendingSeconds,
+            changeDelaySeconds = changeDelaySeconds,
+            onScreenToggled = { id, on -> requestScreenChange(id, on) },
+            onPreset = { ids -> requestPreset(ids) },
+            onCancelPending = { cancelPendingChange() },
+            onChangeDelay = { seconds ->
+                lifecycleScope.launch { prefs.setChangeDelaySeconds(seconds) }
             },
             labelFor = ::labelFor,
         )
@@ -224,6 +242,68 @@ class MainActivity : ComponentActivity() {
             onShare = { shareReport() },
         )
     }
+
+    /**
+     * Weakening a block waits; strengthening one does not.
+     *
+     * The delay exists for the moment where the feed is one switch away and the
+     * switch is right there. Making it wait, and cancelling if you walk off,
+     * costs an impulse the few seconds it needs to pass. Putting the same
+     * friction on switching a block *on* would only discourage the decision
+     * worth encouraging.
+     */
+    private fun requestScreenChange(screenId: String, enabled: Boolean) {
+        val weakens = !enabled && screenId in enabledScreens
+        if (!weakens || changeDelaySeconds <= 0) {
+            lifecycleScope.launch { prefs.setScreenEnabled(screenId, enabled) }
+            return
+        }
+        startPending(PendingChange.Screen(screenId, enabled))
+    }
+
+    private fun requestPreset(ids: Set<String>) {
+        val weakens = (enabledScreens - ids).isNotEmpty()
+        if (!weakens || changeDelaySeconds <= 0) {
+            lifecycleScope.launch { prefs.setEnabledScreens(ids, screenDefaults.keys) }
+            return
+        }
+        startPending(PendingChange.Preset(ids))
+    }
+
+    private fun startPending(change: PendingChange) {
+        pendingCountdown?.cancel()
+        pendingChange = change
+        pendingSeconds = changeDelaySeconds
+        pendingCountdown = lifecycleScope.launch {
+            while (pendingSeconds > 0) {
+                delay(1_000)
+                pendingSeconds -= 1
+            }
+            applyPendingChange()
+        }
+    }
+
+    private fun applyPendingChange() {
+        when (val change = pendingChange) {
+            is PendingChange.Screen ->
+                lifecycleScope.launch { prefs.setScreenEnabled(change.id, change.enabled) }
+            is PendingChange.Preset ->
+                lifecycleScope.launch { prefs.setEnabledScreens(change.ids, screenDefaults.keys) }
+            null -> Unit
+        }
+        pendingChange = null
+        pendingSeconds = 0
+    }
+
+    private fun cancelPendingChange() {
+        pendingCountdown?.cancel()
+        pendingCountdown = null
+        pendingChange = null
+        pendingSeconds = 0
+    }
+
+    private fun labelKeyFor(screenId: String): String =
+        rules.apps.values.flatMap { it.screens }.firstOrNull { it.id == screenId }?.labelKey ?: ""
 
     /**
      * Gives the user five seconds to switch to the app that is misbehaving, then
@@ -299,6 +379,9 @@ class MainActivity : ComponentActivity() {
         super.onStop()
         countdown?.cancel()
         countdown = null
+        // Walking away abandons a pending change rather than letting it land
+        // while you are elsewhere.
+        cancelPendingChange()
         if (screen == Screen.UNLOCK && selectedPackage != null && secondsRemaining > 0) {
             wasReset = true
             secondsRemaining = waitSeconds

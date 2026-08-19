@@ -67,4 +67,13 @@
     <string name="diagnostics_failed">Nothing to capture. Is Doorman switched on?</string>
     <string name="action_share_report">Share the report</string>
     <string name="screen_yt_single_short" tools:ignore="UnusedResources">Scrolling on from a single Short</string>
+    <string name="section_change_delay">Changing these settings</string>
+    <string name="change_delay_explainer">Switching a block off waits before it takes effect, so a moment of impulse cannot undo a decision. Switching one on is immediate.</string>
+    <string name="change_delay_instant">Immediate</string>
+    <string name="change_delay_seconds">%1$d s</string>
+    <string name="change_delay_minutes">%1$d min</string>
+    <string name="pending_change_screen">Switching off %1$s in %2$d s</string>
+    <string name="pending_change_preset">Applying in %1$d s</string>
+    <string name="pending_change_hint">Leave this screen and the change is cancelled.</string>
+    <string name="action_cancel_change">Cancel</string>
 </resources>
