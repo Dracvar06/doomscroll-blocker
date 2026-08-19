@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_service_description">Doorman mira quina pantalla tens oberta a les aplicacions que triïs, per poder tapar els fluxos infinits deixant intactes els missatges, les cerques i els vídeos concrets.\n\nNomés llegeix l\'estructura de la pantalla — els noms dels elements que tens al davant. No llegeix mai els teus missatges, contrasenyes ni dades del compte. No es desa res, i no surt mai res del teu telèfon.</string>
+
+    <string name="home_tagline">Els missatges passen. El flux, no.</string>
+    <string name="status_enabled">Doorman està actiu</string>
+    <string name="status_enabled_body">El bloqueig funciona per a les pantalles que has activat.</string>
+    <string name="status_disabled">Doorman està aturat</string>
+    <string name="status_disabled_body">Doorman necessita accés d\'accessibilitat per veure quina pantalla tens oberta. No es recull res del que escrius o llegeixes.</string>
+    <string name="action_open_accessibility_settings">Obre la configuració d\'accessibilitat</string>
+
+    <string name="blocked_title">%1$s està bloquejat</string>
+    <string name="blocked_body">Has demanat a Doorman que no et deixi entrar aquí.</string>
+    <string name="action_go_back">Torna enrere</string>
+    <string name="blocked_hint_pass">Hi vols entrar igualment? Obre Doorman i espera un permís.</string>
+
+    <string name="app_youtube">YouTube</string>
+    <string name="screen_yt_shorts">Shorts</string>
+    <string name="screen_yt_home">Pàgina d\'inici</string>
+    <string name="screen_yt_subscriptions">Subscripcions</string>
+
+    <string name="section_blocking">Què bloqueja Doorman</string>
+    <string name="section_blocking_hint">Tot ho tries tu. Desactiva el que prefereixis conservar.</string>
+    <string name="preset_label">Configuracions ràpides</string>
+    <string name="preset_strict">Estricte</string>
+    <string name="preset_balanced">Equilibrat</string>
+    <string name="preset_nothing">Res</string>
+
+    <string name="section_pass">Entrar-hi igualment</string>
+    <string name="pass_explainer">Una pantalla bloquejada no ofereix cap sortida. Si realment hi has d\'entrar, véns aquí, esperes i obtens un permís curt.</string>
+    <string name="action_get_pass">Obtén un permís</string>
+    <string name="unlock_title">Espera un permís</string>
+    <string name="unlock_pick_app">Quina aplicació?</string>
+    <string name="unlock_waiting">Esperant… %1$d s</string>
+    <string name="unlock_leave_warning">Si surts d\'aquesta pantalla, l\'espera torna a començar.</string>
+    <string name="unlock_reset">Has sortit, així que l\'espera ha tornat a començar.</string>
+    <string name="pass_active_banner">%1$s està desbloquejat %2$d min més</string>
+    <string name="action_end_pass">Acaba el permís ara</string>
+    <string name="action_back">Enrere</string>
+    <plurals name="unlock_grant">
+        <item quantity="one">Deixa\'m entrar %1$d minut</item>
+        <item quantity="many">Deixa\'m entrar %1$d de minuts</item>
+        <item quantity="other">Deixa\'m entrar %1$d minuts</item>
+    </plurals>
+    <string name="app_instagram">Instagram</string>
+    <string name="screen_ig_reels">Reels</string>
+    <string name="screen_ig_feed">Pàgina d\'inici</string>
+    <string name="screen_ig_explore">Explora i cerca</string>
+    <string name="screen_ig_shared_reel">Seguir passant des d\'un reel enviat</string>
+    <string name="blocked_body_budget_spent">Aquell era el que t\'havien enviat. La resta ja és el flux.</string>
+    <string name="section_diagnostics">No funciona?</string>
+    <string name="diagnostics_explainer">Les aplicacions es redissenyen, i quan ho fan Doorman pot deixar de reconèixer una pantalla. Captura un informe i envia\'l al projecte perquè es pugui arreglar la regla.</string>
+    <string name="diagnostics_last_seen">Última pantalla reconeguda: %1$s</string>
+    <string name="diagnostics_last_seen_none">Doorman encara no ha mirat res.</string>
+    <string name="action_capture_report">Captura un informe</string>
+    <string name="diagnostics_capture_hint">Tens 5 segons per canviar a l\'aplicació que falla.</string>
+    <string name="diagnostics_capturing">Capturant en %1$d…</string>
+    <string name="diagnostics_captured">Informe desat. Només conté l\'estructura de la pantalla: cap text, cap missatge.</string>
+    <string name="diagnostics_failed">No hi ha res a capturar. Doorman està activat?</string>
+    <string name="action_share_report">Comparteix l\'informe</string>
+</resources>

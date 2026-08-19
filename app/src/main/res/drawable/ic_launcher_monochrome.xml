@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Single-colour silhouette for themed icons; the launcher supplies the tint. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#000000"
+        android:fillType="evenOdd"
+        android:pathData="M40,28 L68,28 A4,4 0 0 1 72,32 L72,80 L36,80 L36,32 A4,4 0 0 1 40,28 Z M64,52.5 a3.5,3.5 0 1,0 0,7 a3.5,3.5 0 1,0 0,-7 Z" />
+</vector>

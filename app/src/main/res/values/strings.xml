@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="app_name" translatable="false">Doorman</string>
+
+    <!-- Shown in Settings > Accessibility, and reused as the prominent
+         disclosure Google Play requires before the permission is requested.
+         It has to be true, specific, and readable by someone who is rightly
+         suspicious of an app asking to read their screen. -->
+    <string name="accessibility_service_description">Doorman watches which screen is open in apps you choose, so it can cover endless feeds while leaving messages, searches and individual videos alone.\n\nIt reads only the structure of the screen — the names of the elements in front of you. It never reads your messages, passwords or account details. Nothing is recorded, and nothing ever leaves your phone.</string>
+
+    <string name="home_tagline">Messages get through. The feed does not.</string>
+    <string name="status_enabled">Doorman is on</string>
+    <string name="status_enabled_body">Blocking is active for the screens you have switched on.</string>
+    <string name="status_disabled">Doorman is off</string>
+    <string name="status_disabled_body">Doorman needs accessibility access to see which screen is open. Nothing you type or read is collected.</string>
+    <string name="action_open_accessibility_settings">Open accessibility settings</string>
+
+    <!-- %1$s is the name of the blocked screen, e.g. "Shorts" -->
+    <string name="blocked_title">%1$s is blocked</string>
+    <string name="blocked_body">You asked Doorman to keep you out of here.</string>
+    <string name="action_go_back">Go back</string>
+    <string name="blocked_hint_pass">Need in anyway? Open Doorman and wait out a pass.</string>
+
+    <!-- Named by rules.json and resolved at runtime, so lint cannot see the
+         reference. res/raw/keep.xml stops resource shrinking removing them. -->
+    <string name="app_youtube" tools:ignore="UnusedResources">YouTube</string>
+    <string name="screen_yt_shorts" tools:ignore="UnusedResources">Shorts</string>
+    <string name="screen_yt_home" tools:ignore="UnusedResources">Home feed</string>
+    <string name="screen_yt_subscriptions" tools:ignore="UnusedResources">Subscriptions feed</string>
+
+    <string name="section_blocking">What Doorman blocks</string>
+    <string name="section_blocking_hint">Everything is your choice. Switch off anything you would rather keep.</string>
+    <string name="preset_label">Presets</string>
+    <string name="preset_strict">Strict</string>
+    <string name="preset_balanced">Balanced</string>
+    <string name="preset_nothing">Nothing</string>
+
+    <string name="section_pass">Getting in anyway</string>
+    <string name="pass_explainer">A blocked screen offers no way past it. If you really need in, you come here, wait, and get a short pass.</string>
+    <string name="action_get_pass">Get a pass</string>
+    <string name="unlock_title">Wait for a pass</string>
+    <string name="unlock_pick_app">Which app?</string>
+    <string name="unlock_waiting">Waiting… %1$d s</string>
+    <string name="unlock_leave_warning">Leave this screen and the wait starts again.</string>
+    <string name="unlock_reset">You left, so the wait restarted.</string>
+    <string name="pass_active_banner">%1$s is unlocked for another %2$d min</string>
+    <string name="action_end_pass">End the pass now</string>
+    <string name="action_back">Back</string>
+    <plurals name="unlock_grant">
+        <item quantity="one">Let me in for %1$d minute</item>
+        <item quantity="other">Let me in for %1$d minutes</item>
+    </plurals>
+    <string name="app_instagram" tools:ignore="UnusedResources">Instagram</string>
+    <string name="screen_ig_reels" tools:ignore="UnusedResources">Reels</string>
+    <string name="screen_ig_feed" tools:ignore="UnusedResources">Home feed</string>
+    <string name="screen_ig_explore" tools:ignore="UnusedResources">Explore and search</string>
+    <string name="screen_ig_shared_reel" tools:ignore="UnusedResources">Scrolling on from a sent reel</string>
+    <string name="blocked_body_budget_spent">That was the one you were sent. The rest is just the feed.</string>
+    <string name="section_diagnostics">Something not working?</string>
+    <string name="diagnostics_explainer">Apps redesign themselves, and when they do Doorman can stop recognising a screen. Capture a report and send it to the project so the rule can be fixed.</string>
+    <string name="diagnostics_last_seen">Last screen Doorman recognised: %1$s</string>
+    <string name="diagnostics_last_seen_none">Doorman has not looked at anything yet.</string>
+    <string name="action_capture_report">Capture a report</string>
+    <string name="diagnostics_capture_hint">You have 5 seconds to switch to the app that is misbehaving.</string>
+    <string name="diagnostics_capturing">Capturing in %1$d…</string>
+    <string name="diagnostics_captured">Report saved. It contains the screen\'s structure only — no text, no messages.</string>
+    <string name="diagnostics_failed">Nothing to capture. Is Doorman switched on?</string>
+    <string name="action_share_report">Share the report</string>
+</resources>

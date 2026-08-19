@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  App and screen labels are named by rules.json and resolved at runtime by name,
+  so no code references them and resource shrinking would happily delete them.
+  Every block screen would then show a raw key instead of "Shorts".
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@string/app_*,@string/screen_*" />

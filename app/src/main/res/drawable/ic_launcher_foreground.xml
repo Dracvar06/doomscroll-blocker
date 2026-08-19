@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A door, slightly ajar. Foreground art stays inside the central 72x72 safe
+     zone of the 108x108 canvas so no launcher mask clips it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M40,28 L68,28 A4,4 0 0 1 72,32 L72,80 L36,80 L36,32 A4,4 0 0 1 40,28 Z" />
+    <path
+        android:fillColor="#1B5E4A"
+        android:pathData="M64,56 m-3.5,0 a3.5,3.5 0 1,0 7,0 a3.5,3.5 0 1,0 -7,0" />
+</vector>

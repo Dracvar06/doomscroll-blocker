@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only the dumps directory is exposed, and only redacted reports are written
+     there by the in-app path. -->
+<paths>
+    <external-files-path name="reports" path="dumps/" />
+</paths>

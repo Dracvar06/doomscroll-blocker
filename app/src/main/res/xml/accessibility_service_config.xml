@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Doorman's accessibility service declaration.
+
+  accessibilityEventTypes: window-state changes alone are not enough. Switching
+  from YouTube's home feed to Shorts happens inside one Activity and raises no
+  window-state event, so content changes are needed too. Those fire constantly
+  on a video feed, so they are coalesced with a ceiling and discarded at once for
+  any package we do not act on. typeViewScrolled is what tells a reel someone
+  sent you apart from the feed it sits in: the screen is allowed until a swipe
+  moves past it.
+
+  accessibilityFlags: flagReportViewIds is mandatory. Without it
+  getViewIdResourceName() returns null on every node and the whole detection
+  scheme is blind.
+
+  isAccessibilityTool is deliberately false. That flag is a claim about serving
+  users with disabilities; claiming it for a wellbeing app is a misrepresentation
+  Google Play can act on. We declare honestly and disclose well instead.
+
+  There is deliberately no android:packageNames filter. Restricting events to the
+  three target apps would mean never seeing the user arrive FROM another app, and
+  "did you get here from a WhatsApp link or from the Reels tab?" is exactly what
+  tells a shared reel apart from browsing (plan section 2). Events from other
+  packages are discarded in code before any tree walk happens.
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:description="@string/accessibility_service_description"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewScrolled"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagReportViewIds|flagRetrieveInteractiveWindows"
+    android:canRetrieveWindowContent="true"
+    android:isAccessibilityTool="false"
+    tools:targetApi="31"
+    android:notificationTimeout="100" />

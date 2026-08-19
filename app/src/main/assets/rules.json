@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "apps": {
+    "com.google.android.youtube": {
+      "labelKey": "app_youtube",
+      "screens": [
+        {
+          "id": "yt_shorts",
+          "labelKey": "screen_yt_shorts",
+          "defaultEnabled": true,
+          "match": {
+            "anyViewId": [
+              "reel_recycler",
+              "reel_player_page_container"
+            ]
+          }
+        },
+        {
+          "id": "yt_home_feed",
+          "labelKey": "screen_yt_home",
+          "defaultEnabled": true,
+          "match": {
+            "selectedTab": {
+              "under": "pivot_bar",
+              "index": 0
+            },
+            "noneViewId": [
+              "reel_recycler",
+              "watch_panel",
+              "search_query"
+            ]
+          }
+        },
+        {
+          "id": "yt_subscriptions_feed",
+          "labelKey": "screen_yt_subscriptions",
+          "defaultEnabled": false,
+          "match": {
+            "selectedTab": {
+              "under": "pivot_bar",
+              "index": 3
+            },
+            "noneViewId": [
+              "reel_recycler",
+              "watch_panel",
+              "search_query"
+            ]
+          }
+        }
+      ],
+      "keepVisibleViewIds": [
+        "pivot_bar"
+      ]
+    },
+    "com.instagram.android": {
+      "labelKey": "app_instagram",
+      "screens": [
+        {
+          "id": "ig_shared_reel",
+          "labelKey": "screen_ig_shared_reel",
+          "defaultEnabled": true,
+          "verdict": "ALLOW_ONCE",
+          "budget": 1,
+          "match": {
+            "allViewId": [
+              "clips_viewer_view_pager",
+              "sender_username_or_fullname"
+            ],
+            "noneViewId": [
+              "clips_tab"
+            ]
+          }
+        },
+        {
+          "id": "ig_reels",
+          "labelKey": "screen_ig_reels",
+          "defaultEnabled": true,
+          "match": {
+            "selectedViewId": [
+              "clips_tab"
+            ]
+          }
+        },
+        {
+          "id": "ig_feed",
+          "labelKey": "screen_ig_feed",
+          "defaultEnabled": true,
+          "match": {
+            "selectedViewId": [
+              "feed_tab"
+            ]
+          }
+        },
+        {
+          "id": "ig_explore",
+          "labelKey": "screen_ig_explore",
+          "defaultEnabled": true,
+          "match": {
+            "selectedViewId": [
+              "search_tab"
+            ]
+          }
+        }
+      ],
+      "keepVisibleViewIds": [
+        "feed_tab",
+        "clips_tab",
+        "direct_tab",
+        "search_tab",
+        "profile_tab"
+      ]
+    }
+  }
+}

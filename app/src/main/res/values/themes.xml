@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- DayNight so the app follows the system theme. The platform ships no
+         NoActionBar variant of it, so the action bar is switched off by hand
+         rather than dropping back to a light-only parent. -->
+    <style name="Theme.Doorman" parent="android:Theme.DeviceDefault.DayNight">
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+</resources>
