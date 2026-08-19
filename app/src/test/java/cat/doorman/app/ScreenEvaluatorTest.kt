@@ -33,16 +33,31 @@ class ScreenEvaluatorTest {
     }
 
     private val allScreens = setOf(
-        "yt_shorts", "yt_home_feed", "yt_subscriptions_feed",
+        "yt_shorts", "yt_home_feed", "yt_subscriptions_feed", "yt_single_short",
         "ig_reels", "ig_feed", "ig_explore", "ig_single_reel",
     )
     private val defaults =
-        setOf("yt_shorts", "yt_home_feed", "ig_reels", "ig_feed", "ig_explore", "ig_single_reel")
+        setOf(
+            "yt_shorts", "yt_home_feed", "yt_single_short",
+            "ig_reels", "ig_feed", "ig_explore", "ig_single_reel",
+        )
 
     @Test
     fun `shorts is blocked`() {
         val verdict = ScreenEvaluator.evaluate(fixture("youtube-shorts"), rules(), defaults)
         assertTrue(verdict.blocked)
+        assertEquals("yt_shorts", verdict.screenId)
+    }
+
+    /**
+     * The Shorts tab keeps the bottom navigation bar; a Short opened on its own
+     * does not. Same discriminator as Instagram, so the two apps behave alike:
+     * browsing is blocked, a single item you opened deliberately is not.
+     */
+    @Test
+    fun `the shorts tab is blocked outright, not merely limited`() {
+        val verdict = ScreenEvaluator.evaluate(fixture("youtube-shorts"), rules(), defaults)
+        assertEquals(ScreenEvaluator.Outcome.BLOCK, verdict.outcome)
         assertEquals("yt_shorts", verdict.screenId)
     }
 

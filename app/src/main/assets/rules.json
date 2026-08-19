@@ -5,6 +5,22 @@
       "labelKey": "app_youtube",
       "screens": [
         {
+          "id": "yt_single_short",
+          "labelKey": "screen_yt_single_short",
+          "defaultEnabled": true,
+          "verdict": "ALLOW_ONCE",
+          "budget": 1,
+          "match": {
+            "anyViewId": [
+              "reel_recycler",
+              "reel_player_page_container"
+            ],
+            "noneViewId": [
+              "pivot_bar"
+            ]
+          }
+        },
+        {
           "id": "yt_shorts",
           "labelKey": "screen_yt_shorts",
           "defaultEnabled": true,

@@ -17,8 +17,9 @@ Free, open source, and translated. No ads, no subscription, no telemetry.
 
 **YouTube and Instagram both work.**
 
-- YouTube: Shorts and the home feed are blocked. Watch page, search,
-  subscriptions and library are left alone.
+- YouTube: the Shorts feed and the home feed are blocked. Watch page, search,
+  subscriptions and library are left alone. A Short opened on its own -- from a
+  link someone sent you -- plays, and the swipe to the next one is blocked.
 - Instagram: Reels, the home feed, and Explore/search are blocked. **Direct
   messages and your profile are left alone**, and the block never covers the tab
   bar, so your inbox is always one tap away.

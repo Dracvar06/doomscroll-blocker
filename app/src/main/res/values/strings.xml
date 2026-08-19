@@ -66,4 +66,5 @@
     <string name="diagnostics_captured">Report saved. It contains the screen\'s structure only — no text, no messages.</string>
     <string name="diagnostics_failed">Nothing to capture. Is Doorman switched on?</string>
     <string name="action_share_report">Share the report</string>
+    <string name="screen_yt_single_short" tools:ignore="UnusedResources">Scrolling on from a single Short</string>
 </resources>

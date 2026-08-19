@@ -58,4 +58,5 @@
     <string name="diagnostics_captured">Informe desat. Només conté l\'estructura de la pantalla: cap text, cap missatge.</string>
     <string name="diagnostics_failed">No hi ha res a capturar. Doorman està activat?</string>
     <string name="action_share_report">Comparteix l\'informe</string>
+    <string name="screen_yt_single_short">Seguir passant des d\'un Short obert</string>
 </resources>
