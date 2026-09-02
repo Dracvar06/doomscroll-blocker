@@ -87,6 +87,34 @@ class OverlayBoundsTest {
         assertNotNull("must still stop above the tab bar", band.heightPx)
     }
 
+    /**
+     * Two different wants, two switches. Hiding the row on the home feed must
+     * not decide whether a story opened from a message or a search plays, and
+     * blocking stories must not decide whether the row is visible.
+     */
+    @Test
+    fun `the stories row switch covers the row without touching stories themselves`() {
+        val app = rules().apps["com.instagram.android"]!!
+        val feedRule = app.screens.first { it.id == "ig_feed" }
+        val snapshot = fixture("instagram-home-with-stories")
+        val trayBottom = snapshot.nodes
+            .filter { it.viewIdMatches("outer_container") && it.visible }
+            .mapNotNull { it.bottomPx() }.maxOrNull()!!
+
+        fun band(enabled: Set<String>) = OverlayBounds.compute(
+            snapshot,
+            OverlayBounds.topAnchorsFor(feedRule, app.keepVisibleTopViewIds, enabled),
+            app.keepVisibleViewIds,
+        )
+
+        // Off: the row survives the block.
+        assertEquals(trayBottom, band(setOf("ig_feed")).topPx)
+        // On: the block extends over it.
+        assertEquals(0, band(setOf("ig_feed", "ig_home_stories_tray")).topPx)
+        // Blocking stories outright is a separate matter and moves nothing.
+        assertEquals(trayBottom, band(setOf("ig_feed", "ig_stories")).topPx)
+    }
+
     /** Anchors are per screen: Explore's search bar must not move the feed block. */
     @Test
     fun `each screen uses its own anchor`() {

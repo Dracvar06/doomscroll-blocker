@@ -61,7 +61,21 @@ data class ScreenRule(
      * that marks the stories tray is generic enough for that to happen.
      */
     val keepVisibleTopViewIds: List<String>? = null,
-    val match: Matcher,
+    /**
+     * The id of a switch that, when the user turns it on, cancels
+     * [keepVisibleTopViewIds] so the block covers those views too.
+     *
+     * Hiding the stories row on the home feed and blocking stories outright are
+     * different wants: someone may not want the row tempting them every time
+     * they open the app, while still wanting to watch a story a friend sends
+     * them. So the row is an anchor that a separate switch can withdraw.
+     */
+    val keepVisibleTopSuppressedBy: String? = null,
+    /**
+     * Null means this entry is not a screen at all: it is a switch that changes
+     * how another block behaves, and it must never match anything by itself.
+     */
+    val match: Matcher? = null,
 )
 
 /**

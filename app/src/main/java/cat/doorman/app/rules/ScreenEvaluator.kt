@@ -50,8 +50,11 @@ object ScreenEvaluator {
         enabledScreenIds: Set<String>,
     ): Verdict {
         val app = rules.apps[snapshot.packageName] ?: return Verdict.ALLOW
-        val rule = app.screens.firstOrNull {
-            it.id in enabledScreenIds && matches(snapshot, it.matcher())
+        val rule = app.screens.firstOrNull { rule ->
+            // A rule with no matcher is a switch that modifies another block,
+            // not a screen; it must never block anything on its own.
+            val matcher = rule.match ?: return@firstOrNull false
+            rule.id in enabledScreenIds && matches(snapshot, matcher)
         } ?: return Verdict.ALLOW
         val outcome =
             if (rule.verdict == "ALLOW_ONCE") Outcome.ALLOW_ONCE else Outcome.BLOCK
@@ -62,8 +65,6 @@ object ScreenEvaluator {
             budget = rule.budget,
         )
     }
-
-    private fun ScreenRule.matcher(): Matcher = match
 
     fun matches(snapshot: ScreenSnapshot, matcher: Matcher): Boolean {
         matcher.selectedViewId?.let { wanted ->

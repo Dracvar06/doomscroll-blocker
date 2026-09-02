@@ -23,6 +23,23 @@ import cat.doorman.app.model.ScreenSnapshot
  */
 object OverlayBounds {
 
+    /**
+     * Which top anchors apply, given what the user has switched on.
+     *
+     * A rule can name a switch that withdraws its anchors. That is how "hide the
+     * stories row on the home feed" works: the row stops being protected and the
+     * block extends over it, without changing whether stories themselves are
+     * watchable. Kept pure so both outcomes are testable.
+     */
+    fun topAnchorsFor(
+        rule: ScreenRule?,
+        appLevelAnchors: List<String>,
+        enabledScreenIds: Set<String>,
+    ): List<String> {
+        if (rule?.keepVisibleTopSuppressedBy?.let { it in enabledScreenIds } == true) return emptyList()
+        return rule?.keepVisibleTopViewIds ?: appLevelAnchors
+    }
+
     /** [heightPx] of null means "cover everything below [topPx]". */
     data class Band(val topPx: Int, val heightPx: Int?)
 

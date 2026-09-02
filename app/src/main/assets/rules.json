@@ -121,7 +121,13 @@
           },
           "keepVisibleTopViewIds": [
             "outer_container"
-          ]
+          ],
+          "keepVisibleTopSuppressedBy": "ig_home_stories_tray"
+        },
+        {
+          "id": "ig_home_stories_tray",
+          "labelKey": "screen_ig_home_stories_tray",
+          "defaultEnabled": false
         },
         {
           "id": "ig_explore",

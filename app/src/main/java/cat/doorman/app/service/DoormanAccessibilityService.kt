@@ -370,8 +370,11 @@ class DoormanAccessibilityService : AccessibilityService() {
         val rule = app?.screens?.firstOrNull { it.id == screenId }
         return OverlayBounds.compute(
             snapshot = snapshot,
-            keepVisibleTopViewIds = rule?.keepVisibleTopViewIds
-                ?: app?.keepVisibleTopViewIds.orEmpty(),
+            keepVisibleTopViewIds = OverlayBounds.topAnchorsFor(
+                rule = rule,
+                appLevelAnchors = app?.keepVisibleTopViewIds.orEmpty(),
+                enabledScreenIds = enabledScreenIds,
+            ),
             keepVisibleViewIds = app?.keepVisibleViewIds.orEmpty(),
         )
     }

@@ -266,6 +266,23 @@ class ScreenEvaluatorTest {
         assertEquals("ig_stories", verdict.screenId)
     }
 
+    /**
+     * The stories-row switch changes how the feed block is drawn; it is not a
+     * screen and must never block anything by itself. If it ever did, turning it
+     * on would black out whatever happened to be in front.
+     */
+    @Test
+    fun `a switch with no matcher never blocks anything`() {
+        val trayOnly = setOf("ig_home_stories_tray")
+        for (screen in listOf(
+            "instagram-home-with-stories", "instagram-story-viewer", "instagram-dm-thread",
+            "instagram-search-active", "instagram-profile",
+        )) {
+            val verdict = ScreenEvaluator.evaluate(fixture(screen), rules(), trayOnly)
+            assertEquals(screen, ScreenEvaluator.Outcome.ALLOW, verdict.outcome)
+        }
+    }
+
     @Test
     fun `an unknown app is never blocked`() {
         val foreign = fixture("youtube-shorts").copy(packageName = "com.example.other")
