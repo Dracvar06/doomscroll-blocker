@@ -90,6 +90,17 @@
           }
         },
         {
+          "id": "ig_stories",
+          "labelKey": "screen_ig_stories",
+          "defaultEnabled": false,
+          "verdict": "BLOCK",
+          "match": {
+            "visibleViewId": [
+              "reel_viewer_root"
+            ]
+          }
+        },
+        {
           "id": "ig_reels",
           "labelKey": "screen_ig_reels",
           "defaultEnabled": true,
@@ -107,7 +118,10 @@
             "selectedViewId": [
               "feed_tab"
             ]
-          }
+          },
+          "keepVisibleTopViewIds": [
+            "outer_container"
+          ]
         },
         {
           "id": "ig_explore",
@@ -117,7 +131,10 @@
             "selectedViewId": [
               "search_tab"
             ]
-          }
+          },
+          "keepVisibleTopViewIds": [
+            "action_bar_search_edit_text"
+          ]
         }
       ],
       "keepVisibleViewIds": [

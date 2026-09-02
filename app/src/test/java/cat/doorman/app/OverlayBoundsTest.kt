@@ -66,6 +66,37 @@ class OverlayBoundsTest {
         )
     }
 
+    /**
+     * Blocking the home feed used to swallow the stories tray with it. A story
+     * is one person's post, not a feed, so the block starts below the tray.
+     */
+    @Test
+    fun `the home feed block leaves the stories tray reachable`() {
+        val app = rules().apps["com.instagram.android"]!!
+        val rule = app.screens.first { it.id == "ig_feed" }
+        val snapshot = fixture("instagram-home-with-stories")
+        val band = OverlayBounds.compute(
+            snapshot,
+            rule.keepVisibleTopViewIds ?: app.keepVisibleTopViewIds,
+            app.keepVisibleViewIds,
+        )
+        val trayBottom = snapshot.nodes
+            .filter { it.viewIdMatches("outer_container") && it.visible }
+            .mapNotNull { it.bottomPx() }.maxOrNull()!!
+        assertEquals("must start exactly below the stories tray", trayBottom, band.topPx)
+        assertNotNull("must still stop above the tab bar", band.heightPx)
+    }
+
+    /** Anchors are per screen: Explore's search bar must not move the feed block. */
+    @Test
+    fun `each screen uses its own anchor`() {
+        val app = rules().apps["com.instagram.android"]!!
+        val feedRule = app.screens.first { it.id == "ig_feed" }
+        val exploreRule = app.screens.first { it.id == "ig_explore" }
+        assertEquals(listOf("outer_container"), feedRule.keepVisibleTopViewIds)
+        assertEquals(listOf("action_bar_search_edit_text"), exploreRule.keepVisibleTopViewIds)
+    }
+
     @Test
     fun `youtube's blocked feed leaves its tab bar reachable`() {
         val band = bandFor("youtube-home", "com.google.android.youtube")

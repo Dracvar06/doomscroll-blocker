@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Languages Doorman ships. Android uses this for the per-app language picker
+     in system settings, and the in-app picker offers the same list. -->
 <locale-config xmlns:android="http://schemas.android.com/apk/res/android">
     <locale android:name="en" />
     <locale android:name="ca" />
+    <locale android:name="es" />
 </locale-config>

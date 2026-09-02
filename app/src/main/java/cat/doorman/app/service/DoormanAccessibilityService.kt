@@ -296,7 +296,7 @@ class DoormanAccessibilityService : AccessibilityService() {
                 overlay.show(
                     verdict.screenId,
                     labelFor(verdict.labelKey),
-                    band = bandFor(snapshot),
+                    band = bandFor(snapshot, verdict.screenId),
                     bodyRes = R.string.blocked_body_budget_spent,
                 )
             }
@@ -305,7 +305,11 @@ class DoormanAccessibilityService : AccessibilityService() {
         budgetKey = null
         lastEvaluatedScreenId = verdict.screenId
         if (verdict.blocked && verdict.screenId != null) {
-            overlay.show(verdict.screenId, labelFor(verdict.labelKey), band = bandFor(snapshot))
+            overlay.show(
+                verdict.screenId,
+                labelFor(verdict.labelKey),
+                band = bandFor(snapshot, verdict.screenId),
+            )
         } else if (overlay.isShowing) {
             overlay.hide()
         }
@@ -358,11 +362,16 @@ class DoormanAccessibilityService : AccessibilityService() {
      * The slice of screen this block should cover, leaving the search bar above
      * and the tab bar below reachable.
      */
-    private fun bandFor(snapshot: cat.doorman.app.model.ScreenSnapshot): OverlayBounds.Band {
+    private fun bandFor(
+        snapshot: cat.doorman.app.model.ScreenSnapshot,
+        screenId: String?,
+    ): OverlayBounds.Band {
         val app = rules.apps[snapshot.packageName]
+        val rule = app?.screens?.firstOrNull { it.id == screenId }
         return OverlayBounds.compute(
             snapshot = snapshot,
-            keepVisibleTopViewIds = app?.keepVisibleTopViewIds.orEmpty(),
+            keepVisibleTopViewIds = rule?.keepVisibleTopViewIds
+                ?: app?.keepVisibleTopViewIds.orEmpty(),
             keepVisibleViewIds = app?.keepVisibleViewIds.orEmpty(),
         )
     }

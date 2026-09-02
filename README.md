@@ -11,7 +11,9 @@ charge a subscription for this.
 
 Doorman blocks *screens*, not apps. The feed is blocked, the inbox is not.
 
-Free, open source, and translated. No ads, no subscription, no telemetry.
+Free, open source, and translated -- English, Catalan and Spanish, following
+your phone's language, with an in-app picker on Android 13 and later. No ads, no
+subscription, no telemetry.
 
 ## Status
 
@@ -21,9 +23,10 @@ Free, open source, and translated. No ads, no subscription, no telemetry.
   subscriptions and library are left alone. A Short opened on its own -- from a
   link someone sent you -- plays, and the swipe to the next one is blocked.
 - Instagram: Reels, the home feed, and the Explore grid are blocked. **Direct
-  messages, your profile, and searching for people are left alone.** The block
-  never covers the tab bar or the search bar, so your inbox is one tap away and
-  you can still look somebody up.
+  messages, your profile, stories and searching for people are left alone.** The
+  block never covers the tab bar, the search bar or the stories tray, so your
+  inbox is one tap away, you can look somebody up, and a story a friend posted
+  still plays. Stories can be blocked too, with their own switch, off by default.
 - **Any single reel you open plays, and stops there.** From a conversation, from
   a post in the feed, from someone's story, from a link -- it plays, and the
   swipe to the next one is blocked. Go back and open another reel deliberately
@@ -141,6 +144,10 @@ Making that work needs `FLAG_LAYOUT_IN_SCREEN`, `FLAG_LAYOUT_NO_LIMITS` and
 `fitInsetsTypes = 0`. Without them the overlay window is inset below the status
 bar while the measured tab-bar coordinate is absolute, and the mismatch is
 exactly enough to swallow the tab bar.
+
+One more naming trap: Instagram calls the **stories** viewer `reel_viewer_*`,
+which predates Reels the product (`clips_*` everywhere). Matching the wrong
+prefix blocks a completely different screen.
 
 Re-derive fingerprints after an app update with `./tools/dump-screen.sh <label>`
 and `./tools/compare-dumps.py dumps/**/*.json`.

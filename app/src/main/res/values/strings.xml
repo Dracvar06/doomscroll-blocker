@@ -77,4 +77,11 @@
     <string name="pending_change_hint">Leave this screen and the change is cancelled.</string>
     <string name="action_cancel_change">Cancel</string>
     <string name="pending_change_delay">Shortening the wait in %1$d s</string>
+    <string name="screen_ig_stories" tools:ignore="UnusedResources">Stories</string>
+    <string name="section_language">Language</string>
+    <string name="language_system">Phone\'s language</string>
+    <string name="language_follows_phone">Doorman follows your phone\'s language. Android 13 and later can also set a language just for Doorman, in Settings.</string>
+    <string name="language_english" translatable="false">English</string>
+    <string name="language_catalan" translatable="false">Català</string>
+    <string name="language_spanish" translatable="false">Español</string>
 </resources>

@@ -4,8 +4,11 @@ import android.accessibilityservice.AccessibilityServiceInfo
 import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Context
+import android.app.LocaleManager
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
+import android.os.LocaleList
 import android.provider.Settings
 import android.view.accessibility.AccessibilityManager
 import androidx.activity.ComponentActivity
@@ -239,6 +242,12 @@ class MainActivity : ComponentActivity() {
             Text(stringResource(R.string.action_get_pass))
         }
 
+        LanguageSection(
+            supported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU,
+            currentTag = appLocaleTag(),
+            onPick = { tag -> setAppLocale(tag) },
+        )
+
         DiagnosticsSection(
             lastSeen = lastSeen,
             countdown = reportCountdown,
@@ -325,6 +334,23 @@ class MainActivity : ComponentActivity() {
 
     private fun labelKeyFor(screenId: String): String =
         rules.apps.values.flatMap { it.screens }.firstOrNull { it.id == screenId }?.labelKey ?: ""
+
+    /** Null means "whatever the phone is set to". */
+    private fun appLocaleTag(): String? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return null
+        val locales = getSystemService(LocaleManager::class.java)?.applicationLocales
+        return locales?.takeIf { !it.isEmpty }?.get(0)?.language
+    }
+
+    /**
+     * Setting this makes Android recreate the activity in the new language, so
+     * there is nothing to refresh by hand.
+     */
+    private fun setAppLocale(tag: String?) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        getSystemService(LocaleManager::class.java)?.applicationLocales =
+            if (tag == null) LocaleList.getEmptyLocaleList() else LocaleList.forLanguageTags(tag)
+    }
 
     /**
      * Gives the user five seconds to switch to the app that is misbehaving, then

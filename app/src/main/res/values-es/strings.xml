@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_service_description">Doorman mira qué pantalla tienes abierta en las aplicaciones que elijas, para poder tapar los flujos infinitos dejando intactos los mensajes, las búsquedas y los vídeos concretos.\n\nSolo lee la estructura de la pantalla — los nombres de los elementos que tienes delante. Nunca lee tus mensajes, contraseñas ni datos de la cuenta. No se guarda nada, y nunca sale nada de tu teléfono.</string>
+
+    <string name="home_tagline">Los mensajes pasan. El flujo, no.</string>
+    <string name="status_enabled">Doorman está activo</string>
+    <string name="status_enabled_body">El bloqueo funciona para las pantallas que has activado.</string>
+    <string name="status_disabled">Doorman está parado</string>
+    <string name="status_disabled_body">Doorman necesita acceso de accesibilidad para ver qué pantalla tienes abierta. No se recoge nada de lo que escribes o lees.</string>
+    <string name="action_open_accessibility_settings">Abre la configuración de accesibilidad</string>
+
+    <string name="blocked_title">%1$s está bloqueado</string>
+    <string name="blocked_body">Le pediste a Doorman que no te dejara entrar aquí.</string>
+    <string name="action_go_back">Vuelve atrás</string>
+    <string name="blocked_hint_pass">¿Quieres entrar igualmente? Abre Doorman y espera un permiso.</string>
+
+    <string name="app_youtube">YouTube</string>
+    <string name="screen_yt_shorts">Shorts</string>
+    <string name="screen_yt_home">Página de inicio</string>
+    <string name="screen_yt_subscriptions">Suscripciones</string>
+    <string name="screen_yt_single_short">Seguir pasando desde un Short abierto</string>
+
+    <string name="section_blocking">Qué bloquea Doorman</string>
+    <string name="section_blocking_hint">Todo lo eliges tú. Desactiva lo que prefieras conservar.</string>
+    <string name="preset_label">Configuraciones rápidas</string>
+    <string name="preset_strict">Estricto</string>
+    <string name="preset_balanced">Equilibrado</string>
+    <string name="preset_nothing">Nada</string>
+
+    <string name="section_pass">Entrar igualmente</string>
+    <string name="pass_explainer">Una pantalla bloqueada no ofrece ninguna salida. Si de verdad tienes que entrar, vienes aquí, esperas y obtienes un permiso corto.</string>
+    <string name="action_get_pass">Obtén un permiso</string>
+    <string name="unlock_title">Espera un permiso</string>
+    <string name="unlock_pick_app">¿Qué aplicación?</string>
+    <string name="unlock_waiting">Esperando… %1$d s</string>
+    <string name="unlock_leave_warning">Si sales de esta pantalla, la espera vuelve a empezar.</string>
+    <string name="unlock_reset">Has salido, así que la espera ha vuelto a empezar.</string>
+    <string name="pass_active_banner">%1$s está desbloqueado %2$d min más</string>
+    <string name="action_end_pass">Termina el permiso ahora</string>
+    <string name="action_back">Atrás</string>
+
+    <string name="app_instagram">Instagram</string>
+    <string name="screen_ig_reels">Reels</string>
+    <string name="screen_ig_feed">Página de inicio</string>
+    <string name="screen_ig_explore">Explora y busca</string>
+    <string name="screen_ig_single_reel">Seguir pasando desde un reel abierto</string>
+    <string name="screen_ig_stories">Historias</string>
+    <string name="blocked_body_budget_spent">Ya has visto el que habías abierto. El resto ya es el flujo.</string>
+
+    <string name="section_diagnostics">¿No funciona?</string>
+    <string name="diagnostics_explainer">Las aplicaciones se rediseñan, y cuando lo hacen Doorman puede dejar de reconocer una pantalla. Captura un informe y envíalo al proyecto para que se pueda arreglar la regla.</string>
+    <string name="diagnostics_last_seen">Última pantalla reconocida: %1$s</string>
+    <string name="diagnostics_last_seen_none">Doorman todavía no ha mirado nada.</string>
+    <string name="action_capture_report">Captura un informe</string>
+    <string name="diagnostics_capture_hint">Tienes 5 segundos para cambiar a la aplicación que falla.</string>
+    <string name="diagnostics_capturing">Capturando en %1$d…</string>
+    <string name="diagnostics_captured">Informe guardado. Solo contiene la estructura de la pantalla: ningún texto, ningún mensaje.</string>
+    <string name="diagnostics_failed">No hay nada que capturar. ¿Doorman está activado?</string>
+    <string name="action_share_report">Comparte el informe</string>
+
+    <string name="section_change_delay">Cambiar esta configuración</string>
+    <string name="change_delay_explainer">Desactivar un bloqueo espera antes de hacer efecto, para que un impulso no pueda deshacer una decisión. Activarlo es inmediato.</string>
+    <string name="change_delay_instant">Inmediato</string>
+    <string name="change_delay_seconds">%1$d s</string>
+    <string name="change_delay_minutes">%1$d min</string>
+    <string name="pending_change_screen">Se desactivará %1$s en %2$d s</string>
+    <string name="pending_change_preset">Se aplicará en %1$d s</string>
+    <string name="pending_change_delay">La espera se acortará en %1$d s</string>
+    <string name="pending_change_hint">Si sales de esta pantalla, el cambio se cancela.</string>
+    <string name="action_cancel_change">Cancela</string>
+
+    <plurals name="unlock_grant">
+        <item quantity="one">Déjame entrar %1$d minuto</item>
+        <item quantity="many">Déjame entrar %1$d de minutos</item>
+        <item quantity="other">Déjame entrar %1$d minutos</item>
+    </plurals>
+    <string name="section_language">Idioma</string>
+    <string name="language_system">Idioma del teléfono</string>
+    <string name="language_follows_phone">Doorman sigue el idioma del teléfono. En Android 13 y posteriores también puedes poner un idioma solo para Doorman, en la configuración.</string>
+</resources>

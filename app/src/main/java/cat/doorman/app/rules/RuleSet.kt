@@ -51,6 +51,16 @@ data class ScreenRule(
      */
     val verdict: String = "BLOCK",
     val budget: Int = 1,
+    /**
+     * Views this particular block must stay clear of at the top of the screen,
+     * overriding the app-wide list.
+     *
+     * Anchors belong to a screen, not to an app. The home feed's anchor is the
+     * stories tray; Explore's is the search bar. Pooling them app-wide would let
+     * one screen's anchor push another screen's block out of place, and the id
+     * that marks the stories tray is generic enough for that to happen.
+     */
+    val keepVisibleTopViewIds: List<String>? = null,
     val match: Matcher,
 )
 

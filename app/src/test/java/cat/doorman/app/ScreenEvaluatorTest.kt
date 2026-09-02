@@ -32,15 +32,19 @@ class ScreenEvaluatorTest {
         return json.decodeFromString(text)
     }
 
-    private val allScreens = setOf(
-        "yt_shorts", "yt_home_feed", "yt_subscriptions_feed", "yt_single_short",
-        "ig_reels", "ig_feed", "ig_explore", "ig_single_reel",
-    )
-    private val defaults =
-        setOf(
-            "yt_shorts", "yt_home_feed", "yt_single_short",
-            "ig_reels", "ig_feed", "ig_explore", "ig_single_reel",
-        )
+    /**
+     * Taken from the shipped rules rather than written out here, so the tests
+     * cannot drift from what users actually get. A hand-maintained copy of this
+     * list already went wrong once: a screen that ships switched off was listed
+     * as a default, and the suite asserted the opposite of the intended
+     * behaviour.
+     */
+    private val allScreens: Set<String>
+        get() = rules().apps.values.flatMap { it.screens }.map { it.id }.toSet()
+
+    private val defaults: Set<String>
+        get() = rules().apps.values.flatMap { it.screens }
+            .filter { it.defaultEnabled }.map { it.id }.toSet()
 
     @Test
     fun `shorts is blocked`() {
@@ -104,6 +108,7 @@ class ScreenEvaluatorTest {
             "instagram-clips", "instagram-feed", "instagram-search", "instagram-profile",
             "instagram-shared-reel", "instagram-dm-thread", "instagram-reel-from-feed",
             "instagram-search-active", "instagram-explore-idle",
+            "instagram-story-viewer", "instagram-home-with-stories",
         )) {
             assertFalse(screen, ScreenEvaluator.evaluate(fixture(screen), rules(), emptySet()).blocked)
         }
@@ -233,6 +238,32 @@ class ScreenEvaluatorTest {
         val verdict = ScreenEvaluator.evaluate(fixture("instagram-explore-idle"), rules(), defaults)
         assertEquals(ScreenEvaluator.Outcome.BLOCK, verdict.outcome)
         assertEquals("ig_explore", verdict.screenId)
+    }
+
+    /**
+     * Stories are opt-in. Blocking the home feed must not take them with it:
+     * a story is something a specific person posted, closer to a message than
+     * to a feed, and people open Instagram for them.
+     */
+    @Test
+    fun `stories play unless the user asks for them to be blocked`() {
+        val off = ScreenEvaluator.evaluate(fixture("instagram-story-viewer"), rules(), defaults)
+        assertEquals(ScreenEvaluator.Outcome.ALLOW, off.outcome)
+
+        val on = ScreenEvaluator.evaluate(fixture("instagram-story-viewer"), rules(), allScreens)
+        assertEquals(ScreenEvaluator.Outcome.BLOCK, on.outcome)
+        assertEquals("ig_stories", on.screenId)
+    }
+
+    /**
+     * Instagram calls the stories viewer reel_viewer_*, which predates Reels the
+     * product (clips_*). Confusing the two would block the wrong screen, so the
+     * story viewer must not read as a reel.
+     */
+    @Test
+    fun `the story viewer is not mistaken for a reel`() {
+        val verdict = ScreenEvaluator.evaluate(fixture("instagram-story-viewer"), rules(), allScreens)
+        assertEquals("ig_stories", verdict.screenId)
     }
 
     @Test

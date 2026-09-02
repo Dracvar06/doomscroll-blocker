@@ -27,7 +27,7 @@ android {
         versionCode = 1
         versionName = "0.1"
 
-        resourceConfigurations += listOf("en", "ca")
+        resourceConfigurations += listOf("en", "ca", "es")
     }
 
     signingConfigs {
