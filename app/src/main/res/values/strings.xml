@@ -82,6 +82,10 @@
     <string name="app_tiktok" tools:ignore="UnusedResources">TikTok</string>
     <string name="screen_tt_feed" tools:ignore="UnusedResources">The video feed</string>
     <string name="screen_tt_shared_video" tools:ignore="UnusedResources">Keeping swiping from a video someone sent</string>
+    <string name="app_snapchat" tools:ignore="UnusedResources">Snapchat</string>
+    <string name="screen_sc_spotlight" tools:ignore="UnusedResources">Spotlight</string>
+    <string name="screen_sc_stories" tools:ignore="UnusedResources">Stories and Discover</string>
+    <string name="screen_sc_friends_story_row" tools:ignore="UnusedResources">Friends\' story row</string>
     <string name="section_language">Language</string>
     <string name="language_system">Phone\'s language</string>
     <string name="language_follows_phone">Doorman follows your phone\'s language. Android 13 and later can also set a language just for Doorman, in Settings.</string>

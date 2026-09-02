@@ -192,8 +192,64 @@
           }
         }
       ],
+      "keepVisibleTopViewIds": [
+        "text1"
+      ],
       "keepVisibleBelowViewIds": [
         "viewpager"
+      ]
+    },
+    "com.snapchat.android": {
+      "labelKey": "app_snapchat",
+      "screens": [
+        {
+          "id": "sc_spotlight",
+          "labelKey": "screen_sc_spotlight",
+          "defaultEnabled": true,
+          "match": {
+            "visibleViewId": [
+              "favorite"
+            ],
+            "allViewId": [
+              "ngs_spotlight_icon_container"
+            ],
+            "noneViewId": [
+              "camera_capture_button",
+              "df_large_story",
+              "ff_item",
+              "memories_grid"
+            ]
+          }
+        },
+        {
+          "id": "sc_stories",
+          "labelKey": "screen_sc_stories",
+          "defaultEnabled": true,
+          "match": {
+            "visibleViewId": [
+              "df_large_story"
+            ]
+          },
+          "keepVisibleTopViewIds": [
+            "friend_card_frame"
+          ],
+          "keepVisibleTopSuppressedBy": "sc_friends_story_row"
+        },
+        {
+          "id": "sc_friends_story_row",
+          "labelKey": "screen_sc_friends_story_row",
+          "defaultEnabled": false
+        }
+      ],
+      "keepVisibleViewIds": [
+        "ngs_map_icon_container",
+        "ngs_chat_icon_container",
+        "ngs_camera_icon_container",
+        "ngs_community_icon_container",
+        "ngs_spotlight_icon_container"
+      ],
+      "keepVisibleTopViewIds": [
+        "hova_header_search_icon"
       ]
     }
   }

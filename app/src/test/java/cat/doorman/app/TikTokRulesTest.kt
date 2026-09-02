@@ -180,6 +180,31 @@ class TikTokRulesTest {
     }
 
     /**
+     * TikTok hides search behind an icon in the same top row as the feed tabs,
+     * and that icon's own id is obfuscated. The row's labels are not, and they
+     * share its line, so anchoring to them keeps search reachable from a blocked
+     * feed -- the same thing Instagram's Explore block had to learn.
+     */
+    @Test
+    fun `search stays reachable above a blocked feed`() {
+        val snapshot = fixture("tiktok-for-you")
+        val app = rules().apps.getValue("com.zhiliaoapp.musically")
+        val band = OverlayBounds.compute(
+            snapshot = snapshot,
+            keepVisibleTopViewIds = app.keepVisibleTopViewIds,
+            keepVisibleViewIds = app.keepVisibleViewIds,
+            keepVisibleBelowViewIds = app.keepVisibleBelowViewIds,
+        )
+        val searchBottom = snapshot.nodes
+            .first { it.contentDescription == "Cerca" }
+            .bottomPx()!!
+        assertTrue(
+            "band starts at ${band.topPx}, search ends at $searchBottom",
+            band.topPx >= searchBottom,
+        )
+    }
+
+    /**
      * Nesting matters here: TikTok has three views called `viewpager`, and the
      * outermost fills the screen including the tab bar. Anchoring to that one
      * would cover everything.

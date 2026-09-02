@@ -163,7 +163,13 @@ class DoormanAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
         val pkg = event.packageName?.toString() ?: return
-        if (pkg in TRANSIENT_PACKAGES || pkg == imePackage) return
+        // Doorman's own windows belong in the same category as the notification
+        // shade and the keyboard: they appear over an app without the user
+        // having gone anywhere. Counting them as a move was a real bug -- the
+        // block overlay raises a window-state event of its own, so a moment
+        // after allowing a video someone had sent, the service decided the user
+        // had arrived from Doorman, and the allowance vanished under them.
+        if (pkg in TRANSIENT_PACKAGES || pkg == imePackage || pkg == packageName) return
 
         when (event.eventType) {
             // A new screen: decide at once, so the block lands before the feed
@@ -186,6 +192,13 @@ class DoormanAccessibilityService : AccessibilityService() {
             // settle, but the evaluation cannot be postponed indefinitely.
             AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
                 if (pkg !in rules.supportedPackages) return
+                // An app being opened emits content changes before the
+                // window-state event that records where the user came from.
+                // Judging the screen on those means judging it without knowing
+                // how it was reached, which showed up as a block flashing over
+                // a video a friend had sent before it was allowed. The
+                // window-state event is moments away; wait for it.
+                if (pkg != lastPackage) return
                 val sinceLast = SystemClock.uptimeMillis() - lastEvaluationAt
                 handler.removeCallbacks(evaluate)
                 if (sinceLast >= MAX_EVALUATION_INTERVAL_MS) {

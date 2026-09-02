@@ -2,6 +2,26 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!--
+      Doorman needs to recognise the home screen, and nothing else.
+
+      Whether the user arrived at TikTok by following a link or by opening it
+      themselves is what separates a video a friend sent from the feed, and the
+      launcher is the app that answers it. Since Android 11 an app cannot see
+      other packages without saying which, and without this declaration the
+      lookup comes back empty, and every deliberate visit would then look like a
+      link and be waved through.
+
+      This is deliberately one intent rather than QUERY_ALL_PACKAGES. Doorman
+      has no network permission and no business knowing what else is installed.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.HOME" />
+        </intent>
+    </queries>
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"

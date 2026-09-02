@@ -36,7 +36,14 @@ object OverlayBounds {
         appLevelAnchors: List<String>,
         enabledScreenIds: Set<String>,
     ): List<String> {
-        if (rule?.keepVisibleTopSuppressedBy?.let { it in enabledScreenIds } == true) return emptyList()
+        // Withdrawing a screen's own anchor falls back to the app's, rather than
+        // to nothing. Asking for the stories row to be covered is not asking for
+        // the search bar above it to be covered too, and on Snapchat those are
+        // different views: the friends' row sits below the header, so dropping
+        // to no anchor at all would take the search icon with it.
+        if (rule?.keepVisibleTopSuppressedBy?.let { it in enabledScreenIds } == true) {
+            return appLevelAnchors
+        }
         return rule?.keepVisibleTopViewIds ?: appLevelAnchors
     }
 
