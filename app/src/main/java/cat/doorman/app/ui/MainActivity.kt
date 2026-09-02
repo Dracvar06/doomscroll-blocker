@@ -270,6 +270,7 @@ class MainActivity : ComponentActivity() {
             onCancelPending = { cancelPendingChange() },
             onChangeDelay = { seconds -> requestDelayChange(seconds) },
             labelFor = ::labelFor,
+            helpFor = ::helpFor,
         )
 
         Text(stringResource(R.string.section_pass), style = MaterialTheme.typography.titleLarge)
@@ -571,6 +572,21 @@ class MainActivity : ComponentActivity() {
      * Resolving by name is what keeps rules.json authoritative; res/raw/keep.xml
      * stops the shrinker removing labels no code appears to reference.
      */
+    /**
+     * The explanation behind a block's info button, or null if none is written.
+     *
+     * Distinct from [labelFor], which falls back to echoing the key it could
+     * not resolve. That is a useful hint for a missing screen name; as help
+     * text it would put "help_ig_reels" in front of the user in a dialog
+     * meant to reduce confusion.
+     */
+    @SuppressLint("DiscouragedApi")
+    private fun helpFor(helpKey: String?): String? {
+        if (helpKey.isNullOrEmpty()) return null
+        val id = resources.getIdentifier(helpKey, "string", packageName)
+        return if (id != 0) getString(id) else null
+    }
+
     @SuppressLint("DiscouragedApi")
     private fun labelFor(labelKey: String): String {
         if (labelKey.isEmpty()) return ""

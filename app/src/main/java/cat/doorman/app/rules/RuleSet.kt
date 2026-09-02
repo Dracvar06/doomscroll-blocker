@@ -140,6 +140,16 @@ data class ScreenRule(
      * how another block behaves, and it must never match anything by itself.
      */
     val match: Matcher? = null,
+    /**
+     * A string naming what this block actually covers, shown behind an info
+     * button next to it.
+     *
+     * "Reels" and "keep swiping from a reel someone sent" are not the same
+     * thing, and neither is obvious from a two-word label. Someone who cannot
+     * tell which switch does what will either block too much and resent the
+     * app, or block too little and think it is broken.
+     */
+    val helpKey: String? = null,
 ) {
     /**
      * Whether it makes sense to offer this one an allowance.

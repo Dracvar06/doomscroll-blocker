@@ -5,4 +5,4 @@
   Every block screen would then show a raw key instead of "Shorts".
 -->
 <resources xmlns:tools="http://schemas.android.com/tools"
-    tools:keep="@string/app_*,@string/screen_*" />
+    tools:keep="@string/app_*,@string/screen_*,@string/help_*" />

@@ -288,4 +288,65 @@ class ScreenEvaluatorTest {
         val foreign = fixture("youtube-shorts").copy(packageName = "com.example.other")
         assertFalse(ScreenEvaluator.evaluate(foreign, rules(), allScreens).blocked)
     }
+
+    /**
+     * "Reels" on its own means the Reels tab, which is not what most people
+     * hear. A reel opened from a profile or a story is the same endless pager
+     * reached by a different door, and this switch covers it wherever it opens.
+     */
+    @Test
+    fun `blocking reels everywhere catches a reel opened outside the tab`() {
+        val enabled = defaults + "ig_reel_viewer" - "ig_single_reel"
+        assertEquals(
+            ScreenEvaluator.Outcome.BLOCK,
+            ScreenEvaluator.evaluate(fixture("instagram-shared-reel"), rules(), enabled).outcome,
+        )
+        assertEquals(
+            ScreenEvaluator.Outcome.BLOCK,
+            ScreenEvaluator.evaluate(fixture("instagram-reel-from-feed"), rules(), enabled).outcome,
+        )
+    }
+
+    /**
+     * It is off unless asked for. Someone who deliberately switched the Reels
+     * tab off wants reels, and a new switch arriving turned on would block them
+     * anyway -- which is how an app loses the trust it needs to be left on.
+     */
+    @Test
+    fun `blocking reels everywhere is off until it is chosen`() {
+        assertFalse("ig_reel_viewer" in defaults)
+        assertEquals(
+            ScreenEvaluator.Outcome.ALLOW_ONCE,
+            ScreenEvaluator.evaluate(fixture("instagram-shared-reel"), rules(), defaults).outcome,
+        )
+    }
+
+    /**
+     * Even with it on, a reel someone sent still plays once, because the
+     * single-reel rule is matched first. The two switches stack rather than
+     * fighting: one says "no browsing reels", the other "but let a friend's
+     * reel play".
+     */
+    @Test
+    fun `a sent reel still plays once when both switches are on`() {
+        val enabled = defaults + "ig_reel_viewer"
+        assertEquals(
+            ScreenEvaluator.Outcome.ALLOW_ONCE,
+            ScreenEvaluator.evaluate(fixture("instagram-shared-reel"), rules(), enabled).outcome,
+        )
+    }
+
+    /** The screens that must never be caught by a reels rule. */
+    @Test
+    fun `blocking reels everywhere leaves messages and the feed alone`() {
+        val enabled = defaults + "ig_reel_viewer" - "ig_feed"
+        assertEquals(
+            ScreenEvaluator.Outcome.ALLOW,
+            ScreenEvaluator.evaluate(fixture("instagram-dm-thread"), rules(), enabled).outcome,
+        )
+        assertEquals(
+            ScreenEvaluator.Outcome.ALLOW,
+            ScreenEvaluator.evaluate(fixture("instagram-feed"), rules(), enabled).outcome,
+        )
+    }
 }

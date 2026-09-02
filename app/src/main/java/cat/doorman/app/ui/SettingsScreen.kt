@@ -67,6 +67,7 @@ fun BlockingSettings(
     onCancelPending: () -> Unit,
     onChangeDelay: (Int) -> Unit,
     labelFor: (String) -> String,
+    helpFor: (String?) -> String?,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
@@ -169,6 +170,7 @@ fun BlockingSettings(
                         mode = appModes[packageName] ?: BlockMode.Off,
                         remaining = remainingFor(packageName),
                         onModeChosen = { onModeChosen(packageName, it) },
+                        help = stringResource(R.string.help_whole_app),
                     )
                     app.screens.forEach { screen ->
                         val mode = screenModes[screen.id] ?: BlockMode.Off
@@ -178,6 +180,7 @@ fun BlockingSettings(
                                 mode = mode,
                                 remaining = remainingFor(screen.id),
                                 onModeChosen = { onModeChosen(screen.id, it) },
+                                help = helpFor(screen.helpKey),
                             )
                         } else {
                             SwitchRow(
@@ -189,6 +192,7 @@ fun BlockingSettings(
                                         if (it) BlockMode.Blocked else BlockMode.Off,
                                     )
                                 },
+                                help = helpFor(screen.helpKey),
                             )
                         }
                     }
@@ -250,6 +254,7 @@ fun BlockingSettings(
                         onModeChosen = { onModeChosen(app.packageName, it) },
                         icon = icon,
                         hasIcon = true,
+                        help = stringResource(R.string.help_whole_app),
                     )
                 }
             }

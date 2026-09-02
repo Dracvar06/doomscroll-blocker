@@ -106,4 +106,24 @@
         <item quantity="many">%1$d de bloquejats</item>
         <item quantity="other">%1$d de bloquejats</item>
     </plurals>
+    <string name="screen_ig_reel_viewer">Reels, s\'obrin on s\'obrin</string>
+    <string name="action_help">Què bloqueja això?</string>
+    <string name="help_whole_app">Cobreix tota l\'aplicació, totes les pantalles, missatges inclosos. Fes-ho servir per a una aplicació de la qual Doorman no coneix les pantalles, o quan vulguis tancar-ho tot i no només una part.</string>
+    <string name="help_yt_single_short">Quan algú t\'envia un Short, es reprodueix. El bloqueig arriba al primer lliscament, així el que t\'han enviat es pot veure sense convertir-se en un flux. Si ho desactives, un Short que t\'enviïn queda bloquejat com qualsevol altre.</string>
+    <string name="help_yt_shorts">El reproductor de Shorts, hi arribis com hi arribis: la pestanya, un enllaç, un canal. Els vídeos que cerques i els vídeos normals no es toquen.</string>
+    <string name="help_yt_home_feed">Les recomanacions de la pàgina d\'inici de YouTube. La cerca, les subscripcions i qualsevol vídeo que obris continuen funcionant.</string>
+    <string name="help_yt_subscriptions_feed">La pestanya de subscripcions, amb els vídeos nous dels canals que segueixes. Desactivat per defecte: per a la majoria de gent aquesta és la part deliberada de YouTube, no la part infinita.</string>
+    <string name="help_ig_single_reel">Quan algú t\'envia un reel, es reprodueix. El bloqueig arriba al primer lliscament, així el que t\'ha enviat un amic es pot veure sense convertir-se en un flux. Si ho desactives, un reel que t\'enviïn queda bloquejat com qualsevol altre.</string>
+    <string name="help_ig_stories">Les històries, obertes des d\'on sigui: la pàgina d\'inici, un perfil, un missatge. Desactivat per defecte, perquè per a molta gent les històries són com parlen els amics entre ells.</string>
+    <string name="help_ig_reels">Només la pestanya de Reels. Un reel obert des d\'un altre lloc —un missatge, un perfil, una història— encara es reprodueix. Per a aquests, fes servir «Reels, s\'obrin on s\'obrin».</string>
+    <string name="help_ig_reel_viewer">Qualsevol reel a pantalla completa, l\'hagis obert des d\'on l\'hagis obert. Més estricte que només la pestanya. Si també tens activat «seguir passant des d\'un reel obert», un reel que t\'enviïn encara es reprodueix un cop abans del bloqueig.</string>
+    <string name="help_ig_feed">Les publicacions de la pàgina d\'inici. La fila d\'històries de dalt es continua podent tocar si no la bloqueges també, i els missatges, la cerca i el teu perfil no es toquen.</string>
+    <string name="help_ig_home_stories_tray">Amaga la fila d\'històries de dalt de la pàgina d\'inici, sense bloquejar les històries. Per quan la temptació és la fila però encara vols obrir històries des d\'un missatge o des de la cerca.</string>
+    <string name="help_ig_explore">La graella d\'Explora que hi ha darrere la pestanya de cerca. La barra de cerca es continua podent fer servir, així pots buscar gent.</string>
+    <string name="help_tt_shared_video">Quan obres un enllaç de TikTok des d\'una altra aplicació, aquell vídeo es reprodueix i el bloqueig arriba al primer lliscament. TikTok obre els enllaços dins del flux «Per a tu», així que sense això no hi hauria manera de veure el que t\'han enviat.</string>
+    <string name="help_tt_feed">El flux de vídeos: «Per a tu», «Seguint», tot. La safata d\'entrada, el teu perfil i la cerca continuen funcionant.</string>
+    <string name="help_sc_spotlight">La pestanya Spotlight, el flux de vídeos infinit de Snapchat. Els xats, els snaps, la càmera i el mapa no es toquen.</string>
+    <string name="help_sc_stories">La graella de Descobrir de la pestanya d\'històries. Les històries dels teus amics de dalt es continuen podent tocar si no bloqueges també aquella fila.</string>
+    <string name="help_sc_friends_story_row">Amaga la fila d\'històries dels amics de dalt de la pestanya, sense bloquejar les històries.</string>
+    <string name="action_close_help">Entesos</string>
 </resources>

@@ -110,4 +110,24 @@
         <item quantity="many">%1$d de bloqueados</item>
         <item quantity="other">%1$d bloqueados</item>
     </plurals>
+    <string name="screen_ig_reel_viewer">Reels, se abran donde se abran</string>
+    <string name="action_help">¿Qué bloquea esto?</string>
+    <string name="help_whole_app">Cubre toda la aplicación, todas sus pantallas, mensajes incluidos. Úsalo para una aplicación cuyas pantallas Doorman no conoce, o cuando quieras cerrarla entera y no solo una parte.</string>
+    <string name="help_yt_single_short">Cuando alguien te envía un Short, se reproduce. El bloqueo llega al primer deslizamiento, así lo que te han enviado se puede ver sin convertirse en un flujo. Si lo desactivas, un Short que te envíen queda bloqueado como cualquier otro.</string>
+    <string name="help_yt_shorts">El reproductor de Shorts, llegues como llegues: la pestaña, un enlace, un canal. Los vídeos que buscas y los vídeos normales no se tocan.</string>
+    <string name="help_yt_home_feed">Las recomendaciones de la página de inicio de YouTube. La búsqueda, las suscripciones y cualquier vídeo que abras siguen funcionando.</string>
+    <string name="help_yt_subscriptions_feed">La pestaña de suscripciones, con los vídeos nuevos de los canales que sigues. Desactivado por defecto: para la mayoría esta es la parte deliberada de YouTube, no la infinita.</string>
+    <string name="help_ig_single_reel">Cuando alguien te envía un reel, se reproduce. El bloqueo llega al primer deslizamiento, así lo que te ha enviado un amigo se puede ver sin convertirse en un flujo. Si lo desactivas, un reel que te envíen queda bloqueado como cualquier otro.</string>
+    <string name="help_ig_stories">Las historias, abiertas desde donde sea: la página de inicio, un perfil, un mensaje. Desactivado por defecto, porque para mucha gente las historias son cómo hablan los amigos entre ellos.</string>
+    <string name="help_ig_reels">Solo la pestaña de Reels. Un reel abierto desde otro sitio —un mensaje, un perfil, una historia— todavía se reproduce. Para esos, usa «Reels, se abran donde se abran».</string>
+    <string name="help_ig_reel_viewer">Cualquier reel a pantalla completa, lo hayas abierto desde donde lo hayas abierto. Más estricto que solo la pestaña. Si también tienes activado «seguir pasando desde un reel abierto», un reel que te envíen todavía se reproduce una vez antes del bloqueo.</string>
+    <string name="help_ig_feed">Las publicaciones de la página de inicio. La fila de historias de arriba se sigue pudiendo tocar si no la bloqueas también, y los mensajes, la búsqueda y tu perfil no se tocan.</string>
+    <string name="help_ig_home_stories_tray">Oculta la fila de historias de arriba de la página de inicio, sin bloquear las historias. Para cuando la tentación es la fila pero todavía quieres abrir historias desde un mensaje o desde la búsqueda.</string>
+    <string name="help_ig_explore">La cuadrícula de Explora que hay detrás de la pestaña de búsqueda. La barra de búsqueda se sigue pudiendo usar, así puedes buscar gente.</string>
+    <string name="help_tt_shared_video">Cuando abres un enlace de TikTok desde otra aplicación, ese vídeo se reproduce y el bloqueo llega al primer deslizamiento. TikTok abre los enlaces dentro del flujo «Para ti», así que sin esto no habría forma de ver lo que te han enviado.</string>
+    <string name="help_tt_feed">El flujo de vídeos: «Para ti», «Siguiendo», todo. La bandeja de entrada, tu perfil y la búsqueda siguen funcionando.</string>
+    <string name="help_sc_spotlight">La pestaña Spotlight, el flujo de vídeos infinito de Snapchat. Los chats, los snaps, la cámara y el mapa no se tocan.</string>
+    <string name="help_sc_stories">La cuadrícula de Descubrir de la pestaña de historias. Las historias de tus amigos de arriba se siguen pudiendo tocar si no bloqueas también esa fila.</string>
+    <string name="help_sc_friends_story_row">Oculta la fila de historias de los amigos de arriba de la pestaña, sin bloquear las historias.</string>
+    <string name="action_close_help">Entendido</string>
 </resources>

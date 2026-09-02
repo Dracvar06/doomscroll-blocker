@@ -115,4 +115,24 @@
         <item quantity="one">%1$d held</item>
         <item quantity="other">%1$d held</item>
     </plurals>
+    <string name="screen_ig_reel_viewer" tools:ignore="UnusedResources">Reels, wherever they open</string>
+    <string name="action_help">What does this block?</string>
+    <string name="help_whole_app" tools:ignore="UnusedResources">Covers the entire app, every screen of it, including messages. Use this for an app Doorman has no detailed rules for, or when you want the whole thing shut rather than a part of it.</string>
+    <string name="help_yt_single_short" tools:ignore="UnusedResources">When someone sends you a Short, it plays. The block lands on the first swipe past it, so a link stays watchable without turning into a feed. Switch this off and a Short someone sent is blocked like any other.</string>
+    <string name="help_yt_shorts" tools:ignore="UnusedResources">The Shorts player itself, wherever you reach it from: the Shorts tab, a link, a channel. Videos you search for and ordinary videos are untouched.</string>
+    <string name="help_yt_home_feed" tools:ignore="UnusedResources">The recommendations on the YouTube home tab. Search, subscriptions and any video you open still work.</string>
+    <string name="help_yt_subscriptions_feed" tools:ignore="UnusedResources">The Subscriptions tab, which lists new videos from channels you follow. Off by default: for most people this is the deliberate part of YouTube rather than the endless part.</string>
+    <string name="help_ig_single_reel" tools:ignore="UnusedResources">When someone sends you a reel, it plays. The block lands on the first swipe past it, so what a friend sent stays watchable without becoming a feed. Switch this off and a reel someone sent is blocked like any other.</string>
+    <string name="help_ig_stories" tools:ignore="UnusedResources">Stories themselves, opened from anywhere: the home feed, a profile, a message. Off by default, because for many people stories are how friends talk to each other.</string>
+    <string name="help_ig_reels" tools:ignore="UnusedResources">The Reels tab only. A reel opened from somewhere else — a message, a profile, a story — still plays. For those, use “Reels, wherever they open”.</string>
+    <string name="help_ig_reel_viewer" tools:ignore="UnusedResources">Any reel playing full screen, no matter where you opened it from. Stricter than the Reels tab on its own. If “keep swiping from a reel someone sent” is also on, a reel sent to you still plays once before the block.</string>
+    <string name="help_ig_feed" tools:ignore="UnusedResources">The scrolling posts on the home tab. The stories row along the top stays reachable unless you also block that, and messages, search and your profile are untouched.</string>
+    <string name="help_ig_home_stories_tray" tools:ignore="UnusedResources">Hides the row of stories along the top of the home feed, without blocking stories themselves. For when the row is the temptation but you still want to open stories from a message or from search.</string>
+    <string name="help_ig_explore" tools:ignore="UnusedResources">The Explore grid behind the search tab. The search bar itself stays usable, so you can still look people up.</string>
+    <string name="help_tt_shared_video" tools:ignore="UnusedResources">When you open a TikTok link from another app, that video plays and the block lands on the first swipe. TikTok drops shared links straight into the For You feed, so without this there is no way to watch what someone sent you.</string>
+    <string name="help_tt_feed" tools:ignore="UnusedResources">The scrolling video feed: For You, Following, all of it. Your inbox, your profile and search still work.</string>
+    <string name="help_sc_spotlight" tools:ignore="UnusedResources">The Spotlight tab, Snapchat\'s endless video feed. Chats, snaps, the camera and the map are untouched.</string>
+    <string name="help_sc_stories" tools:ignore="UnusedResources">The Discover grid of publisher content on the Stories tab. Your friends\' stories along the top stay reachable unless you also block that row.</string>
+    <string name="help_sc_friends_story_row" tools:ignore="UnusedResources">Hides the row of friends\' stories at the top of the Stories tab, without blocking stories themselves.</string>
+    <string name="action_close_help">Got it</string>
 </resources>

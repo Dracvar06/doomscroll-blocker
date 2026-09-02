@@ -18,7 +18,8 @@
             "noneViewId": [
               "pivot_bar"
             ]
-          }
+          },
+          "helpKey": "help_yt_single_short"
         },
         {
           "id": "yt_shorts",
@@ -29,7 +30,8 @@
               "reel_recycler",
               "reel_player_page_container"
             ]
-          }
+          },
+          "helpKey": "help_yt_shorts"
         },
         {
           "id": "yt_home_feed",
@@ -45,7 +47,8 @@
               "watch_panel",
               "search_query"
             ]
-          }
+          },
+          "helpKey": "help_yt_home_feed"
         },
         {
           "id": "yt_subscriptions_feed",
@@ -61,7 +64,8 @@
               "watch_panel",
               "search_query"
             ]
-          }
+          },
+          "helpKey": "help_yt_subscriptions_feed"
         }
       ],
       "keepVisibleViewIds": [
@@ -87,7 +91,8 @@
             "noneViewId": [
               "clips_tab"
             ]
-          }
+          },
+          "helpKey": "help_ig_single_reel"
         },
         {
           "id": "ig_stories",
@@ -98,7 +103,8 @@
             "visibleViewId": [
               "reel_viewer_root"
             ]
-          }
+          },
+          "helpKey": "help_ig_stories"
         },
         {
           "id": "ig_reels",
@@ -108,7 +114,19 @@
             "selectedViewId": [
               "clips_tab"
             ]
-          }
+          },
+          "helpKey": "help_ig_reels"
+        },
+        {
+          "id": "ig_reel_viewer",
+          "labelKey": "screen_ig_reel_viewer",
+          "defaultEnabled": false,
+          "match": {
+            "visibleViewId": [
+              "clips_viewer_view_pager"
+            ]
+          },
+          "helpKey": "help_ig_reel_viewer"
         },
         {
           "id": "ig_feed",
@@ -122,12 +140,14 @@
           "keepVisibleTopViewIds": [
             "outer_container"
           ],
-          "keepVisibleTopSuppressedBy": "ig_home_stories_tray"
+          "keepVisibleTopSuppressedBy": "ig_home_stories_tray",
+          "helpKey": "help_ig_feed"
         },
         {
           "id": "ig_home_stories_tray",
           "labelKey": "screen_ig_home_stories_tray",
-          "defaultEnabled": false
+          "defaultEnabled": false,
+          "helpKey": "help_ig_home_stories_tray"
         },
         {
           "id": "ig_explore",
@@ -140,7 +160,8 @@
           },
           "keepVisibleTopViewIds": [
             "action_bar_search_edit_text"
-          ]
+          ],
+          "helpKey": "help_ig_explore"
         }
       ],
       "keepVisibleViewIds": [
@@ -175,7 +196,8 @@
               "video_player_progress"
             ],
             "arrivedFromAnotherApp": true
-          }
+          },
+          "helpKey": "help_tt_shared_video"
         },
         {
           "id": "tt_feed",
@@ -189,7 +211,8 @@
               "long_press_layout",
               "video_player_progress"
             ]
-          }
+          },
+          "helpKey": "help_tt_feed"
         }
       ],
       "keepVisibleTopViewIds": [
@@ -219,7 +242,8 @@
               "ff_item",
               "memories_grid"
             ]
-          }
+          },
+          "helpKey": "help_sc_spotlight"
         },
         {
           "id": "sc_stories",
@@ -233,12 +257,14 @@
           "keepVisibleTopViewIds": [
             "friend_card_frame"
           ],
-          "keepVisibleTopSuppressedBy": "sc_friends_story_row"
+          "keepVisibleTopSuppressedBy": "sc_friends_story_row",
+          "helpKey": "help_sc_stories"
         },
         {
           "id": "sc_friends_story_row",
           "labelKey": "screen_sc_friends_story_row",
-          "defaultEnabled": false
+          "defaultEnabled": false,
+          "helpKey": "help_sc_friends_story_row"
         }
       ],
       "keepVisibleViewIds": [

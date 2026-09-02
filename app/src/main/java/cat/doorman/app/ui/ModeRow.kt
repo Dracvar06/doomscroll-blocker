@@ -12,7 +12,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -26,6 +29,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -69,6 +74,7 @@ fun ModeRow(
     onModeChosen: (BlockMode) -> Unit,
     icon: ImageBitmap? = null,
     hasIcon: Boolean = false,
+    help: String? = null,
 ) {
     var expanded by remember { mutableStateOf(false) }
     Column(
@@ -83,7 +89,10 @@ fun ModeRow(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 // The space is held from the start, before the icon has
                 // finished loading. Drawing it only once it arrives would make
                 // every row in a long list slide sideways under the user's
@@ -105,7 +114,9 @@ fun ModeRow(
                     Spacer(Modifier.width(12.dp))
                 }
                 Text(text = label, style = MaterialTheme.typography.bodyLarge)
+                HelpButton(label, help)
             }
+            Spacer(Modifier.width(8.dp))
             Text(
                 text = remaining ?: modeLabel(mode),
                 style = MaterialTheme.typography.labelLarge,
@@ -138,7 +149,12 @@ fun ModeRow(
  * to allow either of them for five minutes a day would be offering nonsense.
  */
 @Composable
-fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+fun SwitchRow(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    help: String? = null,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -146,7 +162,66 @@ fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Uni
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(text = label, style = MaterialTheme.typography.bodyLarge)
+        // The label and its info button take what is left after the switch,
+        // rather than the switch taking what is left after them: a long label
+        // was pushing the button underneath the toggle.
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            HelpButton(label, help)
+        }
+        Spacer(Modifier.width(8.dp))
         Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+/**
+ * The info button beside a block, and what it says.
+ *
+ * "Reels" and "keep swiping from a reel someone sent" are different things and
+ * the labels cannot say so in two words. Someone who cannot tell which switch
+ * is which will either block more than they meant and resent the app, or block
+ * less and think it is broken -- and both end with Doorman switched off.
+ *
+ * Nothing is shown when a block has no explanation written yet, rather than an
+ * button that opens an empty box.
+ */
+@Composable
+private fun HelpButton(label: String, help: String?) {
+    if (help.isNullOrBlank()) return
+    var open by remember { mutableStateOf(false) }
+    val description = stringResource(R.string.action_help)
+    IconButton(
+        onClick = { open = true },
+        // The glyph is a letter as far as a screen reader is concerned, so the
+        // button needs a name of its own. An app built on the accessibility
+        // framework should not ship a control that announces itself as "i".
+        modifier = Modifier
+            .size(32.dp)
+            .semantics { contentDescription = description },
+    ) {
+        Text(
+            text = "\u24d8",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary,
+        )
+    }
+    if (open) {
+        AlertDialog(
+            onDismissRequest = { open = false },
+            title = { Text(label) },
+            text = { Text(help, style = MaterialTheme.typography.bodyMedium) },
+            confirmButton = {
+                TextButton(onClick = { open = false }) {
+                    Text(stringResource(R.string.action_close_help))
+                }
+            },
+        )
     }
 }
