@@ -331,11 +331,29 @@ class DoormanAccessibilityService : AccessibilityService() {
      */
     private val rememberedApps = mutableSetOf<String>()
 
+    /** Packages with an icon in the app drawer. */
+    private val drawerPackages: Set<String> by lazy {
+        runCatching {
+            packageManager.queryIntentActivities(
+                android.content.Intent(android.content.Intent.ACTION_MAIN)
+                    .addCategory(android.content.Intent.CATEGORY_LAUNCHER),
+                0,
+            ).mapNotNull { it.activityInfo?.packageName }.toSet()
+        }.getOrDefault(emptySet())
+    }
+
     private fun rememberApp(packageName: String) {
         if (packageName in rememberedApps) return
         if (packageName == this.packageName) return
         if (packageName in launcherPackages || packageName in TRANSIENT_PACKAGES) return
         if (packageName == imePackage) return
+        // Only things that appear in the app drawer. Plenty of packages come
+        // to the foreground without being apps anyone opens -- "Pixel screen
+        // services" and the like -- and offering to hold those is noise in the
+        // one list that should be short and obvious. Drawer membership is the
+        // exact test: getLaunchIntentForPackage is not, because it answers yes
+        // for things launchable only by other apps.
+        if (packageName !in drawerPackages) return
         rememberedApps += packageName
         val label = appLabelFor(packageName)
         Log.i(TAG, "remembering app: $packageName label=$label")

@@ -15,6 +15,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -42,6 +44,7 @@ fun BlockingSettings(
     appModes: Map<String, BlockMode>,
     otherApps: List<OtherApp>,
     allApps: List<OtherApp>,
+    icons: AppIcons,
     remainingFor: (String) -> String?,
     pendingLabel: String?,
     pendingModeLabel: String?,
@@ -196,20 +199,29 @@ fun BlockingSettings(
                 }
                 shown.forEach { app ->
                     val mode = appModes[app.packageName] ?: BlockMode.Off
+                    val icon by produceState<ImageBitmap?>(null, app.packageName) {
+                        value = icons.load(app.packageName)
+                    }
                     ModeRow(
                         label = app.label,
                         mode = mode,
                         remaining = remainingFor(app.packageName),
                         onModeChosen = { onModeChosen(app.packageName, it) },
+                        icon = icon,
+                        hasIcon = true,
+                        // Only once it is switched off. Forgetting an app that
+                        // is held would be an instant way to unhold it,
+                        // straight past the wait every other loosening sits
+                        // through.
+                        onForget = if (
+                            mode == BlockMode.Off &&
+                            otherApps.any { it.packageName == app.packageName }
+                        ) {
+                            { onForgetApp(app.packageName) }
+                        } else {
+                            null
+                        },
                     )
-                    // Only once it is switched off. Forgetting an app that is
-                    // held would be an instant way to unhold it, straight past
-                    // the wait that every other loosening has to sit through.
-                    if (mode == BlockMode.Off && app.packageName in otherApps.map { it.packageName }) {
-                        TextButton(onClick = { onForgetApp(app.packageName) }) {
-                            Text(stringResource(R.string.action_forget_app))
-                        }
-                    }
                 }
                 TextButton(onClick = { showAll = !showAll }) {
                     Text(

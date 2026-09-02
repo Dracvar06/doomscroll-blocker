@@ -78,6 +78,7 @@ class MainActivity : ComponentActivity() {
     private var appModes by mutableStateOf(emptyMap<String, BlockMode>())
     private var spent by mutableStateOf(emptyMap<String, Allowances.Spent>())
     private var seenApps by mutableStateOf(emptyMap<String, String>())
+    private val appIcons by lazy { AppIcons(this) }
     private var activePass by mutableStateOf<Prefs.Pass?>(null)
     private var waitSeconds by mutableIntStateOf(Prefs.DEFAULT_WAIT_SECONDS)
     private var passMinutes by mutableIntStateOf(Prefs.DEFAULT_PASS_MINUTES)
@@ -233,6 +234,7 @@ class MainActivity : ComponentActivity() {
             appModes = appModes,
             otherApps = otherApps(),
             allApps = allApps,
+            icons = appIcons,
             remainingFor = ::remainingLabelFor,
             pendingLabel = (pendingChange as? PendingChange.Mode)
                 ?.let { change -> labelKeyFor(change.id).let(::labelFor).ifEmpty { seenApps[change.id] ?: change.id } },
@@ -309,6 +311,10 @@ class MainActivity : ComponentActivity() {
      */
     private fun otherApps(): List<OtherApp> = seenApps
         .filterKeys { rules.appFor(it) == null }
+        // Filtered on the way out as well as on the way in, so the noise
+        // recorded before that rule existed disappears from anyone's list
+        // instead of sitting there until they forget it one by one.
+        .filterKeys { pkg -> allApps.any { it.packageName == pkg } }
         .map { (pkg, label) -> OtherApp(pkg, label) }
         .sortedBy { it.label.lowercase() }
 

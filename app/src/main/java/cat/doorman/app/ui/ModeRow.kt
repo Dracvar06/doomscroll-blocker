@@ -5,13 +5,21 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,6 +68,9 @@ fun ModeRow(
     mode: BlockMode,
     remaining: String?,
     onModeChosen: (BlockMode) -> Unit,
+    icon: ImageBitmap? = null,
+    hasIcon: Boolean = false,
+    onForget: (() -> Unit)? = null,
 ) {
     var expanded by remember { mutableStateOf(false) }
     Column(
@@ -74,7 +85,29 @@ fun ModeRow(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(text = label, style = MaterialTheme.typography.bodyLarge)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // The space is held from the start, before the icon has
+                // finished loading. Drawing it only once it arrives would make
+                // every row in a long list slide sideways under the user's
+                // thumb as the icons trickle in.
+                if (hasIcon) {
+                    Box(
+                        modifier = Modifier.size(40.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (icon != null) {
+                            Image(
+                                bitmap = icon,
+                                contentDescription = null,
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier.size(40.dp),
+                            )
+                        }
+                    }
+                    Spacer(Modifier.width(12.dp))
+                }
+                Text(text = label, style = MaterialTheme.typography.bodyLarge)
+            }
             Text(
                 text = remaining ?: modeLabel(mode),
                 style = MaterialTheme.typography.labelLarge,
@@ -94,6 +127,15 @@ fun ModeRow(
                             label = { Text(modeLabel(choice)) },
                         )
                     }
+                // Tucked in with the choices rather than sitting under every
+                // row: with an icon and a name already on the line, a
+                // permanent third element made the list twice as long as the
+                // thing it was listing.
+                if (onForget != null) {
+                    TextButton(onClick = onForget) {
+                        Text(stringResource(R.string.action_forget_app))
+                    }
+                }
             }
         }
     }
