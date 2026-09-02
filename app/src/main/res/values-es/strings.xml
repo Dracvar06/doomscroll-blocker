@@ -46,6 +46,9 @@
     <string name="screen_ig_single_reel">Seguir pasando desde un reel abierto</string>
     <string name="screen_ig_stories">Abrir historias</string>
     <string name="screen_ig_home_stories_tray">Fila de historias en la página de inicio</string>
+    <string name="app_tiktok">TikTok</string>
+    <string name="screen_tt_feed">El flujo de vídeos</string>
+    <string name="screen_tt_shared_video">Seguir pasando desde un vídeo que te han enviado</string>
     <string name="blocked_body_budget_spent">Ya has visto el que habías abierto. El resto ya es el flujo.</string>
 
     <string name="section_diagnostics">¿No funciona?</string>

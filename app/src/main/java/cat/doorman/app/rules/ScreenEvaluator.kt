@@ -48,13 +48,14 @@ object ScreenEvaluator {
         snapshot: ScreenSnapshot,
         rules: RuleSet,
         enabledScreenIds: Set<String>,
+        arrivedFromAnotherApp: Boolean = false,
     ): Verdict {
         val app = rules.appFor(snapshot.packageName) ?: return Verdict.ALLOW
         val rule = app.screens.firstOrNull { rule ->
             // A rule with no matcher is a switch that modifies another block,
             // not a screen; it must never block anything on its own.
             val matcher = rule.match ?: return@firstOrNull false
-            rule.id in enabledScreenIds && matches(snapshot, matcher)
+            rule.id in enabledScreenIds && matches(snapshot, matcher, arrivedFromAnotherApp)
         } ?: return Verdict.ALLOW
         val outcome =
             if (rule.verdict == "ALLOW_ONCE") Outcome.ALLOW_ONCE else Outcome.BLOCK
@@ -66,7 +67,14 @@ object ScreenEvaluator {
         )
     }
 
-    fun matches(snapshot: ScreenSnapshot, matcher: Matcher): Boolean {
+    fun matches(
+        snapshot: ScreenSnapshot,
+        matcher: Matcher,
+        arrivedFromAnotherApp: Boolean = false,
+    ): Boolean {
+        matcher.arrivedFromAnotherApp?.let { wanted ->
+            if (wanted != arrivedFromAnotherApp) return false
+        }
         matcher.selectedViewId?.let { wanted ->
             if (snapshot.nodes.none { node -> node.selected && wanted.any(node::viewIdMatches) }) {
                 return false

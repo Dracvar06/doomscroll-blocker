@@ -255,6 +255,25 @@ class DoormanAccessibilityService : AccessibilityService() {
      */
     private var lastEvaluatedScreenId: String? = null
 
+    /** The app the user was in just before the one in front of them. */
+    private var arrivedFromPackage: String? = null
+
+    /**
+     * Home-screen apps, which do not count as "somewhere else". Resolved once:
+     * the answer only changes if the user installs a new launcher, and asking
+     * the package manager on every screen evaluation would be wasteful on
+     * exactly the events that arrive most often.
+     */
+    private val launcherPackages: Set<String> by lazy {
+        runCatching {
+            packageManager.queryIntentActivities(
+                android.content.Intent(android.content.Intent.ACTION_MAIN)
+                    .addCategory(android.content.Intent.CATEGORY_HOME),
+                android.content.pm.PackageManager.MATCH_DEFAULT_ONLY,
+            ).mapNotNull { it.activityInfo?.packageName }.toSet()
+        }.getOrDefault(emptySet())
+    }
+
     private fun evaluateCurrentScreen() {
         lastEvaluationAt = SystemClock.uptimeMillis()
         val snapshot = SnapshotCapture.capture(this, preferPackage = lastPackage)
@@ -275,7 +294,14 @@ class DoormanAccessibilityService : AccessibilityService() {
             return
         }
 
-        val verdict = ScreenEvaluator.evaluate(snapshot, rules, enabledScreenIds)
+        val arrivedFromAnotherApp = cat.doorman.app.rules.Arrival.isFromAnotherApp(
+            previous = arrivedFromPackage,
+            current = snapshot.packageName,
+            launcherPackages = launcherPackages,
+            self = packageName,
+        )
+        val verdict =
+            ScreenEvaluator.evaluate(snapshot, rules, enabledScreenIds, arrivedFromAnotherApp)
         Log.i(
             TAG,
             "evaluate: pkg=${snapshot.packageName} nodes=${snapshot.nodes.size} " +
@@ -350,6 +376,9 @@ class DoormanAccessibilityService : AccessibilityService() {
         // the transition log now rather than corrupting entry context later.
         if (pkg == lastPackage) return
         val previous = lastPackage
+        // Where the user was immediately before this app. On TikTok this is the
+        // only thing separating "a friend sent me this" from "I opened the feed".
+        if (pkg != lastPackage) arrivedFromPackage = previous
         lastPackage = pkg
         val relevance = if (pkg in rules.supportedPackages) "SUPPORTED" else "ignored"
         Log.i(TAG, "foreground: ${previous ?: "(none)"} -> $pkg [$relevance] window=${event.className}")
@@ -378,6 +407,7 @@ class DoormanAccessibilityService : AccessibilityService() {
                 enabledScreenIds = enabledScreenIds,
             ),
             keepVisibleViewIds = app?.keepVisibleViewIds.orEmpty(),
+            keepVisibleBelowViewIds = app?.keepVisibleBelowViewIds.orEmpty(),
         )
     }
 

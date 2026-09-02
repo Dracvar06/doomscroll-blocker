@@ -47,6 +47,7 @@ object OverlayBounds {
         snapshot: ScreenSnapshot,
         keepVisibleTopViewIds: List<String>,
         keepVisibleViewIds: List<String>,
+        keepVisibleBelowViewIds: List<String> = emptyList(),
     ): Band {
         val top = keepVisibleTopViewIds
             .takeIf { it.isNotEmpty() }
@@ -58,7 +59,14 @@ object OverlayBounds {
             }
             ?.takeIf { it > 0 } ?: 0
 
-        val bottom = topOf(snapshot, keepVisibleViewIds)
+        // Two ways of saying where the block ends, and the higher of the two
+        // wins. Naming the tab bar is the clearer one; stopping at the bottom
+        // of the content above it is the one that survives an app whose tab bar
+        // has no stable name.
+        val bottom = listOfNotNull(
+            topOf(snapshot, keepVisibleViewIds),
+            bottomOf(snapshot, keepVisibleBelowViewIds),
+        ).minOrNull()
 
         // A band that would be inverted or absurdly thin means the measurements
         // disagree with each other; covering everything is the safe reading.
@@ -73,6 +81,25 @@ object OverlayBounds {
         return snapshot.nodes
             .filter { node -> node.visible && keepVisibleViewIds.any(node::viewIdMatches) }
             .mapNotNull { it.topPx() }
+            .minOrNull()
+            ?.takeIf { it > 0 }
+    }
+
+    /**
+     * Bottom edge of the content the block must stop at, or null if not found.
+     *
+     * The *smallest* bottom edge wins, not the largest. An app nests several
+     * views under one name -- TikTok has three pagers called `viewpager`, one
+     * per level -- and the outermost of them fills the whole screen, tab bar
+     * included. Taking the largest would anchor to that and cover everything.
+     * Taking the smallest errs towards covering too little, which leaves a feed
+     * showing rather than trapping someone.
+     */
+    fun bottomOf(snapshot: ScreenSnapshot, keepVisibleBelowViewIds: List<String>): Int? {
+        if (keepVisibleBelowViewIds.isEmpty()) return null
+        return snapshot.nodes
+            .filter { node -> node.visible && keepVisibleBelowViewIds.any(node::viewIdMatches) }
+            .mapNotNull { it.bottomPx() }
             .minOrNull()
             ?.takeIf { it > 0 }
     }

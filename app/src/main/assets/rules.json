@@ -153,6 +153,48 @@
       "keepVisibleTopViewIds": [
         "action_bar_search_edit_text"
       ]
+    },
+    "com.zhiliaoapp.musically": {
+      "labelKey": "app_tiktok",
+      "aliases": [
+        "com.ss.android.ugc.trill"
+      ],
+      "screens": [
+        {
+          "id": "tt_shared_video",
+          "labelKey": "screen_tt_shared_video",
+          "defaultEnabled": true,
+          "verdict": "ALLOW_ONCE",
+          "budget": 1,
+          "match": {
+            "visibleViewId": [
+              "text1"
+            ],
+            "anyViewId": [
+              "long_press_layout",
+              "video_player_progress"
+            ],
+            "arrivedFromAnotherApp": true
+          }
+        },
+        {
+          "id": "tt_feed",
+          "labelKey": "screen_tt_feed",
+          "defaultEnabled": true,
+          "match": {
+            "visibleViewId": [
+              "text1"
+            ],
+            "anyViewId": [
+              "long_press_layout",
+              "video_player_progress"
+            ]
+          }
+        }
+      ],
+      "keepVisibleBelowViewIds": [
+        "viewpager"
+      ]
     }
   }
 }

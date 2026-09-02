@@ -79,6 +79,23 @@ data class AppRules(
      * look somebody up.
      */
     val keepVisibleTopViewIds: List<String> = emptyList(),
+    /**
+     * Views whose *bottom* edge the block must stop at, leaving everything
+     * below them reachable.
+     *
+     * [keepVisibleViewIds] names the tab bar directly, which is only possible
+     * when the tab bar has a name. TikTok's does not: every id in it is
+     * obfuscated and changes with each release, and an anchor that stops
+     * matching would let the block cover the whole screen and corner the user --
+     * the one outcome this app must never produce.
+     *
+     * So the anchor is inverted. TikTok's content pager keeps a real name, and
+     * its bottom edge is exactly the top of the tab bar. Anchoring to the thing
+     * that has a stable name and stopping where it ends survives the rename,
+     * and when it does break it breaks by covering too little rather than too
+     * much.
+     */
+    val keepVisibleBelowViewIds: List<String> = emptyList(),
     val screens: List<ScreenRule> = emptyList(),
 )
 
@@ -153,6 +170,23 @@ data class Matcher(
     val allViewId: List<String>? = null,
     val noneViewId: List<String>? = null,
     val selectedTab: SelectedTab? = null,
+    /**
+     * True to match only when the user arrived from a different app, false to
+     * match only when they did not. Absent means the question is not asked.
+     *
+     * Some screens cannot be told apart by looking at them. Open a TikTok link
+     * a friend sent and TikTok does not show you an isolated video the way
+     * Instagram shows a reel from a DM: it drops you into the For You feed
+     * itself, same top tabs, same tab bar, same everything. Watching what
+     * somebody sent you and browsing the feed are, on screen, the same pixels.
+     * The only thing that separates them is the step before -- whether you came
+     * from a conversation or from your home screen.
+     *
+     * The launcher does not count as another app, or opening TikTok deliberately
+     * would look exactly like following a link and hand out a free video every
+     * time.
+     */
+    val arrivedFromAnotherApp: Boolean? = null,
 )
 
 /** The selected item's position inside a tab strip, e.g. YouTube's pivot_bar. */

@@ -71,6 +71,9 @@
     <string name="pending_change_delay">L\'espera s\'escurçarà en %1$d s</string>
     <string name="screen_ig_stories">Obrir històries</string>
     <string name="screen_ig_home_stories_tray">Fila d\'històries a la pàgina d\'inici</string>
+    <string name="app_tiktok">TikTok</string>
+    <string name="screen_tt_feed">El flux de vídeos</string>
+    <string name="screen_tt_shared_video">Seguir passant des d\'un vídeo que t\'han enviat</string>
     <string name="section_language">Idioma</string>
     <string name="language_system">Idioma del telèfon</string>
     <string name="language_follows_phone">Doorman segueix l\'idioma del telèfon. A Android 13 i posteriors també pots posar un idioma només per a Doorman, a la configuració.</string>
