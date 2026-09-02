@@ -126,4 +126,22 @@
     <string name="help_sc_stories">La graella de Descobrir de la pestanya d\'històries. Les històries dels teus amics de dalt es continuen podent tocar si no bloqueges també aquella fila.</string>
     <string name="help_sc_friends_story_row">Amaga la fila d\'històries dels amics de dalt de la pestanya, sense bloquejar les històries.</string>
     <string name="action_close_help">Entesos</string>
+    <string name="app_not_installed">No la tens</string>
+    <string name="blocked_body_schedule">A aquesta hora no. Ho vas decidir tu.</string>
+    <string name="mode_allowance_week">%1$s a la setmana</string>
+    <string name="limits_usage_heading">Temps d\'ús</string>
+    <string name="limits_add_allowance">Afegeix un límit de temps</string>
+    <string name="limits_hours_heading">Hores bloquejades</string>
+    <string name="limits_hours_hint">Tria les hores en què està tancat. Un bloqueig que acaba abans de començar passa per la nit.</string>
+    <string name="limits_add_window">Afegeix hores bloquejades</string>
+    <string name="limits_week_heading">La teva setmana</string>
+    <string name="limits_wraps_midnight">Passa la mitjanit i continua fins al matí següent.</string>
+    <string name="period_hour">cada hora</string>
+    <string name="period_day">al dia</string>
+    <string name="period_week">a la setmana</string>
+    <string name="days_every">Cada dia</string>
+    <string name="days_weekdays">Feiners</string>
+    <string name="days_weekend">Cap de setmana</string>
+    <string name="action_save">Desa</string>
+    <string name="action_remove">Treu</string>
 </resources>

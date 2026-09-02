@@ -1,60 +1,67 @@
 package cat.doorman.app
 
+import cat.doorman.app.limits.Allowance
 import cat.doorman.app.limits.Allowances
-import cat.doorman.app.limits.BlockMode
+import cat.doorman.app.limits.Limits
 import cat.doorman.app.limits.Period
-import cat.doorman.app.limits.dailyMinutes
-import cat.doorman.app.limits.isLoosening
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDateTime
 
 /**
- * The bookkeeping behind "five minutes an hour". Every awkward case here -- the
- * turn of the hour, two allowances at once, the phone spending the night on a
- * bedside table -- is one that would otherwise need a stopwatch and a day of
- * waiting to try out.
+ * The bookkeeping behind "five minutes an hour": renewal, spending, and the
+ * counting of time itself. The rules about *when* a limit applies live in
+ * LimitsTest; this is about the ledger.
  */
 class AllowancesTest {
 
     private val noon = LocalDateTime.of(2026, 9, 2, 12, 0)
-    private fun spent(key: String, minutes: Int) =
-        Allowances.Spent(key, minutes * 60_000L)
+    private fun spent(key: String, minutes: Int) = Allowances.Spent(key, minutes * 60_000L)
 
     @Test
     fun `an allowance renews when the day turns over`() {
         val yesterday = Allowances.Spent("2026-09-01", 5 * 60_000L)
-        val mode = BlockMode.Allowance(5, Period.DAY)
-        assertEquals(5 * 60_000L, Allowances.remainingMillis(mode, yesterday, noon))
+        assertEquals(
+            5 * 60_000L,
+            Allowances.remainingMillis(Allowance(5, Period.DAY), yesterday, noon),
+        )
     }
 
     @Test
     fun `an allowance renews when the hour turns over`() {
         val lastHour = Allowances.Spent("2026-09-02T11", 5 * 60_000L)
-        val mode = BlockMode.Allowance(5, Period.HOUR)
-        assertEquals(5 * 60_000L, Allowances.remainingMillis(mode, lastHour, noon))
+        assertEquals(
+            5 * 60_000L,
+            Allowances.remainingMillis(Allowance(5, Period.HOUR), lastHour, noon),
+        )
     }
 
     @Test
     fun `time spent this period counts against the allowance`() {
-        val mode = BlockMode.Allowance(5, Period.DAY)
-        val used = spent("2026-09-02", 2)
-        assertEquals(3 * 60_000L, Allowances.remainingMillis(mode, used, noon))
+        assertEquals(
+            3 * 60_000L,
+            Allowances.remainingMillis(
+                Allowance(5, Period.DAY), spent("2026-09-02", 2), noon,
+            ),
+        )
     }
 
     @Test
     fun `an allowance cannot go negative`() {
-        val mode = BlockMode.Allowance(5, Period.DAY)
-        assertEquals(0L, Allowances.remainingMillis(mode, spent("2026-09-02", 9), noon))
+        assertEquals(
+            0L,
+            Allowances.remainingMillis(
+                Allowance(5, Period.DAY), spent("2026-09-02", 9), noon,
+            ),
+        )
     }
 
     @Test
     fun `nothing held means nothing to do`() {
         assertEquals(
             Allowances.Outcome.Allow,
-            Allowances.decide(listOf(Allowances.Target("ig_feed", BlockMode.Off)), noon),
+            Allowances.decide(listOf(Allowances.Target("ig_feed", Limits.OFF)), noon),
         )
     }
 
@@ -62,57 +69,72 @@ class AllowancesTest {
     fun `a screen held outright is blocked whatever the clock says`() {
         val outcome = Allowances.decide(
             listOf(
-                Allowances.Target("com.instagram.android", BlockMode.Allowance(30, Period.DAY)),
-                Allowances.Target("ig_feed", BlockMode.Blocked),
+                Allowances.Target(
+                    "com.instagram.android",
+                    Limits(allowances = listOf(Allowance(30, Period.DAY))),
+                ),
+                Allowances.Target("ig_feed", Limits.BLOCKED),
             ),
             noon,
         )
-        assertEquals(Allowances.Outcome.Block("ig_feed", allowanceSpent = false), outcome)
+        assertEquals(Allowances.Outcome.Block("ig_feed", Allowances.Reason.ALWAYS), outcome)
     }
 
     /**
-     * The reason both levels exist. Someone caps Instagram at thirty minutes a
-     * day and Reels at five within it; after six minutes of Reels the app is
-     * still open to them and Reels is not.
+     * The reason limits can sit on an app and a screen at once. Instagram
+     * capped at thirty minutes a day and Reels at five within it: after six
+     * minutes of Reels the app is still open and Reels is not.
      */
     @Test
     fun `the tighter of two allowances is the one that stops you`() {
+        val ledger = mapOf(
+            Allowances.ledgerKey("com.instagram.android", Period.DAY) to spent("2026-09-02", 6),
+            Allowances.ledgerKey("ig_reels", Period.DAY) to spent("2026-09-02", 6),
+        )
         val outcome = Allowances.decide(
             listOf(
                 Allowances.Target(
                     "com.instagram.android",
-                    BlockMode.Allowance(30, Period.DAY),
-                    spent("2026-09-02", 6),
+                    Limits(allowances = listOf(Allowance(30, Period.DAY))),
+                    ledger,
                 ),
                 Allowances.Target(
                     "ig_reels",
-                    BlockMode.Allowance(5, Period.DAY),
-                    spent("2026-09-02", 6),
+                    Limits(allowances = listOf(Allowance(5, Period.DAY))),
+                    ledger,
                 ),
             ),
             noon,
         )
-        assertEquals(Allowances.Outcome.Block("ig_reels", allowanceSpent = true), outcome)
+        assertEquals(
+            Allowances.Outcome.Block("ig_reels", Allowances.Reason.ALLOWANCE_SPENT),
+            outcome,
+        )
     }
 
     @Test
     fun `while both allowances have room the clock runs on both`() {
+        val ledger = mapOf(
+            Allowances.ledgerKey("com.instagram.android", Period.DAY) to spent("2026-09-02", 2),
+            Allowances.ledgerKey("ig_reels", Period.DAY) to spent("2026-09-02", 2),
+        )
         val outcome = Allowances.decide(
             listOf(
                 Allowances.Target(
                     "com.instagram.android",
-                    BlockMode.Allowance(30, Period.DAY),
-                    spent("2026-09-02", 2),
+                    Limits(allowances = listOf(Allowance(30, Period.DAY))),
+                    ledger,
                 ),
                 Allowances.Target(
                     "ig_reels",
-                    BlockMode.Allowance(5, Period.DAY),
-                    spent("2026-09-02", 2),
+                    Limits(allowances = listOf(Allowance(5, Period.DAY))),
+                    ledger,
                 ),
             ),
             noon,
         ) as Allowances.Outcome.OnTheClock
-        assertEquals(listOf("com.instagram.android", "ig_reels"), outcome.charge)
+        assertTrue("com.instagram.android|DAY" in outcome.charge)
+        assertTrue("ig_reels|DAY" in outcome.charge)
         assertEquals(3 * 60_000L, outcome.remainingMillis)
     }
 
@@ -127,8 +149,7 @@ class AllowancesTest {
     /**
      * The bug this prevents: the service remembers when it last looked at the
      * screen, and that field survives the phone being put down. Crediting the
-     * whole gap would spend a day's allowance overnight without the screen ever
-     * being on.
+     * whole gap would spend a day's allowance overnight with the screen off.
      */
     @Test
     fun `a long gap between checks is time away, not time spent`() {
@@ -144,41 +165,5 @@ class AllowancesTest {
     @Test
     fun `a clock that went backwards spends nothing`() {
         assertEquals(0L, Allowances.creditableMillis(9_000L, 5_000L))
-    }
-
-    @Test
-    fun `modes sort from most room to least`() {
-        assertTrue(BlockMode.Off.dailyMinutes > BlockMode.Allowance(5, Period.HOUR).dailyMinutes)
-        assertTrue(
-            BlockMode.Allowance(5, Period.HOUR).dailyMinutes >
-                BlockMode.Allowance(30, Period.DAY).dailyMinutes,
-        )
-        assertTrue(
-            BlockMode.Allowance(5, Period.DAY).dailyMinutes > BlockMode.Blocked.dailyMinutes,
-        )
-    }
-
-    /**
-     * What the change delay hangs on. Anything that gives the user more room has
-     * to wait; anything that takes room away happens at once.
-     */
-    @Test
-    fun `giving yourself more room counts as loosening`() {
-        assertTrue(isLoosening(BlockMode.Blocked, BlockMode.Allowance(5, Period.DAY)))
-        assertTrue(isLoosening(BlockMode.Allowance(5, Period.DAY), BlockMode.Off))
-        assertTrue(
-            isLoosening(
-                BlockMode.Allowance(5, Period.DAY),
-                BlockMode.Allowance(30, Period.DAY),
-            ),
-        )
-        assertFalse(isLoosening(BlockMode.Off, BlockMode.Blocked))
-        assertFalse(
-            isLoosening(
-                BlockMode.Allowance(30, Period.DAY),
-                BlockMode.Allowance(5, Period.DAY),
-            ),
-        )
-        assertFalse(isLoosening(BlockMode.Blocked, BlockMode.Blocked))
     }
 }

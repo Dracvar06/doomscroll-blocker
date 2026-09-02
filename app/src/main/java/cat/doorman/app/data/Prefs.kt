@@ -9,8 +9,8 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import cat.doorman.app.limits.Allowances
-import cat.doorman.app.limits.BlockMode
-import cat.doorman.app.limits.ModeCodec
+import cat.doorman.app.limits.Limits
+import cat.doorman.app.limits.LimitsCodec
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import org.json.JSONObject
@@ -65,13 +65,13 @@ class Prefs(private val context: Context) {
      * with, so screens added by a later update can adopt their default while
      * every explicit choice is preserved. See [ScreenPreferences].
      */
-    fun screenModes(screenDefaults: Map<String, Boolean>): Flow<Map<String, BlockMode>> =
+    fun screenLimits(screenDefaults: Map<String, Boolean>): Flow<Map<String, Limits>> =
         context.dataStore.data.map { prefs ->
-            ScreenPreferences.effectiveModes(
+            ScreenPreferences.effectiveLimits(
                 screenDefaults = screenDefaults,
                 decided = decidedIn(prefs),
                 enabled = prefs[Keys.ENABLED_SCREENS].orEmpty(),
-                storedModes = decodeModes(prefs[Keys.MODES]),
+                stored = decodeModes(prefs[Keys.MODES]),
             )
         }
 
@@ -79,7 +79,7 @@ class Prefs(private val context: Context) {
      * Modes for things with no shipped default: whole apps, including games and
      * anything else the user has added. Absent means [BlockMode.Off].
      */
-    val appModes: Flow<Map<String, BlockMode>> =
+    val appLimits: Flow<Map<String, Limits>> =
         context.dataStore.data.map { prefs ->
             decodeModes(prefs[Keys.MODES]).filterKeys { it.contains('.') }
         }
@@ -125,16 +125,16 @@ class Prefs(private val context: Context) {
     val spent: Flow<Map<String, Allowances.Spent>> =
         context.dataStore.data.map { prefs -> decodeSpent(prefs[Keys.SPENT]) }
 
-    suspend fun setMode(targetId: String, mode: BlockMode) {
+    suspend fun setLimits(targetId: String, limits: Limits) {
         context.dataStore.edit { prefs ->
-            val modes = decodeModes(prefs[Keys.MODES]) + (targetId to mode)
-            prefs[Keys.MODES] = encodeModes(modes)
+            val all = decodeModes(prefs[Keys.MODES]) + (targetId to limits)
+            prefs[Keys.MODES] = encodeModes(all)
             // Keep the old on/off record in step, so a downgrade or a stale
             // read never resurrects a decision the user has since changed.
             prefs[Keys.DECIDED_SCREENS] = decidedIn(prefs) + targetId
             val enabled = prefs[Keys.ENABLED_SCREENS].orEmpty()
             prefs[Keys.ENABLED_SCREENS] =
-                if (mode == BlockMode.Off) enabled - targetId else enabled + targetId
+                if (limits.isOff) enabled - targetId else enabled + targetId
         }
     }
 
@@ -146,19 +146,19 @@ class Prefs(private val context: Context) {
         }
     }
 
-    private fun decodeModes(raw: String?): Map<String, BlockMode> {
+    private fun decodeModes(raw: String?): Map<String, Limits> {
         if (raw.isNullOrBlank()) return emptyMap()
         return runCatching {
             val json = JSONObject(raw)
             json.keys().asSequence().mapNotNull { key ->
-                ModeCodec.decode(json.optString(key))?.let { key to it }
+                LimitsCodec.decode(json.optString(key))?.let { key to it }
             }.toMap()
         }.getOrDefault(emptyMap())
     }
 
-    private fun encodeModes(modes: Map<String, BlockMode>): String {
+    private fun encodeModes(all: Map<String, Limits>): String {
         val json = JSONObject()
-        modes.forEach { (id, mode) -> json.put(id, ModeCodec.encode(mode)) }
+        all.forEach { (id, limits) -> json.put(id, LimitsCodec.encode(limits)) }
         return json.toString()
     }
 
@@ -214,7 +214,7 @@ class Prefs(private val context: Context) {
             val kept = decodeModes(prefs[Keys.MODES]).filterKeys { it !in allScreenIds }
             prefs[Keys.MODES] = encodeModes(
                 kept + allScreenIds.associateWith {
-                    if (it in screenIds) BlockMode.Blocked else BlockMode.Off
+                    if (it in screenIds) Limits.BLOCKED else Limits.OFF
                 },
             )
         }
@@ -276,7 +276,17 @@ class Prefs(private val context: Context) {
     companion object {
         const val DEFAULT_WAIT_SECONDS = 30
         const val DEFAULT_PASS_MINUTES = 2
-        const val DEFAULT_CHANGE_DELAY_SECONDS = 30
+        /**
+         * No wait, until the user asks for one.
+         *
+         * The wait is the app's best idea and still the wrong thing to meet
+         * first: setting Doorman up means changing a dozen switches, and making
+         * someone sit out half a minute on each one before they have felt any
+         * benefit is how an app gets uninstalled during setup. It is one tap
+         * away, explained where it sits, and the people who need it are the
+         * ones who go looking for it.
+         */
+        const val DEFAULT_CHANGE_DELAY_SECONDS = 0
         const val MAX_SEEN_APPS = 60
         val CHANGE_DELAY_CHOICES = listOf(0, 10, 30, 120)
     }

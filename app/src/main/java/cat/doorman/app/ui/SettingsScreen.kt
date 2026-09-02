@@ -35,7 +35,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import cat.doorman.app.R
 import cat.doorman.app.data.Prefs
-import cat.doorman.app.limits.BlockMode
+import cat.doorman.app.limits.Limits
 import cat.doorman.app.rules.RuleSet
 
 /** An app the user has been seen using, offered for holding as a whole. */
@@ -49,8 +49,8 @@ data class OtherApp(val packageName: String, val label: String)
 @Composable
 fun BlockingSettings(
     rules: RuleSet,
-    screenModes: Map<String, BlockMode>,
-    appModes: Map<String, BlockMode>,
+    screenLimits: Map<String, Limits>,
+    appLimits: Map<String, Limits>,
     otherApps: List<OtherApp>,
     icons: AppIcons,
     installedPackages: Set<String>,
@@ -62,7 +62,7 @@ fun BlockingSettings(
     pendingIsDelay: Boolean,
     pendingSeconds: Int,
     changeDelaySeconds: Int,
-    onModeChosen: (String, BlockMode) -> Unit,
+    onLimitsChosen: (String, Limits) -> Unit,
     onPreset: (Set<String>) -> Unit,
     onCancelPending: () -> Unit,
     onChangeDelay: (Int) -> Unit,
@@ -111,9 +111,7 @@ fun BlockingSettings(
                     // app they do have.
                     val installed = app.packages(packageName).any { it in installedPackages }
                     val open = openCards[packageName] ?: installed
-                    val held = app.screens.count {
-                        (screenModes[it.id] ?: BlockMode.Off) != BlockMode.Off
-                    }
+                    val held = app.screens.count { !(screenLimits[it.id] ?: Limits.OFF).isOff }
                     val appIcon by produceState<ImageBitmap?>(null, packageName) {
                         value = app.packages(packageName)
                             .firstNotNullOfOrNull { icons.load(it) }
@@ -151,6 +149,10 @@ fun BlockingSettings(
                         Text(
                             text = when {
                                 open -> stringResource(R.string.card_close)
+                                // An app that is not on the phone says so,
+                                // rather than reporting nothing blocked as if
+                                // that were a choice someone had made.
+                                !installed -> stringResource(R.string.app_not_installed)
                                 // Zero is not a plural category in any of the
                                 // three languages, so it needs its own string
                                 // rather than a quantity nobody would ever see.
@@ -165,31 +167,31 @@ fun BlockingSettings(
                     // The whole app, above the screens inside it: an allowance
                     // set here covers everything, and whichever runs out first
                     // is the one that stops you.
-                    ModeRow(
+                    LimitRow(
                         label = stringResource(R.string.whole_app_row),
-                        mode = appModes[packageName] ?: BlockMode.Off,
+                        limits = appLimits[packageName] ?: Limits.OFF,
                         remaining = remainingFor(packageName),
-                        onModeChosen = { onModeChosen(packageName, it) },
+                        onLimitsChosen = { onLimitsChosen(packageName, it) },
                         help = stringResource(R.string.help_whole_app),
                     )
                     app.screens.forEach { screen ->
-                        val mode = screenModes[screen.id] ?: BlockMode.Off
+                        val limit = screenLimits[screen.id] ?: Limits.OFF
                         if (screen.supportsAllowance) {
-                            ModeRow(
+                            LimitRow(
                                 label = labelFor(screen.labelKey),
-                                mode = mode,
+                                limits = limit,
                                 remaining = remainingFor(screen.id),
-                                onModeChosen = { onModeChosen(screen.id, it) },
+                                onLimitsChosen = { onLimitsChosen(screen.id, it) },
                                 help = helpFor(screen.helpKey),
                             )
                         } else {
                             SwitchRow(
                                 label = labelFor(screen.labelKey),
-                                checked = mode != BlockMode.Off,
+                                checked = !limit.isOff,
                                 onCheckedChange = {
-                                    onModeChosen(
+                                    onLimitsChosen(
                                         screen.id,
-                                        if (it) BlockMode.Blocked else BlockMode.Off,
+                                        if (it) Limits.BLOCKED else Limits.OFF,
                                     )
                                 },
                                 help = helpFor(screen.helpKey),
@@ -225,9 +227,7 @@ fun BlockingSettings(
                 // Every app on the phone laid out at once is a wall nobody
                 // reads, and the list someone actually cares about is the
                 // handful they have already chosen.
-                val held = otherApps.filter {
-                    (appModes[it.packageName] ?: BlockMode.Off) != BlockMode.Off
-                }
+                val held = otherApps.filter { !(appLimits[it.packageName] ?: Limits.OFF).isOff }
                 val matches = if (query.isBlank()) {
                     emptyList()
                 } else {
@@ -243,15 +243,15 @@ fun BlockingSettings(
                     )
                 }
                 (held + matches).forEach { app ->
-                    val mode = appModes[app.packageName] ?: BlockMode.Off
+                    val limit = appLimits[app.packageName] ?: Limits.OFF
                     val icon by produceState<ImageBitmap?>(null, app.packageName) {
                         value = icons.load(app.packageName)
                     }
-                    ModeRow(
+                    LimitRow(
                         label = app.label,
-                        mode = mode,
+                        limits = limit,
                         remaining = remainingFor(app.packageName),
-                        onModeChosen = { onModeChosen(app.packageName, it) },
+                        onLimitsChosen = { onLimitsChosen(app.packageName, it) },
                         icon = icon,
                         hasIcon = true,
                         help = stringResource(R.string.help_whole_app),

@@ -135,4 +135,22 @@
     <string name="help_sc_stories" tools:ignore="UnusedResources">The Discover grid of publisher content on the Stories tab. Your friends\' stories along the top stay reachable unless you also block that row.</string>
     <string name="help_sc_friends_story_row" tools:ignore="UnusedResources">Hides the row of friends\' stories at the top of the Stories tab, without blocking stories themselves.</string>
     <string name="action_close_help">Got it</string>
+    <string name="app_not_installed">Not installed</string>
+    <string name="blocked_body_schedule">Not at this hour. You set this one aside.</string>
+    <string name="mode_allowance_week">%1$s a week</string>
+    <string name="limits_usage_heading">Time budget</string>
+    <string name="limits_add_allowance">Add a budget</string>
+    <string name="limits_hours_heading">Blocked hours</string>
+    <string name="limits_hours_hint">Set the hours it is closed. A block that ends earlier than it starts runs through the night.</string>
+    <string name="limits_add_window">Add blocked hours</string>
+    <string name="limits_week_heading">Your week</string>
+    <string name="limits_wraps_midnight">Runs through midnight into the next morning.</string>
+    <string name="period_hour">per hour</string>
+    <string name="period_day">per day</string>
+    <string name="period_week">per week</string>
+    <string name="days_every">Every day</string>
+    <string name="days_weekdays">Weekdays</string>
+    <string name="days_weekend">Weekend</string>
+    <string name="action_save">Save</string>
+    <string name="action_remove">Remove</string>
 </resources>

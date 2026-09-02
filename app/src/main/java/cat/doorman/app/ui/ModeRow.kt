@@ -35,109 +35,77 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import cat.doorman.app.R
-import cat.doorman.app.limits.BlockMode
-import cat.doorman.app.limits.Period
+import cat.doorman.app.limits.Limits
 
 /**
- * The name of a mode, as the user reads it.
+ * One thing that can be held: what is holding it, and a way in to change it.
  *
- * Built from plurals rather than by pasting a number in front of a word,
- * because "1 minut" and "5 minuts" differ in Catalan and Spanish and this text
- * is the whole interface to the feature.
+ * The row used to expand into a strip of preset chips. That worked while there
+ * were eight presets and stopped working the moment limits could be combined --
+ * a budget and two blocked stretches on different days is not a preset, and
+ * laying every possibility out as chips would be a wall. Tapping opens an
+ * editor instead, and the row itself says only what is true right now.
  */
 @Composable
-fun modeLabel(mode: BlockMode): String = when (mode) {
-    is BlockMode.Off -> stringResource(R.string.mode_off)
-    is BlockMode.Blocked -> stringResource(R.string.mode_blocked)
-    is BlockMode.Allowance -> {
-        val minutes = pluralStringResource(R.plurals.minutes, mode.minutes, mode.minutes)
-        when (mode.period) {
-            Period.HOUR -> stringResource(R.string.mode_allowance_hour, minutes)
-            Period.DAY -> stringResource(R.string.mode_allowance_day, minutes)
-        }
-    }
-}
-
-/**
- * One thing that can be held, with its current mode and a way to change it.
- *
- * Collapsed by default. Eight choices per screen laid out permanently would
- * turn a list someone can read into a wall they scroll past, and the common
- * case is that nothing needs changing.
- */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-fun ModeRow(
+fun LimitRow(
     label: String,
-    mode: BlockMode,
+    limits: Limits,
     remaining: String?,
-    onModeChosen: (BlockMode) -> Unit,
+    onLimitsChosen: (Limits) -> Unit,
     icon: ImageBitmap? = null,
     hasIcon: Boolean = false,
     help: String? = null,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    Column(
+    var editing by remember { mutableStateOf(false) }
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { expanded = !expanded }
-            .padding(vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+            .clickable { editing = true }
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.weight(1f),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier = Modifier.weight(1f),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                // The space is held from the start, before the icon has
-                // finished loading. Drawing it only once it arrives would make
-                // every row in a long list slide sideways under the user's
-                // thumb as the icons trickle in.
-                if (hasIcon) {
-                    Box(
-                        modifier = Modifier.size(40.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        if (icon != null) {
-                            Image(
-                                bitmap = icon,
-                                contentDescription = null,
-                                contentScale = ContentScale.Fit,
-                                modifier = Modifier.size(40.dp),
-                            )
-                        }
-                    }
-                    Spacer(Modifier.width(12.dp))
-                }
-                Text(text = label, style = MaterialTheme.typography.bodyLarge)
-                HelpButton(label, help)
-            }
-            Spacer(Modifier.width(8.dp))
-            Text(
-                text = remaining ?: modeLabel(mode),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-            )
-        }
-        if (expanded) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                (listOf(BlockMode.Blocked) + BlockMode.OFFERED + listOf(BlockMode.Off))
-                    .forEach { choice ->
-                        FilterChip(
-                            selected = choice == mode,
-                            onClick = {
-                                onModeChosen(choice)
-                                expanded = false
-                            },
-                            label = { Text(modeLabel(choice)) },
+            // The space is held from the start, before the icon has finished
+            // loading. Drawing it only once it arrives would make every row in
+            // a long list slide sideways under the user's thumb.
+            if (hasIcon) {
+                Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+                    if (icon != null) {
+                        Image(
+                            bitmap = icon,
+                            contentDescription = null,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.size(40.dp),
                         )
                     }
+                }
+                Spacer(Modifier.width(12.dp))
             }
+            Text(text = label, style = MaterialTheme.typography.bodyLarge)
+            HelpButton(label, help)
         }
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = remaining ?: limitsSummary(limits),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+        )
+    }
+    if (editing) {
+        LimitsEditor(
+            title = label,
+            limits = limits,
+            help = help,
+            onDismiss = { editing = false },
+            onSave = {
+                onLimitsChosen(it)
+                editing = false
+            },
+        )
     }
 }
 

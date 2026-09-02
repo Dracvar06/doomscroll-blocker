@@ -39,7 +39,8 @@ import androidx.lifecycle.lifecycleScope
 import cat.doorman.app.R
 import cat.doorman.app.data.Prefs
 import cat.doorman.app.limits.Allowances
-import cat.doorman.app.limits.BlockMode
+import cat.doorman.app.limits.Limits
+import cat.doorman.app.limits.Period
 import cat.doorman.app.limits.isLoosening
 import cat.doorman.app.rules.RuleLoader
 import cat.doorman.app.rules.RuleSet
@@ -56,7 +57,7 @@ private enum class Screen { HOME, UNLOCK }
 
 /** A settings change that has been asked for but has not taken effect yet. */
 private sealed interface PendingChange {
-    data class Mode(val id: String, val mode: BlockMode) : PendingChange
+    data class Mode(val id: String, val limits: Limits) : PendingChange
     data class Preset(val ids: Set<String>) : PendingChange
 
     /**
@@ -74,8 +75,8 @@ class MainActivity : ComponentActivity() {
     private var serviceEnabled by mutableStateOf(false)
     private var rules by mutableStateOf(RuleSet())
     private var screenDefaults: Map<String, Boolean> = emptyMap()
-    private var screenModes by mutableStateOf(emptyMap<String, BlockMode>())
-    private var appModes by mutableStateOf(emptyMap<String, BlockMode>())
+    private var screenLimits by mutableStateOf(emptyMap<String, Limits>())
+    private var appLimits by mutableStateOf(emptyMap<String, Limits>())
     private var spent by mutableStateOf(emptyMap<String, Allowances.Spent>())
     private val appIcons by lazy { AppIcons(this) }
     private var openCards by mutableStateOf(emptyMap<String, Boolean>())
@@ -112,9 +113,9 @@ class MainActivity : ComponentActivity() {
         screenDefaults = RuleLoader.screenDefaults(rules)
 
         lifecycleScope.launch {
-            prefs.screenModes(screenDefaults).collectLatest { screenModes = it }
+            prefs.screenLimits(screenDefaults).collectLatest { screenLimits = it }
         }
-        lifecycleScope.launch { prefs.appModes.collectLatest { appModes = it } }
+        lifecycleScope.launch { prefs.appLimits.collectLatest { appLimits = it } }
         lifecycleScope.launch { prefs.spent.collectLatest { spent = it } }
         lifecycleScope.launch { prefs.openCards.collectLatest { openCards = it } }
         // Deletes the record of watched apps kept by earlier versions.
@@ -150,7 +151,7 @@ class MainActivity : ComponentActivity() {
                                     .ifEmpty { appLabelFor(change.id) }
                             },
                             modeLabel = (pendingChange as? PendingChange.Mode)
-                                ?.let { change -> modeLabelText(change.mode) },
+                                ?.let { change -> summaryText(change.limits) },
                             onCancel = { cancelPendingChange() },
                         )
                         when (screen) {
@@ -248,8 +249,8 @@ class MainActivity : ComponentActivity() {
 
         BlockingSettings(
             rules = rules,
-            screenModes = screenModes,
-            appModes = appModes,
+            screenLimits = screenLimits,
+            appLimits = appLimits,
             otherApps = otherApps(),
             icons = appIcons,
             installedPackages = installedPackages,
@@ -261,11 +262,11 @@ class MainActivity : ComponentActivity() {
             pendingLabel = (pendingChange as? PendingChange.Mode)
                 ?.let { change -> labelKeyFor(change.id).let(::labelFor).ifEmpty { appLabelFor(change.id) } },
             pendingModeLabel = (pendingChange as? PendingChange.Mode)
-                ?.let { change -> modeLabelText(change.mode) },
+                ?.let { change -> summaryText(change.limits) },
             pendingIsDelay = pendingChange is PendingChange.Delay,
             pendingSeconds = pendingSeconds,
             changeDelaySeconds = changeDelaySeconds,
-            onModeChosen = { id, mode -> requestModeChange(id, mode) },
+            onLimitsChosen = { id, limits -> requestLimitsChange(id, limits) },
             onPreset = { ids -> requestPreset(ids) },
             onCancelPending = { cancelPendingChange() },
             onChangeDelay = { seconds -> requestDelayChange(seconds) },
@@ -309,17 +310,17 @@ class MainActivity : ComponentActivity() {
      * friction on switching a block *on* would only discourage the decision
      * worth encouraging.
      */
-    private fun requestModeChange(targetId: String, mode: BlockMode) {
-        val current = screenModes[targetId] ?: appModes[targetId] ?: BlockMode.Off
-        if (!isLoosening(current, mode) || changeDelaySeconds <= 0) {
-            lifecycleScope.launch { prefs.setMode(targetId, mode) }
+    private fun requestLimitsChange(targetId: String, limits: Limits) {
+        val current = screenLimits[targetId] ?: appLimits[targetId] ?: Limits.OFF
+        if (!isLoosening(current, limits) || changeDelaySeconds <= 0) {
+            lifecycleScope.launch { prefs.setLimits(targetId, limits) }
             return
         }
-        startPending(PendingChange.Mode(targetId, mode))
+        startPending(PendingChange.Mode(targetId, limits))
     }
 
     private fun requestPreset(ids: Set<String>) {
-        val weakens = screenModes.any { (id, mode) -> mode != BlockMode.Off && id !in ids }
+        val weakens = screenLimits.any { (id, limits) -> !limits.isOff && id !in ids }
         if (!weakens || changeDelaySeconds <= 0) {
             lifecycleScope.launch { prefs.setEnabledScreens(ids, screenDefaults.keys) }
             return
@@ -373,22 +374,6 @@ class MainActivity : ComponentActivity() {
      * says all there is to say, and a countdown next to "Blocked" would be
      * noise.
      */
-    private fun remainingLabelFor(targetId: String): String? {
-        val mode = (screenModes[targetId] ?: appModes[targetId]) as? BlockMode.Allowance
-            ?: return null
-        val left = Allowances.remainingMillis(
-            mode,
-            spent[targetId] ?: Allowances.Spent.NOTHING,
-            java.time.LocalDateTime.now(),
-        )
-        if (left <= 0L) return getString(R.string.remaining_none)
-        val minutes = Math.ceil(left / 60_000.0).toInt()
-        return getString(
-            R.string.remaining_left,
-            resources.getQuantityString(R.plurals.minutes, minutes, minutes),
-        )
-    }
-
     /**
      * Lengthening the wait takes effect at once; shortening it has to sit out
      * the wait that is currently in force. Without this the delay is one tap
@@ -418,7 +403,7 @@ class MainActivity : ComponentActivity() {
     private fun applyPendingChange() {
         when (val change = pendingChange) {
             is PendingChange.Mode ->
-                lifecycleScope.launch { prefs.setMode(change.id, change.mode) }
+                lifecycleScope.launch { prefs.setLimits(change.id, change.limits) }
             is PendingChange.Preset ->
                 lifecycleScope.launch { prefs.setEnabledScreens(change.ids, screenDefaults.keys) }
             is PendingChange.Delay ->
@@ -436,23 +421,54 @@ class MainActivity : ComponentActivity() {
         pendingSeconds = 0
     }
 
-    /** The name of a mode outside a composable, for the pending-change banner. */
-    private fun modeLabelText(mode: BlockMode): String = when (mode) {
-        is BlockMode.Off -> getString(R.string.mode_off)
-        is BlockMode.Blocked -> getString(R.string.mode_blocked)
-        is BlockMode.Allowance -> {
-            val minutes = resources.getQuantityString(
-                R.plurals.minutes, mode.minutes, mode.minutes,
-            )
-            getString(
-                if (mode.period == cat.doorman.app.limits.Period.HOUR) {
-                    R.string.mode_allowance_hour
-                } else {
-                    R.string.mode_allowance_day
-                },
-                minutes,
+    private fun remainingLabelFor(targetId: String): String? {
+        val limits = screenLimits[targetId] ?: appLimits[targetId] ?: return null
+        val today = java.time.LocalDateTime.now()
+        val applicable = limits.allowancesOn(today.dayOfWeek)
+        if (applicable.isEmpty()) return null
+        val left = applicable.minOf { allowance ->
+            cat.doorman.app.limits.Allowances.remainingMillis(
+                allowance,
+                spent[cat.doorman.app.limits.Allowances.ledgerKey(targetId, allowance.period)]
+                    ?: cat.doorman.app.limits.Allowances.Spent.NOTHING,
+                today,
             )
         }
+        if (left <= 0L) return getString(R.string.remaining_none)
+        val minutes = Math.ceil(left / 60_000.0).toInt()
+        return getString(
+            R.string.remaining_left,
+            resources.getQuantityString(R.plurals.minutes, minutes, minutes),
+        )
+    }
+
+    /**
+     * What a set of limits says, outside a composable, for the pending-change
+     * dialog. Deliberately terse: the dialog is a countdown, not a manual.
+     */
+    private fun summaryText(limits: Limits): String = when {
+        limits.blocked -> getString(R.string.mode_blocked)
+        limits.isOff -> getString(R.string.mode_off)
+        else -> buildList {
+            limits.allowances.forEach { allowance ->
+                val minutes = resources.getQuantityString(
+                    R.plurals.minutes, allowance.minutes, allowance.minutes,
+                )
+                add(
+                    getString(
+                        when (allowance.period) {
+                            Period.HOUR -> R.string.mode_allowance_hour
+                            Period.DAY -> R.string.mode_allowance_day
+                            Period.WEEK -> R.string.mode_allowance_week
+                        },
+                        minutes,
+                    ),
+                )
+            }
+            limits.windows.forEach { window ->
+                add("${formatMinute(window.fromMinute)}\u2013${formatMinute(window.toMinute)}")
+            }
+        }.joinToString(" \u00b7 ")
     }
 
     private fun labelKeyFor(screenId: String): String =

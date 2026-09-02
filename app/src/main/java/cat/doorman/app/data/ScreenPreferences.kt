@@ -1,6 +1,6 @@
 package cat.doorman.app.data
 
-import cat.doorman.app.limits.BlockMode
+import cat.doorman.app.limits.Limits
 
 /**
  * Works out how strictly each thing is actually held, given what the user has
@@ -21,7 +21,7 @@ import cat.doorman.app.limits.BlockMode
 object ScreenPreferences {
 
     /**
-     * The mode in force for every known screen.
+     * The limits in force on every known screen.
      *
      * Three sources, in order of authority: a mode the user has chosen, an
      * older on/off decision from before allowances existed, and the default the
@@ -32,27 +32,27 @@ object ScreenPreferences {
      * those have to keep meaning "blocked" -- an upgrade that silently unheld
      * every screen someone had chosen would be a betrayal of the whole app.
      */
-    fun effectiveModes(
+    fun effectiveLimits(
         screenDefaults: Map<String, Boolean>,
         decided: Set<String>,
         enabled: Set<String>,
-        storedModes: Map<String, BlockMode>,
-    ): Map<String, BlockMode> = screenDefaults.mapValues { (id, shippedDefault) ->
-        storedModes[id]
+        stored: Map<String, Limits>,
+    ): Map<String, Limits> = screenDefaults.mapValues { (id, shippedDefault) ->
+        stored[id]
             ?: when {
-                id in decided -> if (id in enabled) BlockMode.Blocked else BlockMode.Off
-                shippedDefault -> BlockMode.Blocked
-                else -> BlockMode.Off
+                id in decided -> if (id in enabled) Limits.BLOCKED else Limits.OFF
+                shippedDefault -> Limits.BLOCKED
+                else -> Limits.OFF
             }
     }
 
     /**
      * Which screens the rules should be matched against at all.
      *
-     * A screen with an allowance still has to be recognised -- the allowance is
-     * spent by looking at it, so the evaluator has to know when it is in front.
-     * Only [BlockMode.Off] takes a screen out of the running entirely.
+     * A screen with an allowance or a schedule still has to be recognised: the
+     * allowance is spent by looking at it and the schedule has to know when it
+     * is in front. Only a screen with no limits at all leaves the running.
      */
-    fun activeScreenIds(modes: Map<String, BlockMode>): Set<String> =
-        modes.filterValues { it != BlockMode.Off }.keys
+    fun activeScreenIds(limits: Map<String, Limits>): Set<String> =
+        limits.filterValues { !it.isOff }.keys
 }

@@ -24,7 +24,8 @@ import cat.doorman.app.rules.ScreenEvaluator
 import cat.doorman.app.rules.OverlayBounds
 import cat.doorman.app.data.ScreenPreferences
 import cat.doorman.app.limits.Allowances
-import cat.doorman.app.limits.BlockMode
+import cat.doorman.app.limits.Limits
+import cat.doorman.app.limits.Period
 import java.time.LocalDateTime
 import cat.doorman.app.R
 import kotlinx.coroutines.CoroutineScope
@@ -70,8 +71,8 @@ class DoormanAccessibilityService : AccessibilityService() {
     private lateinit var overlay: BlockOverlayController
     private var rules: RuleSet = RuleSet()
     private var enabledScreenIds: Set<String> = emptySet()
-    private var screenModes: Map<String, BlockMode> = emptyMap()
-    private var appModes: Map<String, BlockMode> = emptyMap()
+    private var screenLimits: Map<String, Limits> = emptyMap()
+    private var appLimits: Map<String, Limits> = emptyMap()
     private var ledger: Map<String, Allowances.Spent> = emptyMap()
 
     /**
@@ -107,16 +108,16 @@ class DoormanAccessibilityService : AccessibilityService() {
         // and every change re-runs the current screen through the rules.
         val prefs = Prefs(this)
         serviceScope.launch {
-            prefs.screenModes(screenDefaults).collectLatest {
-                screenModes = it
+            prefs.screenLimits(screenDefaults).collectLatest {
+                screenLimits = it
                 enabledScreenIds = ScreenPreferences.activeScreenIds(it)
                 Log.i(TAG, "blocking set changed: $enabledScreenIds")
                 evaluateCurrentScreen()
             }
         }
         serviceScope.launch {
-            prefs.appModes.collectLatest {
-                appModes = it
+            prefs.appLimits.collectLatest {
+                appLimits = it
                 evaluateCurrentScreen()
             }
         }
@@ -321,7 +322,7 @@ class DoormanAccessibilityService : AccessibilityService() {
      * apps the user has chosen to hold themselves.
      */
     private fun watchedPackages(): Set<String> =
-        rules.supportedPackages + appModes.filterValues { it != BlockMode.Off }.keys
+        rules.supportedPackages + appLimits.filterValues { !it.isOff }.keys
 
     private fun evaluateCurrentScreen() {
         lastEvaluationAt = SystemClock.uptimeMillis()
@@ -394,17 +395,13 @@ class DoormanAccessibilityService : AccessibilityService() {
         lastEvaluatedScreenId = verdict.screenId
 
         val canonical = rules.canonicalPackage(pkg) ?: pkg
-        val appMode = appModes[canonical] ?: BlockMode.Off
+        val appLimit = appLimits[canonical] ?: Limits.OFF
         val targets = buildList {
-            if (appMode != BlockMode.Off) {
-                add(Allowances.Target(canonical, appMode, ledger[canonical] ?: Allowances.Spent.NOTHING))
-            }
+            if (!appLimit.isOff) add(Allowances.Target(canonical, appLimit, ledger))
             val screenId = verdict.screenId
             if (screenId != null && verdict.blocked) {
-                val mode = screenModes[screenId] ?: BlockMode.Blocked
-                if (mode != BlockMode.Off) {
-                    add(Allowances.Target(screenId, mode, ledger[screenId] ?: Allowances.Spent.NOTHING))
-                }
+                val limit = screenLimits[screenId] ?: Limits.BLOCKED
+                if (!limit.isOff) add(Allowances.Target(screenId, limit, ledger))
             }
         }
 
@@ -413,7 +410,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         // what actually happens to it, which since allowances arrived is a
         // different question: a rule can match and the screen still be open
         // because there is time left on it.
-        Log.i(TAG, "decision: $outcome targets=${targets.map { it.id to it.mode }}")
+        Log.i(TAG, "decision: $outcome targets=${targets.map { it.id to it.limits }}")
         when (outcome) {
             is Allowances.Outcome.Allow -> {
                 stopClock()
@@ -444,10 +441,10 @@ class DoormanAccessibilityService : AccessibilityService() {
         snapshot: cat.doorman.app.model.ScreenSnapshot?,
         pkg: String,
     ) {
-        val body = if (outcome.allowanceSpent) {
-            R.string.blocked_body_allowance_spent
-        } else {
-            R.string.blocked_body
+        val body = when (outcome.reason) {
+            Allowances.Reason.ALLOWANCE_SPENT -> R.string.blocked_body_allowance_spent
+            Allowances.Reason.SCHEDULE -> R.string.blocked_body_schedule
+            Allowances.Reason.ALWAYS -> R.string.blocked_body
         }
         val wholeApp = outcome.targetId == rules.canonicalPackage(pkg) ?: pkg ||
             outcome.targetId.contains('.')
@@ -538,12 +535,14 @@ class DoormanAccessibilityService : AccessibilityService() {
         if (pending.isEmpty()) return
         lastFlushAt = now
         val at = LocalDateTime.now()
-        val charges = pending.mapNotNull { (id, millis) ->
-            val mode = (appModes[id] ?: screenModes[id]) as? BlockMode.Allowance
-                ?: return@mapNotNull null
-            id to Allowances.charge(
-                ledger[id] ?: Allowances.Spent.NOTHING,
-                mode.period,
+        // Pending is keyed by "target|PERIOD", because a screen can be on an
+        // hourly and a daily budget at once and those are separate counters.
+        val charges = pending.mapNotNull { (key, millis) ->
+            val period = runCatching { Period.valueOf(key.substringAfterLast('|')) }
+                .getOrNull() ?: return@mapNotNull null
+            key to Allowances.charge(
+                ledger[key] ?: Allowances.Spent.NOTHING,
+                period,
                 millis,
                 at,
             )

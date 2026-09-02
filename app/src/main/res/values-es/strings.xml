@@ -130,4 +130,22 @@
     <string name="help_sc_stories">La cuadrícula de Descubrir de la pestaña de historias. Las historias de tus amigos de arriba se siguen pudiendo tocar si no bloqueas también esa fila.</string>
     <string name="help_sc_friends_story_row">Oculta la fila de historias de los amigos de arriba de la pestaña, sin bloquear las historias.</string>
     <string name="action_close_help">Entendido</string>
+    <string name="app_not_installed">No la tienes</string>
+    <string name="blocked_body_schedule">A esta hora no. Lo decidiste tú.</string>
+    <string name="mode_allowance_week">%1$s a la semana</string>
+    <string name="limits_usage_heading">Tiempo de uso</string>
+    <string name="limits_add_allowance">Añadir un límite de tiempo</string>
+    <string name="limits_hours_heading">Horas bloqueadas</string>
+    <string name="limits_hours_hint">Elige las horas en que está cerrado. Un bloqueo que acaba antes de empezar pasa por la noche.</string>
+    <string name="limits_add_window">Añadir horas bloqueadas</string>
+    <string name="limits_week_heading">Tu semana</string>
+    <string name="limits_wraps_midnight">Pasa la medianoche y sigue hasta la mañana siguiente.</string>
+    <string name="period_hour">cada hora</string>
+    <string name="period_day">al día</string>
+    <string name="period_week">a la semana</string>
+    <string name="days_every">Cada día</string>
+    <string name="days_weekdays">Entre semana</string>
+    <string name="days_weekend">Fin de semana</string>
+    <string name="action_save">Guardar</string>
+    <string name="action_remove">Quitar</string>
 </resources>

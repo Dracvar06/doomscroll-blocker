@@ -1,7 +1,8 @@
 package cat.doorman.app
 
 import cat.doorman.app.data.ScreenPreferences
-import cat.doorman.app.limits.BlockMode
+import cat.doorman.app.limits.Allowance
+import cat.doorman.app.limits.Limits
 import cat.doorman.app.limits.Period
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -21,34 +22,34 @@ class ScreenPreferencesTest {
 
     @Test
     fun `a screen nobody has ruled on takes the default it ships with`() {
-        val modes = ScreenPreferences.effectiveModes(
-            withInstagram, decided = emptySet(), enabled = emptySet(), storedModes = emptyMap(),
+        val modes = ScreenPreferences.effectiveLimits(
+            withInstagram, decided = emptySet(), enabled = emptySet(), stored = emptyMap(),
         )
-        assertEquals(BlockMode.Blocked, modes["yt_shorts"])
-        assertEquals(BlockMode.Off, modes["yt_subscriptions_feed"])
+        assertEquals(Limits.BLOCKED, modes["yt_shorts"])
+        assertEquals(Limits.OFF, modes["yt_subscriptions_feed"])
     }
 
     @Test
     fun `a screen the user switched off stays off`() {
-        val modes = ScreenPreferences.effectiveModes(
+        val modes = ScreenPreferences.effectiveLimits(
             withInstagram,
             decided = setOf("yt_shorts"),
             enabled = emptySet(),
-            storedModes = emptyMap(),
+            stored = emptyMap(),
         )
-        assertEquals(BlockMode.Off, modes["yt_shorts"])
+        assertEquals(Limits.OFF, modes["yt_shorts"])
     }
 
     /** The update bug: a new app must arrive switched on as it ships. */
     @Test
     fun `an app added by an update arrives at its default`() {
-        val modes = ScreenPreferences.effectiveModes(
+        val modes = ScreenPreferences.effectiveLimits(
             withInstagram,
             decided = setOf("yt_shorts", "yt_subscriptions_feed"),
             enabled = setOf("yt_shorts"),
-            storedModes = emptyMap(),
+            stored = emptyMap(),
         )
-        assertEquals(BlockMode.Blocked, modes["ig_reels"])
+        assertEquals(Limits.BLOCKED, modes["ig_reels"])
     }
 
     /**
@@ -58,24 +59,24 @@ class ScreenPreferencesTest {
      */
     @Test
     fun `switches from before allowances existed still mean blocked`() {
-        val modes = ScreenPreferences.effectiveModes(
+        val modes = ScreenPreferences.effectiveLimits(
             withInstagram,
             decided = setOf("yt_shorts", "yt_subscriptions_feed"),
             enabled = setOf("yt_shorts"),
-            storedModes = emptyMap(),
+            stored = emptyMap(),
         )
-        assertEquals(BlockMode.Blocked, modes["yt_shorts"])
-        assertEquals(BlockMode.Off, modes["yt_subscriptions_feed"])
+        assertEquals(Limits.BLOCKED, modes["yt_shorts"])
+        assertEquals(Limits.OFF, modes["yt_subscriptions_feed"])
     }
 
     @Test
     fun `a chosen mode wins over an older on-off decision`() {
-        val allowance = BlockMode.Allowance(5, Period.DAY)
-        val modes = ScreenPreferences.effectiveModes(
+        val allowance = Limits(allowances = listOf(Allowance(5, Period.DAY)))
+        val modes = ScreenPreferences.effectiveLimits(
             withInstagram,
             decided = setOf("yt_shorts"),
             enabled = setOf("yt_shorts"),
-            storedModes = mapOf("yt_shorts" to allowance),
+            stored = mapOf("yt_shorts" to allowance),
         )
         assertEquals(allowance, modes["yt_shorts"])
     }
@@ -87,9 +88,9 @@ class ScreenPreferencesTest {
     @Test
     fun `only switched-off screens leave the running`() {
         val modes = mapOf(
-            "a" to BlockMode.Blocked,
-            "b" to BlockMode.Allowance(5, Period.HOUR),
-            "c" to BlockMode.Off,
+            "a" to Limits.BLOCKED,
+            "b" to Limits(allowances = listOf(Allowance(5, Period.HOUR))),
+            "c" to Limits.OFF,
         )
         assertEquals(setOf("a", "b"), ScreenPreferences.activeScreenIds(modes))
     }
