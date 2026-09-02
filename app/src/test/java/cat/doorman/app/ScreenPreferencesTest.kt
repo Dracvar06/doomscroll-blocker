@@ -1,68 +1,96 @@
 package cat.doorman.app
 
 import cat.doorman.app.data.ScreenPreferences
+import cat.doorman.app.limits.BlockMode
+import cat.doorman.app.limits.Period
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * Upgrades are where a settings model quietly breaks, so the awkward cases are
- * pinned down here rather than discovered by users after a release.
+ * What happens to somebody's settings when Doorman updates. The bug these
+ * guard against was real: a flat "has been configured" flag meant anyone who
+ * had ever touched a switch never received support for a new app at all.
  */
 class ScreenPreferencesTest {
 
-    private val youtubeOnly = mapOf("yt_shorts" to true, "yt_home_feed" to true)
-    private val withInstagram = youtubeOnly + mapOf("ig_reels" to true, "ig_explore" to false)
+    private val withInstagram = mapOf(
+        "yt_shorts" to true,
+        "yt_subscriptions_feed" to false,
+        "ig_reels" to true,
+    )
 
     @Test
-    fun `a fresh install gets the shipped defaults`() {
-        val enabled = ScreenPreferences.effectiveEnabled(withInstagram, decided = emptySet(), enabled = emptySet())
-        assertEquals(setOf("yt_shorts", "yt_home_feed", "ig_reels"), enabled)
+    fun `a screen nobody has ruled on takes the default it ships with`() {
+        val modes = ScreenPreferences.effectiveModes(
+            withInstagram, decided = emptySet(), enabled = emptySet(), storedModes = emptyMap(),
+        )
+        assertEquals(BlockMode.Blocked, modes["yt_shorts"])
+        assertEquals(BlockMode.Off, modes["yt_subscriptions_feed"])
+    }
+
+    @Test
+    fun `a screen the user switched off stays off`() {
+        val modes = ScreenPreferences.effectiveModes(
+            withInstagram,
+            decided = setOf("yt_shorts"),
+            enabled = emptySet(),
+            storedModes = emptyMap(),
+        )
+        assertEquals(BlockMode.Off, modes["yt_shorts"])
+    }
+
+    /** The update bug: a new app must arrive switched on as it ships. */
+    @Test
+    fun `an app added by an update arrives at its default`() {
+        val modes = ScreenPreferences.effectiveModes(
+            withInstagram,
+            decided = setOf("yt_shorts", "yt_subscriptions_feed"),
+            enabled = setOf("yt_shorts"),
+            storedModes = emptyMap(),
+        )
+        assertEquals(BlockMode.Blocked, modes["ig_reels"])
     }
 
     /**
-     * The bug this exists to prevent: someone flicks one switch, then an update
-     * adds Instagram. Treating "has configured anything" as "use their set and
-     * ignore defaults" means Instagram support arrives switched off forever, and
-     * nothing tells them.
+     * The upgrade into allowances. An install from before modes existed has
+     * only a set of switched-on screens, and those have to keep meaning
+     * blocked -- an update that quietly unheld them would be a betrayal.
      */
     @Test
-    fun `screens added by an update arrive at their default without undoing choices`() {
-        // The user deliberately turned the YouTube home feed off, long ago.
-        val enabled = ScreenPreferences.effectiveEnabled(
-            screenDefaults = withInstagram,
-            decided = setOf("yt_shorts", "yt_home_feed"),
+    fun `switches from before allowances existed still mean blocked`() {
+        val modes = ScreenPreferences.effectiveModes(
+            withInstagram,
+            decided = setOf("yt_shorts", "yt_subscriptions_feed"),
             enabled = setOf("yt_shorts"),
+            storedModes = emptyMap(),
         )
-        assertEquals(setOf("yt_shorts", "ig_reels"), enabled)
+        assertEquals(BlockMode.Blocked, modes["yt_shorts"])
+        assertEquals(BlockMode.Off, modes["yt_subscriptions_feed"])
     }
 
     @Test
-    fun `switching everything off is obeyed and is not mistaken for a fresh install`() {
-        val enabled = ScreenPreferences.effectiveEnabled(
-            screenDefaults = withInstagram,
-            decided = withInstagram.keys,
-            enabled = emptySet(),
+    fun `a chosen mode wins over an older on-off decision`() {
+        val allowance = BlockMode.Allowance(5, Period.DAY)
+        val modes = ScreenPreferences.effectiveModes(
+            withInstagram,
+            decided = setOf("yt_shorts"),
+            enabled = setOf("yt_shorts"),
+            storedModes = mapOf("yt_shorts" to allowance),
         )
-        assertEquals(emptySet<String>(), enabled)
+        assertEquals(allowance, modes["yt_shorts"])
     }
 
+    /**
+     * A screen with an allowance still has to be recognised: the allowance is
+     * spent by looking at it, so the evaluator has to know when it is in front.
+     */
     @Test
-    fun `a screen switched on against its default stays on`() {
-        val enabled = ScreenPreferences.effectiveEnabled(
-            screenDefaults = withInstagram,
-            decided = setOf("ig_explore"),
-            enabled = setOf("ig_explore"),
+    fun `only switched-off screens leave the running`() {
+        val modes = mapOf(
+            "a" to BlockMode.Blocked,
+            "b" to BlockMode.Allowance(5, Period.HOUR),
+            "c" to BlockMode.Off,
         )
-        assertEquals(setOf("yt_shorts", "yt_home_feed", "ig_reels", "ig_explore"), enabled)
-    }
-
-    @Test
-    fun `ids no longer shipped are dropped rather than lingering`() {
-        val enabled = ScreenPreferences.effectiveEnabled(
-            screenDefaults = youtubeOnly,
-            decided = setOf("yt_shorts", "removed_screen"),
-            enabled = setOf("yt_shorts", "removed_screen"),
-        )
-        assertEquals(setOf("yt_shorts", "yt_home_feed"), enabled)
+        assertEquals(setOf("a", "b"), ScreenPreferences.activeScreenIds(modes))
     }
 }

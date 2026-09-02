@@ -55,6 +55,7 @@
     <string name="screen_ig_feed" tools:ignore="UnusedResources">Home feed</string>
     <string name="screen_ig_explore" tools:ignore="UnusedResources">Explore and search</string>
     <string name="screen_ig_single_reel" tools:ignore="UnusedResources">Scrolling on from a single reel</string>
+    <string name="blocked_body_allowance_spent">Your time here is used up for now. It comes back on its own.</string>
     <string name="blocked_body_budget_spent">You have seen the one you opened. The rest is just the feed.</string>
     <string name="section_diagnostics">Something not working?</string>
     <string name="diagnostics_explainer">Apps redesign themselves, and when they do Doorman can stop recognising a screen. Capture a report and send it to the project so the rule can be fixed.</string>
@@ -92,4 +93,22 @@
     <string name="language_english" translatable="false">English</string>
     <string name="language_catalan" translatable="false">Català</string>
     <string name="language_spanish" translatable="false">Español</string>
+    <plurals name="minutes">
+        <item quantity="one">%1$d minute</item>
+        <item quantity="other">%1$d minutes</item>
+    </plurals>
+    <string name="mode_off">Off</string>
+    <string name="mode_blocked">Blocked</string>
+    <string name="mode_allowance_hour">%1$s an hour</string>
+    <string name="mode_allowance_day">%1$s a day</string>
+    <string name="remaining_left">%1$s left</string>
+    <string name="remaining_none">None left</string>
+    <string name="section_other_apps">Other apps</string>
+    <string name="section_other_apps_hint">Apps Doorman has seen you open. Games, shops, anything. Holding one here covers the whole app, because Doorman knows nothing about its insides.</string>
+    <string name="other_apps_empty">Nothing yet. Open an app you want held, then come back and it will be listed here.</string>
+    <string name="action_forget_app">Forget</string>
+    <string name="whole_app_row">The whole app</string>
+    <string name="action_show_all_apps">Show every app</string>
+    <string name="action_show_used_apps">Show only apps I use</string>
+    <string name="pending_change_mode">%1$s becomes “%2$s” in %3$d s</string>
 </resources>

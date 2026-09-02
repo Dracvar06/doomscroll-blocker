@@ -47,6 +47,7 @@
     <string name="screen_ig_feed">Pàgina d\'inici</string>
     <string name="screen_ig_explore">Explora i cerca</string>
     <string name="screen_ig_single_reel">Seguir passant des d\'un reel obert</string>
+    <string name="blocked_body_allowance_spent">Ja has gastat el temps que hi tenies. Tornarà tot sol.</string>
     <string name="blocked_body_budget_spent">Ja has vist el que havies obert. La resta ja és el flux.</string>
     <string name="section_diagnostics">No funciona?</string>
     <string name="diagnostics_explainer">Les aplicacions es redissenyen, i quan ho fan Doorman pot deixar de reconèixer una pantalla. Captura un informe i envia\'l al projecte perquè es pugui arreglar la regla.</string>
@@ -81,4 +82,23 @@
     <string name="section_language">Idioma</string>
     <string name="language_system">Idioma del telèfon</string>
     <string name="language_follows_phone">Doorman segueix l\'idioma del telèfon. A Android 13 i posteriors també pots posar un idioma només per a Doorman, a la configuració.</string>
+    <plurals name="minutes">
+        <item quantity="one">%1$d minut</item>
+        <item quantity="many">%1$d de minuts</item>
+        <item quantity="other">%1$d minuts</item>
+    </plurals>
+    <string name="mode_off">Desactivat</string>
+    <string name="mode_blocked">Bloquejat</string>
+    <string name="mode_allowance_hour">%1$s cada hora</string>
+    <string name="mode_allowance_day">%1$s al dia</string>
+    <string name="remaining_left">En queden %1$s</string>
+    <string name="remaining_none">No en queda gens</string>
+    <string name="section_other_apps">Altres aplicacions</string>
+    <string name="section_other_apps_hint">Aplicacions que Doorman t\'ha vist obrir. Jocs, botigues, el que sigui. Bloquejar-ne una aquí cobreix tota l\'aplicació, perquè Doorman no en coneix les pantalles.</string>
+    <string name="other_apps_empty">Encara no n\'hi ha cap. Obre l\'aplicació que vulguis bloquejar i després torna aquí: hi sortirà.</string>
+    <string name="action_forget_app">Oblida-la</string>
+    <string name="whole_app_row">Tota l\'aplicació</string>
+    <string name="action_show_all_apps">Mostra totes les aplicacions</string>
+    <string name="action_show_used_apps">Mostra només les que faig servir</string>
+    <string name="pending_change_mode">%1$s passarà a «%2$s» en %3$d s</string>
 </resources>

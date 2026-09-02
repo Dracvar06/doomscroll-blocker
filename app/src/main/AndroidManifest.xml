@@ -20,6 +20,26 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.HOME" />
         </intent>
+        <!--
+          And the apps that have a launcher icon, so the user can pick one to
+          hold and see its name and not its package.
+
+          Doorman needs this for two things it cannot do otherwise. Android
+          filters package visibility for the whole app, not per component, so
+          without this even the accessibility service reads WhatsApp's name as
+          "com.whatsapp". And a game cannot be picked from a list that cannot be
+          read.
+
+          This is the narrower of the two ways to ask. QUERY_ALL_PACKAGES is a
+          restricted permission that Google Play reviews case by case; an intent
+          declaration is not, and it reveals only apps with a launcher icon.
+          Nothing about them leaves the phone: Doorman has no network
+          permission at all.
+        -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
     </queries>
 
     <application

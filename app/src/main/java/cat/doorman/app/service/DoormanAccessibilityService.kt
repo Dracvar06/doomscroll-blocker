@@ -22,6 +22,10 @@ import cat.doorman.app.rules.RuleLoader
 import cat.doorman.app.rules.RuleSet
 import cat.doorman.app.rules.ScreenEvaluator
 import cat.doorman.app.rules.OverlayBounds
+import cat.doorman.app.data.ScreenPreferences
+import cat.doorman.app.limits.Allowances
+import cat.doorman.app.limits.BlockMode
+import java.time.LocalDateTime
 import cat.doorman.app.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -66,6 +70,22 @@ class DoormanAccessibilityService : AccessibilityService() {
     private lateinit var overlay: BlockOverlayController
     private var rules: RuleSet = RuleSet()
     private var enabledScreenIds: Set<String> = emptySet()
+    private var screenModes: Map<String, BlockMode> = emptyMap()
+    private var appModes: Map<String, BlockMode> = emptyMap()
+    private var ledger: Map<String, Allowances.Spent> = emptyMap()
+
+    /**
+     * Counts time against whatever allowance is running.
+     *
+     * Driven by its own ticker rather than by accessibility events. A game is
+     * often a single drawing surface that emits no events at all once it is
+     * running, and a paused video emits none either; leaving the clock to be
+     * advanced by events would hand out unlimited time on exactly the screens
+     * an allowance is for.
+     */
+    private val allowanceClock = AllowanceClock { System.currentTimeMillis() }
+    private val clockTick = Runnable { onClockTick() }
+    private var clockRunning = false
     private var activePass: Prefs.Pass? = null
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -87,12 +107,20 @@ class DoormanAccessibilityService : AccessibilityService() {
         // and every change re-runs the current screen through the rules.
         val prefs = Prefs(this)
         serviceScope.launch {
-            prefs.enabledScreenIds(screenDefaults).collectLatest {
-                enabledScreenIds = it
-                Log.i(TAG, "blocking set changed: $it")
+            prefs.screenModes(screenDefaults).collectLatest {
+                screenModes = it
+                enabledScreenIds = ScreenPreferences.activeScreenIds(it)
+                Log.i(TAG, "blocking set changed: $enabledScreenIds")
                 evaluateCurrentScreen()
             }
         }
+        serviceScope.launch {
+            prefs.appModes.collectLatest {
+                appModes = it
+                evaluateCurrentScreen()
+            }
+        }
+        serviceScope.launch { prefs.spent.collectLatest { ledger = it } }
         serviceScope.launch {
             prefs.activePass.collectLatest {
                 activePass = it
@@ -146,6 +174,7 @@ class DoormanAccessibilityService : AccessibilityService() {
 
     override fun onUnbind(intent: Intent?): Boolean {
         instance = null
+        stopClock()
         scrollBudget.reset()
         serviceScope.cancel()
         handler.removeCallbacks(evaluate)
@@ -287,11 +316,48 @@ class DoormanAccessibilityService : AccessibilityService() {
         }.getOrDefault(emptySet())
     }
 
+    /**
+     * Every package Doorman acts on: those with shipped rules, plus whatever
+     * apps the user has chosen to hold themselves.
+     */
+    /**
+     * Packages already written to the picker list this session.
+     *
+     * Doorman offers the apps it has watched the user open, because it cannot
+     * list installed apps without asking to enumerate them and has no business
+     * knowing what else is on the phone. Writing on every single app switch
+     * would be a write every few seconds all day, so each package is recorded
+     * once per service lifetime.
+     */
+    private val rememberedApps = mutableSetOf<String>()
+
+    private fun rememberApp(packageName: String) {
+        if (packageName in rememberedApps) return
+        if (packageName == this.packageName) return
+        if (packageName in launcherPackages || packageName in TRANSIENT_PACKAGES) return
+        if (packageName == imePackage) return
+        rememberedApps += packageName
+        val label = appLabelFor(packageName)
+        Log.i(TAG, "remembering app: $packageName label=$label")
+        serviceScope.launch {
+            Prefs(this@DoormanAccessibilityService)
+                .recordSeenApp(packageName, System.currentTimeMillis(), label)
+        }
+    }
+
+    private fun watchedPackages(): Set<String> =
+        rules.supportedPackages + appModes.filterValues { it != BlockMode.Off }.keys
+
     private fun evaluateCurrentScreen() {
         lastEvaluationAt = SystemClock.uptimeMillis()
         val snapshot = SnapshotCapture.capture(this, preferPackage = lastPackage)
-        if (snapshot?.packageName == null || snapshot.packageName !in rules.supportedPackages) {
-            Log.d(TAG, "evaluate: skip pkg=${snapshot?.packageName} nodes=${snapshot?.nodes?.size}")
+        // A game is often one drawing surface with nothing readable in it, so
+        // there may be no tree at all. Holding a whole app needs only its name,
+        // which the foreground tracking already knows.
+        val pkg = snapshot?.packageName ?: lastPackage
+        if (pkg == null || pkg !in watchedPackages()) {
+            Log.d(TAG, "evaluate: skip pkg=$pkg nodes=${snapshot?.nodes?.size}")
+            stopClock()
             if (overlay.isShowing) overlay.hide()
             return
         }
@@ -299,31 +365,37 @@ class DoormanAccessibilityService : AccessibilityService() {
         // rather than inside the evaluator so the rules stay pure and testable.
         val pass = activePass
         if (pass != null &&
-            rules.canonicalPackage(pass.packageName) ==
-            rules.canonicalPackage(snapshot.packageName) &&
+            rules.canonicalPackage(pass.packageName) == rules.canonicalPackage(pkg) &&
             pass.isActiveAt(System.currentTimeMillis())
         ) {
+            stopClock()
             if (overlay.isShowing) overlay.hide()
             return
         }
 
         val arrivedFromAnotherApp = cat.doorman.app.rules.Arrival.isFromAnotherApp(
             previous = arrivedFromPackage,
-            current = snapshot.packageName,
+            current = pkg,
             launcherPackages = launcherPackages,
             self = packageName,
         )
-        val verdict =
+        val verdict = if (snapshot != null && rules.appFor(pkg) != null) {
             ScreenEvaluator.evaluate(snapshot, rules, enabledScreenIds, arrivedFromAnotherApp)
+        } else {
+            ScreenEvaluator.Verdict.ALLOW
+        }
         Log.i(
             TAG,
-            "evaluate: pkg=${snapshot.packageName} nodes=${snapshot.nodes.size} " +
+            "evaluate: pkg=$pkg nodes=${snapshot?.nodes?.size} " +
                 "outcome=${verdict.outcome} screen=${verdict.screenId} enabled=$enabledScreenIds",
         )
-        currentStatus = "${snapshot.packageName} -> ${verdict.screenId ?: "not recognised"}"
+        currentStatus = "$pkg -> ${verdict.screenId ?: "not recognised"}"
 
 
-        if (verdict.outcome == ScreenEvaluator.Outcome.ALLOW_ONCE && verdict.screenId != null) {
+        if (verdict.outcome == ScreenEvaluator.Outcome.ALLOW_ONCE &&
+            verdict.screenId != null && snapshot != null
+        ) {
+            stopClock()
             val key = "${snapshot.packageName}/${verdict.screenId}"
             val arrivedFromElsewhere = lastEvaluatedScreenId != verdict.screenId
             budgetKey = key
@@ -345,16 +417,168 @@ class DoormanAccessibilityService : AccessibilityService() {
         }
         budgetKey = null
         lastEvaluatedScreenId = verdict.screenId
-        if (verdict.blocked && verdict.screenId != null) {
-            overlay.show(
-                verdict.screenId,
-                labelFor(verdict.labelKey),
-                band = bandFor(snapshot, verdict.screenId),
-            )
-        } else if (overlay.isShowing) {
-            overlay.hide()
+
+        val canonical = rules.canonicalPackage(pkg) ?: pkg
+        val appMode = appModes[canonical] ?: BlockMode.Off
+        val targets = buildList {
+            if (appMode != BlockMode.Off) {
+                add(Allowances.Target(canonical, appMode, ledger[canonical] ?: Allowances.Spent.NOTHING))
+            }
+            val screenId = verdict.screenId
+            if (screenId != null && verdict.blocked) {
+                val mode = screenModes[screenId] ?: BlockMode.Blocked
+                if (mode != BlockMode.Off) {
+                    add(Allowances.Target(screenId, mode, ledger[screenId] ?: Allowances.Spent.NOTHING))
+                }
+            }
+        }
+
+        val outcome = Allowances.decide(targets, LocalDateTime.now())
+        // The line above logs what the *rules* made of the screen. This logs
+        // what actually happens to it, which since allowances arrived is a
+        // different question: a rule can match and the screen still be open
+        // because there is time left on it.
+        Log.i(TAG, "decision: $outcome targets=${targets.map { it.id to it.mode }}")
+        when (outcome) {
+            is Allowances.Outcome.Allow -> {
+                stopClock()
+                if (overlay.isShowing) overlay.hide()
+            }
+
+            is Allowances.Outcome.Block -> {
+                stopClock()
+                showBlock(outcome, snapshot, pkg)
+            }
+
+            is Allowances.Outcome.OnTheClock -> {
+                if (overlay.isShowing) overlay.hide()
+                startClock(outcome)
+            }
         }
     }
+
+    /**
+     * Puts the block up for whatever ran out.
+     *
+     * A whole app that has been held covers the screen entirely: there is no
+     * tab bar worth keeping, and no part of it the user asked to keep. A single
+     * screen keeps its band, so the way to the messages stays open.
+     */
+    private fun showBlock(
+        outcome: Allowances.Outcome.Block,
+        snapshot: cat.doorman.app.model.ScreenSnapshot?,
+        pkg: String,
+    ) {
+        val body = if (outcome.allowanceSpent) {
+            R.string.blocked_body_allowance_spent
+        } else {
+            R.string.blocked_body
+        }
+        val wholeApp = outcome.targetId == rules.canonicalPackage(pkg) ?: pkg ||
+            outcome.targetId.contains('.')
+        if (wholeApp || snapshot == null) {
+            overlay.show(outcome.targetId, appLabelFor(outcome.targetId), bodyRes = body)
+            return
+        }
+        val rule = rules.appFor(pkg)?.screens?.firstOrNull { it.id == outcome.targetId }
+        overlay.show(
+            outcome.targetId,
+            labelFor(rule?.labelKey),
+            band = bandFor(snapshot, outcome.targetId),
+            bodyRes = body,
+        )
+    }
+
+    /**
+     * A readable name for an app.
+     *
+     * Apps with shipped rules carry a translated label. For one the user added
+     * themselves, the system is asked, and the package name stands in if it
+     * declines -- a picker row saying com.some.game is poor, but an empty one
+     * is worse.
+     */
+    private fun appLabelFor(packageName: String): String {
+        rules.appFor(packageName)?.labelKey?.let { key ->
+            val label = labelFor(key)
+            if (label.isNotEmpty() && label != key) return label
+        }
+        return runCatching {
+            packageManager.getApplicationLabel(
+                packageManager.getApplicationInfo(packageName, 0),
+            ).toString()
+        }.getOrDefault(packageName)
+    }
+
+    /**
+     * Starts or continues counting time against a running allowance.
+     *
+     * The ticker is what actually advances the clock; the evaluation only says
+     * what to charge. Its period is short enough that the block lands within a
+     * second or so of the allowance running out.
+     */
+    private fun startClock(outcome: Allowances.Outcome.OnTheClock) {
+        allowanceClock.tick(outcome.charge)
+        handler.removeCallbacks(clockTick)
+        handler.postDelayed(clockTick, CLOCK_TICK_MS)
+        clockRunning = true
+    }
+
+    private fun stopClock() {
+        if (!clockRunning && allowanceClock.pendingMillis() == 0L) return
+        handler.removeCallbacks(clockTick)
+        clockRunning = false
+        allowanceClock.stop()
+        flushClock()
+    }
+
+    /**
+     * One tick of a running allowance.
+     *
+     * Time spent while the screen is off is not time spent: a phone face down
+     * on a table with a game open would otherwise burn through the day's
+     * allowance without anyone looking at it.
+     */
+    private fun onClockTick() {
+        val power = getSystemService(android.os.PowerManager::class.java)
+        if (power?.isInteractive == false) {
+            stopClock()
+            return
+        }
+        evaluateCurrentScreen()
+        flushClock()
+    }
+
+    /**
+     * Writes accumulated time to storage.
+     *
+     * Not on every tick: the ledger is written at a human pace, because the
+     * cost of losing the last few seconds to a crash is a few seconds, and the
+     * cost of writing every second forever is the battery.
+     */
+    private fun flushClock() {
+        val now = System.currentTimeMillis()
+        val due = now - lastFlushAt >= FLUSH_INTERVAL_MS
+        if (!due && clockRunning) return
+        val pending = allowanceClock.drain()
+        if (pending.isEmpty()) return
+        lastFlushAt = now
+        val at = LocalDateTime.now()
+        val charges = pending.mapNotNull { (id, millis) ->
+            val mode = (appModes[id] ?: screenModes[id]) as? BlockMode.Allowance
+                ?: return@mapNotNull null
+            id to Allowances.charge(
+                ledger[id] ?: Allowances.Spent.NOTHING,
+                mode.period,
+                millis,
+                at,
+            )
+        }.toMap()
+        if (charges.isEmpty()) return
+        ledger = ledger + charges
+        serviceScope.launch { Prefs(this@DoormanAccessibilityService).chargeSpent(charges) }
+    }
+
+    private var lastFlushAt = 0L
 
     /**
      * Nothing re-evaluates on its own when a pass runs out, so the block has to
@@ -392,6 +616,10 @@ class DoormanAccessibilityService : AccessibilityService() {
         // Where the user was immediately before this app. On TikTok this is the
         // only thing separating "a friend sent me this" from "I opened the feed".
         if (pkg != lastPackage) arrivedFromPackage = previous
+        rememberApp(pkg)
+        // Leaving the app ends whatever was on the clock, and the time belongs
+        // to the app being left rather than the one being entered.
+        stopClock()
         lastPackage = pkg
         val relevance = if (pkg in rules.supportedPackages) "SUPPORTED" else "ignored"
         Log.i(TAG, "foreground: ${previous ?: "(none)"} -> $pkg [$relevance] window=${event.className}")
@@ -459,6 +687,12 @@ class DoormanAccessibilityService : AccessibilityService() {
          * display before the overlay lands.
          */
         private const val MAX_EVALUATION_INTERVAL_MS = 500L
+
+        /** How often a running allowance is advanced. */
+        private const val CLOCK_TICK_MS = 1_000L
+
+        /** How often accumulated time reaches storage. */
+        private const val FLUSH_INTERVAL_MS = 10_000L
 
         // Phase 5 should replace this with a window-type check
         // (AccessibilityWindowInfo.TYPE_APPLICATION), which catches every

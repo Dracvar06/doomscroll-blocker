@@ -137,7 +137,18 @@ data class ScreenRule(
      * how another block behaves, and it must never match anything by itself.
      */
     val match: Matcher? = null,
-)
+) {
+    /**
+     * Whether it makes sense to offer this one an allowance.
+     *
+     * Only screens people spend time in. "Keep swiping from a video someone
+     * sent" is a behaviour, and the stories row is a strip of the home feed;
+     * neither is a place you can be for five minutes, so both stay plain
+     * switches rather than being offered a nonsensical choice.
+     */
+    val supportsAllowance: Boolean
+        get() = match != null && verdict == "BLOCK"
+}
 
 /**
  * All present conditions must hold. Ordered loosely by reliability:

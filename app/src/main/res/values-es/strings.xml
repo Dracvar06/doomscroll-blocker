@@ -53,6 +53,7 @@
     <string name="screen_sc_spotlight">Spotlight</string>
     <string name="screen_sc_stories">Historias y Descubrir</string>
     <string name="screen_sc_friends_story_row">Fila de historias de los amigos</string>
+    <string name="blocked_body_allowance_spent">Ya has gastado el tiempo que tenías aquí. Volverá solo.</string>
     <string name="blocked_body_budget_spent">Ya has visto el que habías abierto. El resto ya es el flujo.</string>
 
     <string name="section_diagnostics">¿No funciona?</string>
@@ -85,4 +86,23 @@
     <string name="section_language">Idioma</string>
     <string name="language_system">Idioma del teléfono</string>
     <string name="language_follows_phone">Doorman sigue el idioma del teléfono. En Android 13 y posteriores también puedes poner un idioma solo para Doorman, en la configuración.</string>
+    <plurals name="minutes">
+        <item quantity="one">%1$d minuto</item>
+        <item quantity="many">%1$d de minutos</item>
+        <item quantity="other">%1$d minutos</item>
+    </plurals>
+    <string name="mode_off">Desactivado</string>
+    <string name="mode_blocked">Bloqueado</string>
+    <string name="mode_allowance_hour">%1$s cada hora</string>
+    <string name="mode_allowance_day">%1$s al día</string>
+    <string name="remaining_left">Quedan %1$s</string>
+    <string name="remaining_none">No queda nada</string>
+    <string name="section_other_apps">Otras aplicaciones</string>
+    <string name="section_other_apps_hint">Aplicaciones que Doorman te ha visto abrir. Juegos, tiendas, lo que sea. Bloquear una aquí cubre toda la aplicación, porque Doorman no conoce sus pantallas.</string>
+    <string name="other_apps_empty">Todavía no hay ninguna. Abre la aplicación que quieras bloquear y vuelve aquí: aparecerá.</string>
+    <string name="action_forget_app">Olvidarla</string>
+    <string name="whole_app_row">Toda la aplicación</string>
+    <string name="action_show_all_apps">Mostrar todas las aplicaciones</string>
+    <string name="action_show_used_apps">Mostrar solo las que uso</string>
+    <string name="pending_change_mode">%1$s pasará a «%2$s» en %3$d s</string>
 </resources>

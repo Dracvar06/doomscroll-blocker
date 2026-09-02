@@ -38,6 +38,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import cat.doorman.app.R
 import cat.doorman.app.data.Prefs
+import cat.doorman.app.limits.Allowances
+import cat.doorman.app.limits.BlockMode
+import cat.doorman.app.limits.isLoosening
 import cat.doorman.app.rules.RuleLoader
 import cat.doorman.app.rules.RuleSet
 import androidx.core.content.FileProvider
@@ -53,7 +56,7 @@ private enum class Screen { HOME, UNLOCK }
 
 /** A settings change that has been asked for but has not taken effect yet. */
 private sealed interface PendingChange {
-    data class Screen(val id: String, val enabled: Boolean) : PendingChange
+    data class Mode(val id: String, val mode: BlockMode) : PendingChange
     data class Preset(val ids: Set<String>) : PendingChange
 
     /**
@@ -71,7 +74,10 @@ class MainActivity : ComponentActivity() {
     private var serviceEnabled by mutableStateOf(false)
     private var rules by mutableStateOf(RuleSet())
     private var screenDefaults: Map<String, Boolean> = emptyMap()
-    private var enabledScreens by mutableStateOf(emptySet<String>())
+    private var screenModes by mutableStateOf(emptyMap<String, BlockMode>())
+    private var appModes by mutableStateOf(emptyMap<String, BlockMode>())
+    private var spent by mutableStateOf(emptyMap<String, Allowances.Spent>())
+    private var seenApps by mutableStateOf(emptyMap<String, String>())
     private var activePass by mutableStateOf<Prefs.Pass?>(null)
     private var waitSeconds by mutableIntStateOf(Prefs.DEFAULT_WAIT_SECONDS)
     private var passMinutes by mutableIntStateOf(Prefs.DEFAULT_PASS_MINUTES)
@@ -100,7 +106,12 @@ class MainActivity : ComponentActivity() {
         screenDefaults = RuleLoader.screenDefaults(rules)
 
         lifecycleScope.launch {
-            prefs.enabledScreenIds(screenDefaults).collectLatest { enabledScreens = it }
+            prefs.screenModes(screenDefaults).collectLatest { screenModes = it }
+        }
+        lifecycleScope.launch { prefs.appModes.collectLatest { appModes = it } }
+        lifecycleScope.launch { prefs.spent.collectLatest { spent = it } }
+        lifecycleScope.launch { prefs.seenApps.collectLatest { seenApps = it } }
+        lifecycleScope.launch {
         }
         lifecycleScope.launch { prefs.activePass.collectLatest { activePass = it } }
         lifecycleScope.launch { prefs.waitSeconds.collectLatest { waitSeconds = it } }
@@ -218,13 +229,20 @@ class MainActivity : ComponentActivity() {
 
         BlockingSettings(
             rules = rules,
-            enabledScreenIds = enabledScreens,
-            pendingLabel = (pendingChange as? PendingChange.Screen)
-                ?.let { change -> labelFor(labelKeyFor(change.id)) },
+            screenModes = screenModes,
+            appModes = appModes,
+            otherApps = otherApps(),
+            allApps = allApps,
+            remainingFor = ::remainingLabelFor,
+            pendingLabel = (pendingChange as? PendingChange.Mode)
+                ?.let { change -> labelKeyFor(change.id).let(::labelFor).ifEmpty { seenApps[change.id] ?: change.id } },
+            pendingModeLabel = (pendingChange as? PendingChange.Mode)
+                ?.let { change -> modeLabelText(change.mode) },
             pendingIsDelay = pendingChange is PendingChange.Delay,
             pendingSeconds = pendingSeconds,
             changeDelaySeconds = changeDelaySeconds,
-            onScreenToggled = { id, on -> requestScreenChange(id, on) },
+            onModeChosen = { id, mode -> requestModeChange(id, mode) },
+            onForgetApp = { pkg -> lifecycleScope.launch { prefs.forgetSeenApp(pkg) } },
             onPreset = { ids -> requestPreset(ids) },
             onCancelPending = { cancelPendingChange() },
             onChangeDelay = { seconds -> requestDelayChange(seconds) },
@@ -267,22 +285,79 @@ class MainActivity : ComponentActivity() {
      * friction on switching a block *on* would only discourage the decision
      * worth encouraging.
      */
-    private fun requestScreenChange(screenId: String, enabled: Boolean) {
-        val weakens = !enabled && screenId in enabledScreens
-        if (!weakens || changeDelaySeconds <= 0) {
-            lifecycleScope.launch { prefs.setScreenEnabled(screenId, enabled) }
+    private fun requestModeChange(targetId: String, mode: BlockMode) {
+        val current = screenModes[targetId] ?: appModes[targetId] ?: BlockMode.Off
+        if (!isLoosening(current, mode) || changeDelaySeconds <= 0) {
+            lifecycleScope.launch { prefs.setMode(targetId, mode) }
             return
         }
-        startPending(PendingChange.Screen(screenId, enabled))
+        startPending(PendingChange.Mode(targetId, mode))
     }
 
     private fun requestPreset(ids: Set<String>) {
-        val weakens = (enabledScreens - ids).isNotEmpty()
+        val weakens = screenModes.any { (id, mode) -> mode != BlockMode.Off && id !in ids }
         if (!weakens || changeDelaySeconds <= 0) {
             lifecycleScope.launch { prefs.setEnabledScreens(ids, screenDefaults.keys) }
             return
         }
         startPending(PendingChange.Preset(ids))
+    }
+
+    /**
+     * The apps Doorman has watched the user open, minus the ones it already has
+     * rules for -- those have their own card, with the screens inside them.
+     */
+    private fun otherApps(): List<OtherApp> = seenApps
+        .filterKeys { rules.appFor(it) == null }
+        .map { (pkg, label) -> OtherApp(pkg, label) }
+        .sortedBy { it.label.lowercase() }
+
+    /**
+     * Every app with a launcher icon, for picking one that has not been opened
+     * since Doorman was installed.
+     *
+     * Resolved once and kept: the list only changes when something is installed
+     * or removed, and building it on every recomposition would stutter a
+     * scrolling screen.
+     */
+    private val allApps: List<OtherApp> by lazy {
+        runCatching {
+            packageManager.queryIntentActivities(
+                android.content.Intent(android.content.Intent.ACTION_MAIN)
+                    .addCategory(android.content.Intent.CATEGORY_LAUNCHER),
+                0,
+            ).mapNotNull { resolved ->
+                val info = resolved.activityInfo?.applicationInfo ?: return@mapNotNull null
+                if (info.packageName == packageName) return@mapNotNull null
+                OtherApp(
+                    info.packageName,
+                    packageManager.getApplicationLabel(info).toString(),
+                )
+            }.distinctBy { it.packageName }.sortedBy { it.label.lowercase() }
+        }.getOrDefault(emptyList())
+    }
+
+    /**
+     * "3 minutes left", for something with an allowance running.
+     *
+     * Null for anything held outright or switched off: the mode name already
+     * says all there is to say, and a countdown next to "Blocked" would be
+     * noise.
+     */
+    private fun remainingLabelFor(targetId: String): String? {
+        val mode = (screenModes[targetId] ?: appModes[targetId]) as? BlockMode.Allowance
+            ?: return null
+        val left = Allowances.remainingMillis(
+            mode,
+            spent[targetId] ?: Allowances.Spent.NOTHING,
+            java.time.LocalDateTime.now(),
+        )
+        if (left <= 0L) return getString(R.string.remaining_none)
+        val minutes = Math.ceil(left / 60_000.0).toInt()
+        return getString(
+            R.string.remaining_left,
+            resources.getQuantityString(R.plurals.minutes, minutes, minutes),
+        )
     }
 
     /**
@@ -313,8 +388,8 @@ class MainActivity : ComponentActivity() {
 
     private fun applyPendingChange() {
         when (val change = pendingChange) {
-            is PendingChange.Screen ->
-                lifecycleScope.launch { prefs.setScreenEnabled(change.id, change.enabled) }
+            is PendingChange.Mode ->
+                lifecycleScope.launch { prefs.setMode(change.id, change.mode) }
             is PendingChange.Preset ->
                 lifecycleScope.launch { prefs.setEnabledScreens(change.ids, screenDefaults.keys) }
             is PendingChange.Delay ->
@@ -330,6 +405,25 @@ class MainActivity : ComponentActivity() {
         pendingCountdown = null
         pendingChange = null
         pendingSeconds = 0
+    }
+
+    /** The name of a mode outside a composable, for the pending-change banner. */
+    private fun modeLabelText(mode: BlockMode): String = when (mode) {
+        is BlockMode.Off -> getString(R.string.mode_off)
+        is BlockMode.Blocked -> getString(R.string.mode_blocked)
+        is BlockMode.Allowance -> {
+            val minutes = resources.getQuantityString(
+                R.plurals.minutes, mode.minutes, mode.minutes,
+            )
+            getString(
+                if (mode.period == cat.doorman.app.limits.Period.HOUR) {
+                    R.string.mode_allowance_hour
+                } else {
+                    R.string.mode_allowance_day
+                },
+                minutes,
+            )
+        }
     }
 
     private fun labelKeyFor(screenId: String): String =
