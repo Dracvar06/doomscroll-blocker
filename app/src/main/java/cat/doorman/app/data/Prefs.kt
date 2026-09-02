@@ -33,6 +33,9 @@ class Prefs(private val context: Context) {
         val PASS_PACKAGE = stringPreferencesKey("pass_package")
         val PASS_EXPIRES_AT = longPreferencesKey("pass_expires_at")
 
+        /** Package -> whether its card is open, for apps with rules. */
+        val CARDS_OPEN = stringPreferencesKey("cards_open")
+
         /** Target id -> mode, as {"ig_reels":"5d"}. See ModeCodec. */
         val MODES = stringPreferencesKey("modes")
 
@@ -90,6 +93,31 @@ class Prefs(private val context: Context) {
     suspend fun forgetWatchedApps() {
         context.dataStore.edit { prefs ->
             if (prefs[Keys.SEEN_APPS] != null) prefs.remove(Keys.SEEN_APPS)
+        }
+    }
+
+    /**
+     * Which app cards the user has opened or closed.
+     *
+     * Only explicit choices are stored. An app with no entry falls back to
+     * whether it is installed, so a phone without TikTok does not open on a
+     * screenful of TikTok settings, and one with it does not hide them.
+     */
+    val openCards: Flow<Map<String, Boolean>> =
+        context.dataStore.data.map { prefs ->
+            val raw = prefs[Keys.CARDS_OPEN] ?: return@map emptyMap()
+            runCatching {
+                val json = JSONObject(raw)
+                json.keys().asSequence().associateWith { json.optBoolean(it) }
+            }.getOrDefault(emptyMap())
+        }
+
+    suspend fun setCardOpen(packageName: String, open: Boolean) {
+        context.dataStore.edit { prefs ->
+            val json = runCatching { JSONObject(prefs[Keys.CARDS_OPEN] ?: "{}") }
+                .getOrDefault(JSONObject())
+            json.put(packageName, open)
+            prefs[Keys.CARDS_OPEN] = json.toString()
         }
     }
 

@@ -11,6 +11,14 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -45,6 +53,9 @@ fun BlockingSettings(
     appModes: Map<String, BlockMode>,
     otherApps: List<OtherApp>,
     icons: AppIcons,
+    installedPackages: Set<String>,
+    openCards: Map<String, Boolean>,
+    onCardOpenChanged: (String, Boolean) -> Unit,
     remainingFor: (String) -> String?,
     pendingLabel: String?,
     pendingModeLabel: String?,
@@ -93,10 +104,63 @@ fun BlockingSettings(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    Text(
-                        text = labelFor(app.labelKey),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
+                    // Installed apps open, absent ones closed, unless the user
+                    // has said otherwise. Someone without TikTok should not have
+                    // to scroll past a screenful of its settings to reach the
+                    // app they do have.
+                    val installed = app.packages(packageName).any { it in installedPackages }
+                    val open = openCards[packageName] ?: installed
+                    val held = app.screens.count {
+                        (screenModes[it.id] ?: BlockMode.Off) != BlockMode.Off
+                    }
+                    val appIcon by produceState<ImageBitmap?>(null, packageName) {
+                        value = app.packages(packageName)
+                            .firstNotNullOfOrNull { icons.load(it) }
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onCardOpenChanged(packageName, !open) },
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier.size(32.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                appIcon?.let {
+                                    Image(
+                                        bitmap = it,
+                                        contentDescription = null,
+                                        contentScale = ContentScale.Fit,
+                                        modifier = Modifier.size(32.dp),
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Text(
+                                text = labelFor(app.labelKey),
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                        }
+                        // A closed card still says whether it is doing
+                        // anything. Collapsing should tidy the screen, not
+                        // hide whether an app is being held.
+                        Text(
+                            text = when {
+                                open -> stringResource(R.string.card_close)
+                                // Zero is not a plural category in any of the
+                                // three languages, so it needs its own string
+                                // rather than a quantity nobody would ever see.
+                                held == 0 -> stringResource(R.string.screens_held_none)
+                                else -> pluralStringResource(R.plurals.screens_held, held, held)
+                            },
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    if (!open) return@Column
                     // The whole app, above the screens inside it: an allowance
                     // set here covers everything, and whichever runs out first
                     // is the one that stops you.

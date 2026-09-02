@@ -103,4 +103,11 @@
         <string name="whole_app_row">Toda la aplicación</string>
             <string name="pending_change_mode">%1$s pasará a «%2$s» en %3$d s</string>
     <string name="other_apps_search">Buscar aplicaciones</string>
+    <string name="card_close">Ocultar</string>
+    <string name="screens_held_none">Nada bloqueado</string>
+    <plurals name="screens_held">
+        <item quantity="one">%1$d bloqueado</item>
+        <item quantity="many">%1$d de bloqueados</item>
+        <item quantity="other">%1$d bloqueados</item>
+    </plurals>
 </resources>

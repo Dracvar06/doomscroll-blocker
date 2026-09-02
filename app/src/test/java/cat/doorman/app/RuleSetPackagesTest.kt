@@ -79,6 +79,22 @@ class RuleSetPackagesTest {
         assertNull(rules.canonicalPackage("com.whatsapp"))
     }
 
+    /**
+     * The settings screen asks "is this app on the phone?" to decide whether to
+     * open its card. On a regional build the answer lives under the alias, and
+     * checking only the main name would hide TikTok's settings from exactly the
+     * people who have TikTok.
+     */
+    @Test
+    fun `an app is named by its aliases as well as its key`() {
+        val rules = withAliases()
+        val key = "com.zhiliaoapp.musically"
+        assertEquals(
+            listOf(key, "com.ss.android.ugc.trill"),
+            rules.apps.getValue(key).packages(key),
+        )
+    }
+
     @Test
     fun `an unknown package resolves to nothing rather than the first app`() {
         assertNull(withAliases().appFor("com.example.other"))

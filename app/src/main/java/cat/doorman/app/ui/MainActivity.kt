@@ -78,6 +78,12 @@ class MainActivity : ComponentActivity() {
     private var appModes by mutableStateOf(emptyMap<String, BlockMode>())
     private var spent by mutableStateOf(emptyMap<String, Allowances.Spent>())
     private val appIcons by lazy { AppIcons(this) }
+    private var openCards by mutableStateOf(emptyMap<String, Boolean>())
+
+    /** Package names of everything with a launcher icon, for the "is it here?" check. */
+    private val installedPackages: Set<String> by lazy {
+        allApps.map { it.packageName }.toSet()
+    }
     private var activePass by mutableStateOf<Prefs.Pass?>(null)
     private var waitSeconds by mutableIntStateOf(Prefs.DEFAULT_WAIT_SECONDS)
     private var passMinutes by mutableIntStateOf(Prefs.DEFAULT_PASS_MINUTES)
@@ -110,6 +116,7 @@ class MainActivity : ComponentActivity() {
         }
         lifecycleScope.launch { prefs.appModes.collectLatest { appModes = it } }
         lifecycleScope.launch { prefs.spent.collectLatest { spent = it } }
+        lifecycleScope.launch { prefs.openCards.collectLatest { openCards = it } }
         // Deletes the record of watched apps kept by earlier versions.
         lifecycleScope.launch { prefs.forgetWatchedApps() }
         lifecycleScope.launch {
@@ -245,6 +252,11 @@ class MainActivity : ComponentActivity() {
             appModes = appModes,
             otherApps = otherApps(),
             icons = appIcons,
+            installedPackages = installedPackages,
+            openCards = openCards,
+            onCardOpenChanged = { pkg, open ->
+                lifecycleScope.launch { prefs.setCardOpen(pkg, open) }
+            },
             remainingFor = ::remainingLabelFor,
             pendingLabel = (pendingChange as? PendingChange.Mode)
                 ?.let { change -> labelKeyFor(change.id).let(::labelFor).ifEmpty { appLabelFor(change.id) } },

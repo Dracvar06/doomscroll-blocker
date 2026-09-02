@@ -99,4 +99,11 @@
         <string name="whole_app_row">Tota l\'aplicació</string>
             <string name="pending_change_mode">%1$s passarà a «%2$s» en %3$d s</string>
     <string name="other_apps_search">Cerca aplicacions</string>
+    <string name="card_close">Amaga</string>
+    <string name="screens_held_none">Res bloquejat</string>
+    <plurals name="screens_held">
+        <item quantity="one">%1$d de bloquejat</item>
+        <item quantity="many">%1$d de bloquejats</item>
+        <item quantity="other">%1$d de bloquejats</item>
+    </plurals>
 </resources>

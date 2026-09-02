@@ -97,7 +97,10 @@ data class AppRules(
      */
     val keepVisibleBelowViewIds: List<String> = emptyList(),
     val screens: List<ScreenRule> = emptyList(),
-)
+) {
+    /** Every name this app goes by, its key included. */
+    fun packages(key: String): List<String> = listOf(key) + aliases
+}
 
 @Serializable
 data class ScreenRule(

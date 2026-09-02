@@ -109,4 +109,10 @@
         <string name="whole_app_row">The whole app</string>
             <string name="pending_change_mode">%1$s becomes “%2$s” in %3$d s</string>
     <string name="other_apps_search">Search apps</string>
+    <string name="card_close">Hide</string>
+    <string name="screens_held_none">Nothing held</string>
+    <plurals name="screens_held">
+        <item quantity="one">%1$d held</item>
+        <item quantity="other">%1$d held</item>
+    </plurals>
 </resources>
