@@ -87,18 +87,16 @@
         <item quantity="many">%1$d de minuts</item>
         <item quantity="other">%1$d minuts</item>
     </plurals>
-    <string name="mode_off">Desactivat</string>
+    <string name="mode_off">Desbloquejat</string>
     <string name="mode_blocked">Bloquejat</string>
     <string name="mode_allowance_hour">%1$s cada hora</string>
     <string name="mode_allowance_day">%1$s al dia</string>
     <string name="remaining_left">En queden %1$s</string>
     <string name="remaining_none">No en queda gens</string>
     <string name="section_other_apps">Altres aplicacions</string>
-    <string name="section_other_apps_hint">Aplicacions que Doorman t\'ha vist obrir. Jocs, botigues, el que sigui. Bloquejar-ne una aquí cobreix tota l\'aplicació, perquè Doorman no en coneix les pantalles.</string>
-    <string name="other_apps_empty">Encara no n\'hi ha cap. Obre l\'aplicació que vulguis bloquejar i després torna aquí: hi sortirà.</string>
-    <string name="action_forget_app">Oblida-la</string>
-    <string name="whole_app_row">Tota l\'aplicació</string>
-    <string name="action_show_all_apps">Mostra totes les aplicacions</string>
-    <string name="action_show_used_apps">Mostra només les que faig servir</string>
-    <string name="pending_change_mode">%1$s passarà a «%2$s» en %3$d s</string>
+    <string name="section_other_apps_hint">Qualsevol aplicació del telèfon. Jocs, botigues, el que sigui. Bloquejar-ne una aquí cobreix tota l\'aplicació, perquè Doorman no en coneix les pantalles.</string>
+    <string name="other_apps_empty">Cerca l\'aplicació que vulguis bloquejar. Les que triïs es quedaran aquí.</string>
+        <string name="whole_app_row">Tota l\'aplicació</string>
+            <string name="pending_change_mode">%1$s passarà a «%2$s» en %3$d s</string>
+    <string name="other_apps_search">Cerca aplicacions</string>
 </resources>

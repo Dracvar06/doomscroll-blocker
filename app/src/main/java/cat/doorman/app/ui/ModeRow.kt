@@ -16,7 +16,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -70,7 +69,6 @@ fun ModeRow(
     onModeChosen: (BlockMode) -> Unit,
     icon: ImageBitmap? = null,
     hasIcon: Boolean = false,
-    onForget: (() -> Unit)? = null,
 ) {
     var expanded by remember { mutableStateOf(false) }
     Column(
@@ -127,15 +125,6 @@ fun ModeRow(
                             label = { Text(modeLabel(choice)) },
                         )
                     }
-                // Tucked in with the choices rather than sitting under every
-                // row: with an icon and a name already on the line, a
-                // permanent third element made the list twice as long as the
-                // thing it was listing.
-                if (onForget != null) {
-                    TextButton(onClick = onForget) {
-                        Text(stringResource(R.string.action_forget_app))
-                    }
-                }
             }
         }
     }

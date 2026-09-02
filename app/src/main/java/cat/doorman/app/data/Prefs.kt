@@ -39,7 +39,19 @@ class Prefs(private val context: Context) {
         /** Target id -> {"p":periodKey,"m":millis}: the allowance ledger. */
         val SPENT = stringPreferencesKey("spent")
 
-        /** Package -> when it was last in front, for the app picker. */
+        /**
+         * Removed. Doorman used to record which apps it had watched the user
+         * open, to offer them in the picker.
+         *
+         * It was accurate about what it did and still the wrong thing: an app
+         * with accessibility access keeping a list of everything you open reads
+         * as being watched, whatever the list is for. Feeling surveilled is a
+         * cost even when the data never leaves the phone, and Doorman asks for
+         * a lot of trust already. The picker lists every installed app instead,
+         * which needs no record of anything.
+         *
+         * Kept only so the old list can be deleted from installs that have one.
+         */
         val SEEN_APPS = stringPreferencesKey("seen_apps")
     }
 
@@ -69,60 +81,21 @@ class Prefs(private val context: Context) {
             decodeModes(prefs[Keys.MODES]).filterKeys { it.contains('.') }
         }
 
+    /**
+     * Deletes the record of watched apps left by earlier versions.
+     *
+     * An upgrade that merely stopped adding to it would leave the old list
+     * sitting in storage, which is not the same as not having kept one.
+     */
+    suspend fun forgetWatchedApps() {
+        context.dataStore.edit { prefs ->
+            if (prefs[Keys.SEEN_APPS] != null) prefs.remove(Keys.SEEN_APPS)
+        }
+    }
+
     /** Time already spent, per target. */
     val spent: Flow<Map<String, Allowances.Spent>> =
         context.dataStore.data.map { prefs -> decodeSpent(prefs[Keys.SPENT]) }
-
-    /**
-     * Apps Doorman has watched the user open.
-     *
-     * Doorman cannot show a list of installed apps without asking for
-     * permission to enumerate them, and it has no business knowing what else is
-     * on the phone. It does see which app is in front, because that is the job.
-     * So the picker offers the apps actually used, which is the shorter and more
-     * useful list anyway.
-     */
-    val seenApps: Flow<Map<String, String>> =
-        context.dataStore.data.map { prefs ->
-            val raw = prefs[Keys.SEEN_APPS] ?: return@map emptyMap()
-            runCatching {
-                val json = JSONObject(raw)
-                json.keys().asSequence().associateWith { key ->
-                    json.optJSONObject(key)?.optString("l").orEmpty().ifEmpty { key }
-                }
-            }.getOrDefault(emptyMap())
-        }
-
-    suspend fun recordSeenApp(packageName: String, now: Long, label: String? = null) {
-        context.dataStore.edit { prefs ->
-            val json = runCatching { JSONObject(prefs[Keys.SEEN_APPS] ?: "{}") }
-                .getOrDefault(JSONObject())
-            json.put(
-                packageName,
-                JSONObject().put("t", now).put("l", label ?: packageName),
-            )
-            // Bounded, oldest first: this is a convenience list, not a history.
-            if (json.length() > MAX_SEEN_APPS) {
-                val oldest = json.keys().asSequence()
-                    .sortedBy { json.optJSONObject(it)?.optLong("t") ?: 0L }
-                    .take(json.length() - MAX_SEEN_APPS)
-                    .toList()
-                oldest.forEach { json.remove(it) }
-            }
-            prefs[Keys.SEEN_APPS] = json.toString()
-        }
-    }
-
-    suspend fun forgetSeenApp(packageName: String) {
-        context.dataStore.edit { prefs ->
-            val json = runCatching { JSONObject(prefs[Keys.SEEN_APPS] ?: "{}") }
-                .getOrDefault(JSONObject())
-            json.remove(packageName)
-            prefs[Keys.SEEN_APPS] = json.toString()
-            val modes = decodeModes(prefs[Keys.MODES]) - packageName
-            prefs[Keys.MODES] = encodeModes(modes)
-        }
-    }
 
     suspend fun setMode(targetId: String, mode: BlockMode) {
         context.dataStore.edit { prefs ->

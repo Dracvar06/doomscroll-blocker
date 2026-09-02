@@ -77,7 +77,6 @@ class MainActivity : ComponentActivity() {
     private var screenModes by mutableStateOf(emptyMap<String, BlockMode>())
     private var appModes by mutableStateOf(emptyMap<String, BlockMode>())
     private var spent by mutableStateOf(emptyMap<String, Allowances.Spent>())
-    private var seenApps by mutableStateOf(emptyMap<String, String>())
     private val appIcons by lazy { AppIcons(this) }
     private var activePass by mutableStateOf<Prefs.Pass?>(null)
     private var waitSeconds by mutableIntStateOf(Prefs.DEFAULT_WAIT_SECONDS)
@@ -111,7 +110,8 @@ class MainActivity : ComponentActivity() {
         }
         lifecycleScope.launch { prefs.appModes.collectLatest { appModes = it } }
         lifecycleScope.launch { prefs.spent.collectLatest { spent = it } }
-        lifecycleScope.launch { prefs.seenApps.collectLatest { seenApps = it } }
+        // Deletes the record of watched apps kept by earlier versions.
+        lifecycleScope.launch { prefs.forgetWatchedApps() }
         lifecycleScope.launch {
         }
         lifecycleScope.launch { prefs.activePass.collectLatest { activePass = it } }
@@ -135,6 +135,17 @@ class MainActivity : ComponentActivity() {
                             .padding(24.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
+                        PendingChangeDialog(
+                            seconds = pendingSeconds,
+                            isDelayChange = pendingChange is PendingChange.Delay,
+                            targetLabel = (pendingChange as? PendingChange.Mode)?.let { change ->
+                                labelKeyFor(change.id).let(::labelFor)
+                                    .ifEmpty { appLabelFor(change.id) }
+                            },
+                            modeLabel = (pendingChange as? PendingChange.Mode)
+                                ?.let { change -> modeLabelText(change.mode) },
+                            onCancel = { cancelPendingChange() },
+                        )
                         when (screen) {
                             Screen.HOME -> HomeContent()
                             Screen.UNLOCK -> UnlockScreen(
@@ -233,18 +244,16 @@ class MainActivity : ComponentActivity() {
             screenModes = screenModes,
             appModes = appModes,
             otherApps = otherApps(),
-            allApps = allApps,
             icons = appIcons,
             remainingFor = ::remainingLabelFor,
             pendingLabel = (pendingChange as? PendingChange.Mode)
-                ?.let { change -> labelKeyFor(change.id).let(::labelFor).ifEmpty { seenApps[change.id] ?: change.id } },
+                ?.let { change -> labelKeyFor(change.id).let(::labelFor).ifEmpty { appLabelFor(change.id) } },
             pendingModeLabel = (pendingChange as? PendingChange.Mode)
                 ?.let { change -> modeLabelText(change.mode) },
             pendingIsDelay = pendingChange is PendingChange.Delay,
             pendingSeconds = pendingSeconds,
             changeDelaySeconds = changeDelaySeconds,
             onModeChosen = { id, mode -> requestModeChange(id, mode) },
-            onForgetApp = { pkg -> lifecycleScope.launch { prefs.forgetSeenApp(pkg) } },
             onPreset = { ids -> requestPreset(ids) },
             onCancelPending = { cancelPendingChange() },
             onChangeDelay = { seconds -> requestDelayChange(seconds) },
@@ -309,14 +318,12 @@ class MainActivity : ComponentActivity() {
      * The apps Doorman has watched the user open, minus the ones it already has
      * rules for -- those have their own card, with the screens inside them.
      */
-    private fun otherApps(): List<OtherApp> = seenApps
-        .filterKeys { rules.appFor(it) == null }
-        // Filtered on the way out as well as on the way in, so the noise
-        // recorded before that rule existed disappears from anyone's list
-        // instead of sitting there until they forget it one by one.
-        .filterKeys { pkg -> allApps.any { it.packageName == pkg } }
-        .map { (pkg, label) -> OtherApp(pkg, label) }
-        .sortedBy { it.label.lowercase() }
+    /**
+     * The apps offered for holding as a whole: everything on the phone except
+     * the ones with rules of their own, which have their own card.
+     */
+    private fun otherApps(): List<OtherApp> =
+        allApps.filter { rules.appFor(it.packageName) == null }
 
     /**
      * Every app with a launcher icon, for picking one that has not been opened
@@ -326,6 +333,9 @@ class MainActivity : ComponentActivity() {
      * or removed, and building it on every recomposition would stutter a
      * scrolling screen.
      */
+    private fun appLabelFor(packageName: String): String =
+        allApps.firstOrNull { it.packageName == packageName }?.label ?: packageName
+
     private val allApps: List<OtherApp> by lazy {
         runCatching {
             packageManager.queryIntentActivities(

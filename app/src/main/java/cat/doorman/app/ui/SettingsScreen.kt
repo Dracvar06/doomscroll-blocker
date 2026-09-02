@@ -10,6 +10,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -43,7 +44,6 @@ fun BlockingSettings(
     screenModes: Map<String, BlockMode>,
     appModes: Map<String, BlockMode>,
     otherApps: List<OtherApp>,
-    allApps: List<OtherApp>,
     icons: AppIcons,
     remainingFor: (String) -> String?,
     pendingLabel: String?,
@@ -52,7 +52,6 @@ fun BlockingSettings(
     pendingSeconds: Int,
     changeDelaySeconds: Int,
     onModeChosen: (String, BlockMode) -> Unit,
-    onForgetApp: (String) -> Unit,
     onPreset: (Set<String>) -> Unit,
     onCancelPending: () -> Unit,
     onChangeDelay: (Int) -> Unit,
@@ -72,41 +71,6 @@ fun BlockingSettings(
             text = stringResource(R.string.preset_label),
             style = MaterialTheme.typography.labelLarge,
         )
-        // A change that is waiting to take effect, with the way to abandon it.
-        if (pendingSeconds > 0) {
-            Card {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(
-                        text = when {
-                            pendingIsDelay ->
-                                stringResource(R.string.pending_change_delay, pendingSeconds)
-                            pendingLabel != null && pendingModeLabel != null ->
-                                stringResource(
-                                    R.string.pending_change_mode,
-                                    pendingLabel,
-                                    pendingModeLabel,
-                                    pendingSeconds,
-                                )
-                            pendingLabel != null ->
-                                stringResource(R.string.pending_change_screen, pendingLabel, pendingSeconds)
-                            else -> stringResource(R.string.pending_change_preset, pendingSeconds)
-                        },
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Text(
-                        text = stringResource(R.string.pending_change_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    Button(onClick = onCancelPending) {
-                        Text(stringResource(R.string.action_cancel_change))
-                    }
-                }
-            }
-        }
-
         val allScreens = rules.apps.values.flatMap { it.screens }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             AssistChip(
@@ -181,23 +145,36 @@ fun BlockingSettings(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                var showAll by remember { mutableStateOf(false) }
-                if (otherApps.isEmpty() && !showAll) {
+                var query by remember { mutableStateOf("") }
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.other_apps_search)) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                // Held apps first and always, then whatever the search finds.
+                // Every app on the phone laid out at once is a wall nobody
+                // reads, and the list someone actually cares about is the
+                // handful they have already chosen.
+                val held = otherApps.filter {
+                    (appModes[it.packageName] ?: BlockMode.Off) != BlockMode.Off
+                }
+                val matches = if (query.isBlank()) {
+                    emptyList()
+                } else {
+                    otherApps.filter {
+                        it.label.contains(query, ignoreCase = true) &&
+                            it !in held
+                    }
+                }
+                if (held.isEmpty() && query.isBlank()) {
                     Text(
                         text = stringResource(R.string.other_apps_empty),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
-                // The apps you actually use come first and are usually all you
-                // want. The rest are a tap away, for holding something before
-                // you next open it.
-                val shown = if (showAll) {
-                    (otherApps + allApps).distinctBy { it.packageName }
-                        .sortedBy { it.label.lowercase() }
-                } else {
-                    otherApps
-                }
-                shown.forEach { app ->
+                (held + matches).forEach { app ->
                     val mode = appModes[app.packageName] ?: BlockMode.Off
                     val icon by produceState<ImageBitmap?>(null, app.packageName) {
                         value = icons.load(app.packageName)
@@ -209,26 +186,6 @@ fun BlockingSettings(
                         onModeChosen = { onModeChosen(app.packageName, it) },
                         icon = icon,
                         hasIcon = true,
-                        // Only once it is switched off. Forgetting an app that
-                        // is held would be an instant way to unhold it,
-                        // straight past the wait every other loosening sits
-                        // through.
-                        onForget = if (
-                            mode == BlockMode.Off &&
-                            otherApps.any { it.packageName == app.packageName }
-                        ) {
-                            { onForgetApp(app.packageName) }
-                        } else {
-                            null
-                        },
-                    )
-                }
-                TextButton(onClick = { showAll = !showAll }) {
-                    Text(
-                        stringResource(
-                            if (showAll) R.string.action_show_used_apps
-                            else R.string.action_show_all_apps,
-                        ),
                     )
                 }
             }
