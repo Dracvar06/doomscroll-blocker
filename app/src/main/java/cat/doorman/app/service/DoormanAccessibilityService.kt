@@ -185,7 +185,7 @@ class DoormanAccessibilityService : AccessibilityService() {
             // blocking. So the coalescing has a ceiling: quiet moments still
             // settle, but the evaluation cannot be postponed indefinitely.
             AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
-                if (pkg !in SUPPORTED_PACKAGES) return
+                if (pkg !in rules.supportedPackages) return
                 val sinceLast = SystemClock.uptimeMillis() - lastEvaluationAt
                 handler.removeCallbacks(evaluate)
                 if (sinceLast >= MAX_EVALUATION_INTERVAL_MS) {
@@ -197,7 +197,7 @@ class DoormanAccessibilityService : AccessibilityService() {
             // Only meaningful while a shared reel is on screen; everywhere else
             // it is dropped without a tree walk.
             AccessibilityEvent.TYPE_VIEW_SCROLLED -> {
-                if (pkg !in SUPPORTED_PACKAGES) return
+                if (pkg !in rules.supportedPackages) return
                 onScrolled(event)
             }
             else -> Unit
@@ -258,7 +258,7 @@ class DoormanAccessibilityService : AccessibilityService() {
     private fun evaluateCurrentScreen() {
         lastEvaluationAt = SystemClock.uptimeMillis()
         val snapshot = SnapshotCapture.capture(this, preferPackage = lastPackage)
-        if (snapshot?.packageName == null || snapshot.packageName !in SUPPORTED_PACKAGES) {
+        if (snapshot?.packageName == null || snapshot.packageName !in rules.supportedPackages) {
             Log.d(TAG, "evaluate: skip pkg=${snapshot?.packageName} nodes=${snapshot?.nodes?.size}")
             if (overlay.isShowing) overlay.hide()
             return
@@ -266,7 +266,9 @@ class DoormanAccessibilityService : AccessibilityService() {
         // A pass suspends blocking for one app until it lapses. Checked here
         // rather than inside the evaluator so the rules stay pure and testable.
         val pass = activePass
-        if (pass != null && pass.packageName == snapshot.packageName &&
+        if (pass != null &&
+            rules.canonicalPackage(pass.packageName) ==
+            rules.canonicalPackage(snapshot.packageName) &&
             pass.isActiveAt(System.currentTimeMillis())
         ) {
             if (overlay.isShowing) overlay.hide()
@@ -349,7 +351,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         if (pkg == lastPackage) return
         val previous = lastPackage
         lastPackage = pkg
-        val relevance = if (pkg in SUPPORTED_PACKAGES) "SUPPORTED" else "ignored"
+        val relevance = if (pkg in rules.supportedPackages) "SUPPORTED" else "ignored"
         Log.i(TAG, "foreground: ${previous ?: "(none)"} -> $pkg [$relevance] window=${event.className}")
     }
 
@@ -366,7 +368,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         snapshot: cat.doorman.app.model.ScreenSnapshot,
         screenId: String?,
     ): OverlayBounds.Band {
-        val app = rules.apps[snapshot.packageName]
+        val app = rules.appFor(snapshot.packageName)
         val rule = app?.screens?.firstOrNull { it.id == screenId }
         return OverlayBounds.compute(
             snapshot = snapshot,
@@ -414,14 +416,6 @@ class DoormanAccessibilityService : AccessibilityService() {
          * display before the overlay lands.
          */
         private const val MAX_EVALUATION_INTERVAL_MS = 500L
-
-        /** TikTok ships under two package names depending on the region. */
-        val SUPPORTED_PACKAGES = setOf(
-            "com.google.android.youtube",
-            "com.instagram.android",
-            "com.zhiliaoapp.musically",
-            "com.ss.android.ugc.trill",
-        )
 
         // Phase 5 should replace this with a window-type check
         // (AccessibilityWindowInfo.TYPE_APPLICATION), which catches every

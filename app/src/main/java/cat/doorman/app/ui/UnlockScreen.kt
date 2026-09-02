@@ -2,7 +2,8 @@ package cat.doorman.app.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
@@ -24,6 +25,7 @@ import cat.doorman.app.rules.RuleSet
  * screen itself: you have to leave the app you are being kept out of, come
  * here, and sit through a wait that restarts if you wander off.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun UnlockScreen(
     rules: RuleSet,
@@ -45,7 +47,10 @@ fun UnlockScreen(
             text = stringResource(R.string.unlock_pick_app),
             style = MaterialTheme.typography.bodyMedium,
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        // FlowRow, not Row: the chips are one per supported app, and past
+        // four of them a single row runs off the side of the screen, taking
+        // the app you wanted with it.
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             rules.apps.forEach { (packageName, app) ->
                 FilterChip(
                     selected = packageName == selectedPackage,

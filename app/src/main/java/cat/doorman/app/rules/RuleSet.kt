@@ -12,11 +12,55 @@ import kotlinx.serialization.Serializable
 data class RuleSet(
     val version: Int = 1,
     val apps: Map<String, AppRules> = emptyMap(),
-)
+) {
+    /**
+     * Every package any rule speaks for, main keys and [AppRules.aliases] alike.
+     *
+     * The service used to carry its own copy of this list. That is the kind of
+     * duplication that fails quietly: adding an app to rules.json while
+     * forgetting the second list produces no error, no crash and no blocking --
+     * just an app that mysteriously does nothing. Derive it instead.
+     */
+    val supportedPackages: Set<String> by lazy {
+        apps.keys + apps.values.flatMap { it.aliases }
+    }
+
+    /**
+     * The rules for a package, whether it arrived under its main name or one of
+     * its aliases.
+     */
+    fun appFor(packageName: String?): AppRules? {
+        if (packageName == null) return null
+        apps[packageName]?.let { return it }
+        return apps.values.firstOrNull { packageName in it.aliases }
+    }
+
+    /**
+     * The name an app is filed under here, whichever of its names it arrived as.
+     *
+     * A pass is granted for "TikTok" but spent against whatever package is in
+     * front, and on a regional build those are two different strings. Comparing
+     * them directly would hand someone a pass that does nothing.
+     */
+    fun canonicalPackage(packageName: String?): String? {
+        if (packageName == null) return null
+        if (packageName in apps) return packageName
+        return apps.entries.firstOrNull { packageName in it.value.aliases }?.key
+    }
+}
 
 @Serializable
 data class AppRules(
     val labelKey: String,
+    /**
+     * Other package names that are the same app and share these rules.
+     *
+     * TikTok is the reason this exists: it ships as com.zhiliaoapp.musically in
+     * most of the world and com.ss.android.ugc.trill elsewhere, and Snapchat
+     * has had regional builds too. Keying rules by one name would leave those
+     * users with an app that silently blocks nothing.
+     */
+    val aliases: List<String> = emptyList(),
     /**
      * Views the block must never cover -- in practice the app's own tab bar.
      *

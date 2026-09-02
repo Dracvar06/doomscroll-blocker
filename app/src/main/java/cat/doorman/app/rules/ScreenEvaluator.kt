@@ -49,7 +49,7 @@ object ScreenEvaluator {
         rules: RuleSet,
         enabledScreenIds: Set<String>,
     ): Verdict {
-        val app = rules.apps[snapshot.packageName] ?: return Verdict.ALLOW
+        val app = rules.appFor(snapshot.packageName) ?: return Verdict.ALLOW
         val rule = app.screens.firstOrNull { rule ->
             // A rule with no matcher is a switch that modifies another block,
             // not a screen; it must never block anything on its own.

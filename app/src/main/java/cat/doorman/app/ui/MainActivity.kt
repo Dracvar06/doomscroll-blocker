@@ -204,7 +204,7 @@ class MainActivity : ComponentActivity() {
                         Text(
                             stringResource(
                                 R.string.pass_active_banner,
-                                labelFor(rules.apps[pass.packageName]?.labelKey ?: ""),
+                                labelFor(rules.appFor(pass.packageName)?.labelKey ?: ""),
                                 minutesLeft + 1,
                             )
                         )
