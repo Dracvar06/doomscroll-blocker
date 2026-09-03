@@ -153,4 +153,5 @@
     <string name="days_weekend">Weekend</string>
     <string name="action_save">Save</string>
     <string name="action_remove">Remove</string>
+    <string name="limits_reuse">Hours you already use elsewhere:</string>
 </resources>

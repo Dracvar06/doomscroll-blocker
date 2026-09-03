@@ -86,6 +86,7 @@ fun LimitsEditor(
     title: String,
     limits: Limits,
     help: String?,
+    suggestions: List<Window> = emptyList(),
     onDismiss: () -> Unit,
     onSave: (Limits) -> Unit,
 ) {
@@ -199,6 +200,35 @@ fun LimitsEditor(
                             )
                         },
                     )
+                }
+                // Whatever hours the user has already set somewhere else, one
+                // tap away. Someone closing five apps overnight was picking the
+                // same two times out of a clock face five times over, which is
+                // the sort of tedium that ends with three of them half done.
+                val reusable = suggestions.filter { it !in draft.windows }
+                if (reusable.isNotEmpty()) {
+                    Text(
+                        stringResource(R.string.limits_reuse),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        reusable.forEach { window ->
+                            AssistChip(
+                                onClick = {
+                                    draft = draft.copy(
+                                        blocked = false,
+                                        windows = draft.windows + window,
+                                    )
+                                },
+                                label = {
+                                    Text(
+                                        "${formatMinute(window.fromMinute)}\u2013" +
+                                            formatMinute(window.toMinute),
+                                    )
+                                },
+                            )
+                        }
+                    }
                 }
                 AssistChip(
                     onClick = {

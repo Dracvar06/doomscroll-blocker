@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import cat.doorman.app.R
 import cat.doorman.app.data.Prefs
 import cat.doorman.app.limits.Limits
+import cat.doorman.app.limits.Window
 import cat.doorman.app.rules.RuleSet
 
 /** An app the user has been seen using, offered for holding as a whole. */
@@ -69,6 +70,12 @@ fun BlockingSettings(
     labelFor: (String) -> String,
     helpFor: (String?) -> String?,
 ) {
+    // Every set of hours the user has already chosen anywhere, offered back to
+    // them in each editor so the same two times are not picked out of a clock
+    // face once per app.
+    val knownWindows: List<Window> = remember(screenLimits, appLimits) {
+        (screenLimits.values + appLimits.values).flatMap { it.windows }.distinct()
+    }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
             text = stringResource(R.string.section_blocking),
@@ -173,6 +180,7 @@ fun BlockingSettings(
                         remaining = remainingFor(packageName),
                         onLimitsChosen = { onLimitsChosen(packageName, it) },
                         help = stringResource(R.string.help_whole_app),
+                        suggestions = knownWindows,
                     )
                     app.screens.forEach { screen ->
                         val limit = screenLimits[screen.id] ?: Limits.OFF
@@ -183,6 +191,7 @@ fun BlockingSettings(
                                 remaining = remainingFor(screen.id),
                                 onLimitsChosen = { onLimitsChosen(screen.id, it) },
                                 help = helpFor(screen.helpKey),
+                                suggestions = knownWindows,
                             )
                         } else {
                             SwitchRow(
@@ -255,6 +264,7 @@ fun BlockingSettings(
                         icon = icon,
                         hasIcon = true,
                         help = stringResource(R.string.help_whole_app),
+                        suggestions = knownWindows,
                     )
                 }
             }

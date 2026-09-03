@@ -36,6 +36,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import cat.doorman.app.R
 import cat.doorman.app.limits.Limits
+import cat.doorman.app.limits.Window
 
 /**
  * One thing that can be held: what is holding it, and a way in to change it.
@@ -55,6 +56,7 @@ fun LimitRow(
     icon: ImageBitmap? = null,
     hasIcon: Boolean = false,
     help: String? = null,
+    suggestions: List<Window> = emptyList(),
 ) {
     var editing by remember { mutableStateOf(false) }
     Row(
@@ -100,6 +102,7 @@ fun LimitRow(
             title = label,
             limits = limits,
             help = help,
+            suggestions = suggestions,
             onDismiss = { editing = false },
             onSave = {
                 onLimitsChosen(it)

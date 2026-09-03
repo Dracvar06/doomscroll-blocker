@@ -144,4 +144,5 @@
     <string name="days_weekend">Cap de setmana</string>
     <string name="action_save">Desa</string>
     <string name="action_remove">Treu</string>
+    <string name="limits_reuse">Franges que ja fas servir en altres blocs:</string>
 </resources>
