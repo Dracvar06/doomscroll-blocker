@@ -144,7 +144,7 @@
     <string name="limits_hours_hint">Set the hours it is closed. A block that ends earlier than it starts runs through the night.</string>
     <string name="limits_add_window">Add blocked hours</string>
     <string name="limits_week_heading">Your week</string>
-    <string name="limits_wraps_midnight">Runs through midnight into the next morning.</string>
+    <string name="limits_wraps_midnight">Runs through midnight. The days you pick are the mornings it ends on: with weekdays, Friday night is free and Sunday night is not.</string>
     <string name="period_hour">per hour</string>
     <string name="period_day">per day</string>
     <string name="period_week">per week</string>

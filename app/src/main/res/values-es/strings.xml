@@ -139,7 +139,7 @@
     <string name="limits_hours_hint">Elige las horas en que está cerrado. Un bloqueo que acaba antes de empezar pasa por la noche.</string>
     <string name="limits_add_window">Añadir horas bloqueadas</string>
     <string name="limits_week_heading">Tu semana</string>
-    <string name="limits_wraps_midnight">Pasa la medianoche y sigue hasta la mañana siguiente.</string>
+    <string name="limits_wraps_midnight">Pasa la medianoche. Los días que elijas son las mañanas en que acaba: con «entre semana», el viernes por la noche queda libre y el domingo no.</string>
     <string name="period_hour">cada hora</string>
     <string name="period_day">al día</string>
     <string name="period_week">a la semana</string>

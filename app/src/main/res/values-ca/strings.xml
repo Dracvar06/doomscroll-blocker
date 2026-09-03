@@ -135,7 +135,7 @@
     <string name="limits_hours_hint">Tria les hores en què està tancat. Un bloqueig que acaba abans de començar passa per la nit.</string>
     <string name="limits_add_window">Afegeix hores bloquejades</string>
     <string name="limits_week_heading">La teva setmana</string>
-    <string name="limits_wraps_midnight">Passa la mitjanit i continua fins al matí següent.</string>
+    <string name="limits_wraps_midnight">Passa la mitjanit. Els dies que triïs són els matins en què acaba: amb «feiners», divendres a la nit queda lliure i diumenge a la nit no.</string>
     <string name="period_hour">cada hora</string>
     <string name="period_day">al dia</string>
     <string name="period_week">a la setmana</string>

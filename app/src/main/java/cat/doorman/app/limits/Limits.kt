@@ -44,11 +44,18 @@ data class Allowance(
  * 00:00-09:00 -- leaves a minute open at midnight, asks whether the day ends at
  * 23:59 or 24:00, and shows two rules for one intention.
  *
- * [days] is read as the days the window *starts* on, and a window that wraps
- * carries on into the following morning whatever day that is. "Blocked 21:00 to
- * 09:00, Monday to Friday" therefore covers Friday night into Saturday morning,
- * and does not start again on Saturday evening. Any other reading makes the last
- * night of the working week the one night it does not apply.
+ * For a window that wraps, [days] means the days it *ends* on -- the mornings.
+ * A night is blocked because of the day it leads into, not the day it left:
+ * people close their evenings to get up for work. So "blocked 21:00 to 09:00,
+ * Monday to Friday" covers Sunday night through Thursday night, leaves Friday
+ * and Saturday nights alone, and closes again on Sunday evening.
+ *
+ * Reading it the other way -- as the day the window starts on -- gets Friday
+ * night exactly backwards: it blocks the one evening with no morning to protect
+ * and frees the one that has school or work waiting.
+ *
+ * For a window that does not wrap, both readings are the same day and the
+ * question does not arise.
  */
 data class Window(
     val fromMinute: Int,
@@ -62,8 +69,10 @@ data class Window(
         get() = if (wrapsMidnight) MINUTES_PER_DAY - fromMinute + toMinute else toMinute - fromMinute
 
     fun contains(day: DayOfWeek, minuteOfDay: Int): Boolean = if (wrapsMidnight) {
-        (day in days && minuteOfDay >= fromMinute) ||
-            (day.minus(1) in days && minuteOfDay < toMinute)
+        // The evening belongs to tomorrow's morning; the small hours belong to
+        // today's.
+        (day.plus(1) in days && minuteOfDay >= fromMinute) ||
+            (day in days && minuteOfDay < toMinute)
     } else {
         day in days && minuteOfDay >= fromMinute && minuteOfDay < toMinute
     }

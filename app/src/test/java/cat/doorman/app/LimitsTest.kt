@@ -69,20 +69,26 @@ class LimitsTest {
     }
 
     /**
-     * A wrapping window belongs to the day it starts on and carries into the
-     * next morning whatever day that is. Any other reading makes Friday night
-     * -- the last night of the working week -- the one night the rule does not
-     * apply, which is the opposite of what someone setting it wants.
+     * A night is blocked because of the day it leads into. "Weekdays, 21:00 to
+     * 09:00" is someone protecting the mornings they have to get up for, so
+     * Friday night is free and Sunday night is not -- which is the opposite of
+     * what reading the days as the evening would give.
      */
     @Test
-    fun `a weekday night runs into saturday morning`() {
+    fun `weekday nights are the nights before weekdays`() {
         val limits = Limits(windows = listOf(night.copy(days = Days.WEEKDAYS)))
-        assertTrue(limits.blockedAt(at(DayOfWeek.FRIDAY, 22, 0)))
-        assertTrue(limits.blockedAt(at(DayOfWeek.SATURDAY, 3, 0)))
-        // ...and does not start again on Saturday evening, which is the weekend.
+        // Sunday evening is held, because Monday morning is.
+        assertTrue(limits.blockedAt(at(DayOfWeek.SUNDAY, 22, 0)))
+        assertTrue(limits.blockedAt(at(DayOfWeek.MONDAY, 3, 0)))
+        assertTrue(limits.blockedAt(at(DayOfWeek.MONDAY, 8, 59)))
+        assertFalse(limits.blockedAt(at(DayOfWeek.MONDAY, 9, 0)))
+        // Friday evening is free: there is no weekday morning after it.
+        assertFalse(limits.blockedAt(at(DayOfWeek.FRIDAY, 22, 0)))
+        assertFalse(limits.blockedAt(at(DayOfWeek.SATURDAY, 3, 0)))
         assertFalse(limits.blockedAt(at(DayOfWeek.SATURDAY, 22, 0)))
-        // Monday morning belongs to Sunday night, which is not a weekday.
-        assertFalse(limits.blockedAt(at(DayOfWeek.MONDAY, 3, 0)))
+        // Thursday night still is, because Friday is a working day.
+        assertTrue(limits.blockedAt(at(DayOfWeek.THURSDAY, 22, 0)))
+        assertTrue(limits.blockedAt(at(DayOfWeek.FRIDAY, 3, 0)))
     }
 
     @Test
@@ -199,9 +205,10 @@ class LimitsTest {
         val week = Limits(windows = listOf(night.copy(days = Days.WEEKDAYS)))
             .blockedMinutesOfWeek()
         fun minuteOf(day: DayOfWeek, hour: Int) = (day.value - 1) * 1440 + hour * 60
-        assertTrue(week[minuteOf(DayOfWeek.MONDAY, 22)])
-        assertTrue(week[minuteOf(DayOfWeek.SATURDAY, 3)])
-        assertFalse(week[minuteOf(DayOfWeek.SATURDAY, 22)])
+        assertTrue(week[minuteOf(DayOfWeek.SUNDAY, 22)])
+        assertTrue(week[minuteOf(DayOfWeek.MONDAY, 3)])
+        assertFalse(week[minuteOf(DayOfWeek.FRIDAY, 22)])
+        assertFalse(week[minuteOf(DayOfWeek.SATURDAY, 3)])
         assertFalse(week[minuteOf(DayOfWeek.WEDNESDAY, 12)])
     }
 
