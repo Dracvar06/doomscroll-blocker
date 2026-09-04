@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -33,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -273,46 +276,74 @@ class MainActivity : ComponentActivity() {
                 lifecycleScope.launch { prefs.setCardOpen(pkg, open) }
             },
             remainingFor = ::remainingLabelFor,
-            pendingLabel = (pendingChange as? PendingChange.Mode)
-                ?.let { change -> labelKeyFor(change.id).let(::labelFor).ifEmpty { appLabelFor(change.id) } },
-            pendingModeLabel = (pendingChange as? PendingChange.Mode)
-                ?.let { change -> summaryText(change.limits) },
-            pendingIsDelay = pendingChange is PendingChange.Delay,
-            pendingSeconds = pendingSeconds,
-            changeDelaySeconds = changeDelaySeconds,
             onLimitsChosen = { id, limits -> requestLimitsChange(id, limits) },
             onPreset = { ids -> requestPreset(ids) },
-            onCancelPending = { cancelPendingChange() },
-            onChangeDelay = { seconds -> requestDelayChange(seconds) },
             labelFor = ::labelFor,
             helpFor = ::helpFor,
         )
 
-        Text(stringResource(R.string.section_pass), style = MaterialTheme.typography.titleLarge)
-        Text(stringResource(R.string.pass_explainer), style = MaterialTheme.typography.bodyMedium)
-        Button(onClick = {
-            screen = Screen.UNLOCK
-            selectedPackage = null
-            wasReset = false
-            secondsRemaining = 0
-        }) {
-            Text(stringResource(R.string.action_get_pass))
+        // How Doorman behaves, rather than what it blocks. Both settings here
+        // are set once and then lived with, so they do not need to be in the
+        // way of the thing people change often.
+        Section(
+            title = stringResource(R.string.section_behaviour),
+            open = openCards[SECTION_BEHAVIOUR] ?: false,
+            onOpenChanged = { lifecycleScope.launch { prefs.setCardOpen(SECTION_BEHAVIOUR, it) } },
+        ) {
+            Text(
+                stringResource(R.string.section_change_delay),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                stringResource(R.string.change_delay_explainer),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                DelayDial(
+                    seconds = changeDelaySeconds,
+                    onChange = { seconds -> requestDelayChange(seconds) },
+                )
+            }
+            Text(
+                stringResource(R.string.section_pass),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                stringResource(R.string.pass_explainer),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Button(onClick = {
+                screen = Screen.UNLOCK
+                selectedPackage = null
+                wasReset = false
+                secondsRemaining = 0
+            }) {
+                Text(stringResource(R.string.action_get_pass))
+            }
         }
 
-        LanguageSection(
-            supported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU,
-            currentTag = appLocaleTag(),
-            onPick = { tag -> setAppLocale(tag) },
-        )
+        // The app itself: which language it speaks and what to do when a rule
+        // stops matching. Neither is about anybody's phone habits.
+        Section(
+            title = stringResource(R.string.section_about),
+            open = openCards[SECTION_ABOUT] ?: false,
+            onOpenChanged = { lifecycleScope.launch { prefs.setCardOpen(SECTION_ABOUT, it) } },
+        ) {
+            LanguageSection(
+                supported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU,
+                currentTag = appLocaleTag(),
+                onPick = { tag -> setAppLocale(tag) },
+            )
 
-        DiagnosticsSection(
-            lastSeen = lastSeen,
-            countdown = reportCountdown,
-            reportReady = reportFile != null,
-            captureFailed = reportFailed,
-            onCapture = { captureReport() },
-            onShare = { shareReport() },
-        )
+            DiagnosticsSection(
+                lastSeen = lastSeen,
+                countdown = reportCountdown,
+                reportReady = reportFile != null,
+                captureFailed = reportFailed,
+                onCapture = { captureReport() },
+                onShare = { shareReport() },
+            )
+        }
     }
 
     /**

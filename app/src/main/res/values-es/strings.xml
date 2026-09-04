@@ -159,4 +159,7 @@
     <string name="dial_field_hours">horas</string>
     <string name="dial_field_minutes">minutos</string>
     <string name="dial_field_seconds">segundos</string>
+    <string name="section_show">Mostrar</string>
+    <string name="section_behaviour">Cómo se comporta Doorman</string>
+    <string name="section_about">La aplicación</string>
 </resources>

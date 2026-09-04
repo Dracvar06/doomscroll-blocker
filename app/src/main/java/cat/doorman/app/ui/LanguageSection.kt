@@ -32,7 +32,7 @@ fun LanguageSection(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = stringResource(R.string.section_language),
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.titleMedium,
         )
         if (!supported) {
             Text(

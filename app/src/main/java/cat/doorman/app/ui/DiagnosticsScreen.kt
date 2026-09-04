@@ -35,7 +35,7 @@ fun DiagnosticsSection(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = stringResource(R.string.section_diagnostics),
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.titleMedium,
         )
         Text(
             text = stringResource(R.string.diagnostics_explainer),

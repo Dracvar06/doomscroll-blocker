@@ -58,15 +58,8 @@ fun BlockingSettings(
     openCards: Map<String, Boolean>,
     onCardOpenChanged: (String, Boolean) -> Unit,
     remainingFor: (String) -> String?,
-    pendingLabel: String?,
-    pendingModeLabel: String?,
-    pendingIsDelay: Boolean,
-    pendingSeconds: Int,
-    changeDelaySeconds: Int,
     onLimitsChosen: (String, Limits) -> Unit,
     onPreset: (Set<String>) -> Unit,
-    onCancelPending: () -> Unit,
-    onChangeDelay: (Int) -> Unit,
     labelFor: (String) -> String,
     helpFor: (String?) -> String?,
 ) {
@@ -278,18 +271,6 @@ fun BlockingSettings(
                     )
                 }
             }
-        }
-
-        Text(
-            text = stringResource(R.string.section_change_delay),
-            style = MaterialTheme.typography.titleMedium,
-        )
-        Text(
-            text = stringResource(R.string.change_delay_explainer),
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            DelayDial(seconds = changeDelaySeconds, onChange = onChangeDelay)
         }
     }
 }
