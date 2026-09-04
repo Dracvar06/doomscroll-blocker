@@ -159,9 +159,30 @@
     <string name="dial_field_hours">horas</string>
     <string name="dial_field_minutes">minutos</string>
     <string name="dial_field_seconds">segundos</string>
-    <string name="section_show">Mostrar</string>
     <string name="section_behaviour">Cómo se comporta Doorman</string>
     <string name="section_about">La aplicación</string>
     <string name="preset_permissive">Permisivo</string>
     <string name="preset_permissive_hint">Permisivo solo detiene los flujos que no acaban nunca. Las páginas de inicio, las suscripciones y las historias de tus amigos siguen abiertas.</string>
+    <string name="tab_blocks">Bloqueos</string>
+    <string name="tab_report">Informe</string>
+    <string name="tab_settings">Ajustes</string>
+    <string name="report_heading">Cómo ha ido la semana</string>
+    <string name="report_nothing_yet">Doorman acaba de empezar a llevar la cuenta. Aquí habrá algo cuando haya pasado una semana.</string>
+    <string name="report_first_week">Esta es la primera semana que Doorman ha registrado, así que todavía no hay nada con qué compararla.</string>
+    <string name="report_this_week">Esta semana</string>
+    <string name="report_last_week">La semana pasada</string>
+    <string name="report_stops">Veces que te ha parado</string>
+    <string name="report_time">Tiempo contado contra un límite</string>
+    <string name="report_loosenings">Límites aflojados</string>
+    <string name="report_same_stops">Las mismas paradas que la semana anterior.</string>
+    <plurals name="report_more_stops">
+        <item quantity="many">%1$d de paradas más que la semana anterior.</item>
+        <item quantity="one">%1$d parada más que la semana anterior.</item>
+        <item quantity="other">%1$d paradas más que la semana anterior.</item>
+    </plurals>
+    <plurals name="report_fewer_stops">
+        <item quantity="many">%1$d de paradas menos que la semana anterior.</item>
+        <item quantity="one">%1$d parada menos que la semana anterior.</item>
+        <item quantity="other">%1$d paradas menos que la semana anterior.</item>
+    </plurals>
 </resources>

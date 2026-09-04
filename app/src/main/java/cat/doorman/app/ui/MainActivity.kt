@@ -25,6 +25,14 @@ import androidx.compose.material3.Button
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -58,6 +66,34 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 private enum class Screen { HOME, UNLOCK }
+
+/**
+ * The three things Doorman is for, one tab each.
+ *
+ * The settings screen had grown into a single scroll holding what Doorman
+ * blocks, how it behaves, the language picker and a diagnostics tool, and
+ * folding the last three away only made a shorter scroll -- the report, which
+ * has nothing to do with any of them, had nowhere to live at all.
+ *
+ * A bar also answers the question the report raised: a weekly notification
+ * cannot be the only way to see it. An app that punishes you for missing a
+ * notification is an app teaching you to watch your notifications, which is the
+ * opposite of what this one is for. The notification is a nudge; the tab is the
+ * door.
+ */
+private enum class Tab { BLOCKS, REPORT, SETTINGS }
+
+private fun iconFor(tab: Tab) = when (tab) {
+    Tab.BLOCKS -> Icons.Default.Lock
+    Tab.REPORT -> Icons.Default.DateRange
+    Tab.SETTINGS -> Icons.Default.Settings
+}
+
+private fun tabLabel(tab: Tab) = when (tab) {
+    Tab.BLOCKS -> R.string.tab_blocks
+    Tab.REPORT -> R.string.tab_report
+    Tab.SETTINGS -> R.string.tab_settings
+}
 
 /** A settings change that has been asked for but has not taken effect yet. */
 private sealed interface PendingChange {
@@ -94,6 +130,8 @@ class MainActivity : ComponentActivity() {
     private var passMinutes by mutableIntStateOf(Prefs.DEFAULT_PASS_MINUTES)
 
     private var screen by mutableStateOf(Screen.HOME)
+    private var tab by mutableStateOf(Tab.BLOCKS)
+    private var journal by mutableStateOf(emptyList<cat.doorman.app.limits.DayRecord>())
     private var selectedPackage by mutableStateOf<String?>(null)
     private var secondsRemaining by mutableIntStateOf(0)
     private var wasReset by mutableStateOf(false)
@@ -132,17 +170,34 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             prefs.changeDelaySeconds.collectLatest { changeDelaySeconds = it }
         }
+        lifecycleScope.launch { prefs.journal.collectLatest { journal = it } }
 
         setContent {
             DoormanTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background,
-                ) {
+                Scaffold(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    bottomBar = {
+                        // Hidden while getting a pass. That flow is a decision
+                        // with a countdown running, and offering a way to wander
+                        // off mid-way would be offering a way to lose it.
+                        if (screen == Screen.HOME) {
+                            NavigationBar {
+                                Tab.entries.forEach { entry ->
+                                    NavigationBarItem(
+                                        selected = tab == entry,
+                                        onClick = { tab = entry },
+                                        icon = { Icon(iconFor(entry), contentDescription = null) },
+                                        label = { Text(stringResource(tabLabel(entry))) },
+                                    )
+                                }
+                            }
+                        }
+                    },
+                ) { insets ->
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .safeDrawingPadding()
+                            .padding(insets)
                             .verticalScroll(rememberScrollState())
                             .padding(24.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -159,7 +214,11 @@ class MainActivity : ComponentActivity() {
                             onCancel = { cancelPendingChange() },
                         )
                         when (screen) {
-                            Screen.HOME -> HomeContent()
+                            Screen.HOME -> when (tab) {
+                                Tab.BLOCKS -> BlocksTab()
+                                Tab.REPORT -> WeeklyReport(journal, java.time.LocalDate.now())
+                                Tab.SETTINGS -> SettingsTab()
+                            }
                             Screen.UNLOCK -> UnlockScreen(
                                 rules = rules,
                                 selectedPackage = selectedPackage,
@@ -183,7 +242,7 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun HomeContent() {
+    private fun BlocksTab() {
         Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium)
         Text(stringResource(R.string.home_tagline), style = MaterialTheme.typography.bodyLarge)
 
@@ -282,14 +341,21 @@ class MainActivity : ComponentActivity() {
             helpFor = ::helpFor,
         )
 
-        // How Doorman behaves, rather than what it blocks. Both settings here
-        // are set once and then lived with, so they do not need to be in the
-        // way of the thing people change often.
-        Section(
-            title = stringResource(R.string.section_behaviour),
-            open = openCards[SECTION_BEHAVIOUR] ?: false,
-            onOpenChanged = { lifecycleScope.launch { prefs.setCardOpen(SECTION_BEHAVIOUR, it) } },
-        ) {
+    }
+
+    /**
+     * How Doorman behaves and what it is, which is not what it blocks.
+     *
+     * Both settings here are set once and then lived with. They were in the way
+     * of the thing people change often, and now they are one tap away instead.
+     */
+    @Composable
+    private fun SettingsTab() {
+        Text(
+            stringResource(R.string.section_behaviour),
+            style = MaterialTheme.typography.headlineMedium,
+        )
+        run {
             Text(
                 stringResource(R.string.section_change_delay),
                 style = MaterialTheme.typography.titleMedium,
@@ -324,11 +390,11 @@ class MainActivity : ComponentActivity() {
 
         // The app itself: which language it speaks and what to do when a rule
         // stops matching. Neither is about anybody's phone habits.
-        Section(
-            title = stringResource(R.string.section_about),
-            open = openCards[SECTION_ABOUT] ?: false,
-            onOpenChanged = { lifecycleScope.launch { prefs.setCardOpen(SECTION_ABOUT, it) } },
-        ) {
+        Text(
+            stringResource(R.string.section_about),
+            style = MaterialTheme.typography.headlineMedium,
+        )
+        run {
             LanguageSection(
                 supported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU,
                 currentTag = appLocaleTag(),

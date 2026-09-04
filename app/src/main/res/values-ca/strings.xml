@@ -155,9 +155,30 @@
     <string name="dial_field_hours">hores</string>
     <string name="dial_field_minutes">minuts</string>
     <string name="dial_field_seconds">segons</string>
-    <string name="section_show">Mostra</string>
     <string name="section_behaviour">Com es comporta Doorman</string>
     <string name="section_about">L\'aplicació</string>
     <string name="preset_permissive">Permissiu</string>
     <string name="preset_permissive_hint">Permissiu només atura els fluxos que no s\'acaben mai. Les pàgines d\'inici, les subscripcions i les històries dels amics et queden obertes.</string>
+    <string name="tab_blocks">Bloquejos</string>
+    <string name="tab_report">Informe</string>
+    <string name="tab_settings">Ajustos</string>
+    <string name="report_heading">Com ha anat la setmana</string>
+    <string name="report_nothing_yet">Doorman tot just ha començat a portar el compte. Aquí hi haurà alguna cosa quan hagi passat una setmana.</string>
+    <string name="report_first_week">Aquesta és la primera setmana que Doorman ha registrat, així que encara no hi ha res amb què comparar-la.</string>
+    <string name="report_this_week">Aquesta setmana</string>
+    <string name="report_last_week">La setmana passada</string>
+    <string name="report_stops">Vegades que t\'ha aturat</string>
+    <string name="report_time">Temps comptat contra un límit</string>
+    <string name="report_loosenings">Límits afluixats</string>
+    <string name="report_same_stops">Les mateixes aturades que la setmana anterior.</string>
+    <plurals name="report_more_stops">
+        <item quantity="many">%1$d d\'aturades més que la setmana anterior.</item>
+        <item quantity="one">%1$d aturada més que la setmana anterior.</item>
+        <item quantity="other">%1$d aturades més que la setmana anterior.</item>
+    </plurals>
+    <plurals name="report_fewer_stops">
+        <item quantity="many">%1$d d\'aturades menys que la setmana anterior.</item>
+        <item quantity="one">%1$d aturada menys que la setmana anterior.</item>
+        <item quantity="other">%1$d aturades menys que la setmana anterior.</item>
+    </plurals>
 </resources>

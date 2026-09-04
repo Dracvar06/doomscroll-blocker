@@ -164,9 +164,28 @@
     <string name="dial_field_hours">hours</string>
     <string name="dial_field_minutes">minutes</string>
     <string name="dial_field_seconds">seconds</string>
-    <string name="section_show">Show</string>
     <string name="section_behaviour">How Doorman behaves</string>
     <string name="section_about">The app</string>
     <string name="preset_permissive">Permissive</string>
     <string name="preset_permissive_hint">Permissive holds only the feeds that never end. Home pages, subscriptions and friends\' stories stay open.</string>
+    <string name="tab_blocks">Blocks</string>
+    <string name="tab_report">Report</string>
+    <string name="tab_settings">Settings</string>
+    <string name="report_heading">How the week went</string>
+    <string name="report_nothing_yet">Doorman has only just started keeping a record. There will be something here once a week has gone by.</string>
+    <string name="report_first_week">This is the first week Doorman has kept a record of, so there is nothing yet to compare it against.</string>
+    <string name="report_this_week">This week so far</string>
+    <string name="report_last_week">Last week</string>
+    <string name="report_stops">Times you were stopped</string>
+    <string name="report_time">Time counted against a budget</string>
+    <string name="report_loosenings">Limits weakened</string>
+    <string name="report_same_stops">The same number of stops as the week before.</string>
+    <plurals name="report_more_stops">
+        <item quantity="one">%1$d more stop than the week before.</item>
+        <item quantity="other">%1$d more stops than the week before.</item>
+    </plurals>
+    <plurals name="report_fewer_stops">
+        <item quantity="one">%1$d fewer stop than the week before.</item>
+        <item quantity="other">%1$d fewer stops than the week before.</item>
+    </plurals>
 </resources>
