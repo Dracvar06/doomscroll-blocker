@@ -29,12 +29,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import cat.doorman.app.R
 import cat.doorman.app.limits.Allowance
 import cat.doorman.app.limits.Days
+import cat.doorman.app.limits.DialScale
 import cat.doorman.app.limits.Limits
 import cat.doorman.app.limits.Period
 import cat.doorman.app.limits.Window
@@ -57,9 +57,7 @@ fun limitsSummary(limits: Limits): String = when {
     limits.isOff -> stringResource(R.string.mode_off)
     else -> buildList {
         limits.allowances.forEach { allowance ->
-            val minutes = pluralStringResource(
-                R.plurals.minutes, allowance.minutes, allowance.minutes,
-            )
+            val minutes = durationLabel(allowance.minutes)
             add(
                 when (allowance.period) {
                     Period.HOUR -> stringResource(R.string.mode_allowance_hour, minutes)
@@ -299,26 +297,26 @@ private fun AllowanceRow(
             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 MinutesDial(
                     minutes = allowance.minutes,
+                    period = allowance.period,
                     onChange = { onChange(allowance.copy(minutes = it)) },
                 )
-            }
-            // Past an hour the dial would have to be wound round more than
-            // once, which is fiddly to do and impossible to read back, so the
-            // longer budgets are chips beside it.
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                LONG_CHOICES.forEach { minutes ->
-                    FilterChip(
-                        selected = minutes == allowance.minutes,
-                        onClick = { onChange(allowance.copy(minutes = minutes)) },
-                        label = { Text(stringResource(R.string.duration_minutes, minutes)) },
-                    )
-                }
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Period.entries.forEach { period ->
                     FilterChip(
                         selected = period == allowance.period,
-                        onClick = { onChange(allowance.copy(period = period)) },
+                        onClick = {
+                            // The dial's reach changes with the period, so the
+                            // budget has to come with it. Three hours a day
+                            // switched to "per hour" would otherwise leave the
+                            // handle off the end of its own dial.
+                            onChange(
+                                allowance.copy(
+                                    period = period,
+                                    minutes = DialScale.clampTo(allowance.minutes, period),
+                                ),
+                            )
+                        },
                         label = { Text(periodLabel(period)) },
                     )
                 }
@@ -416,5 +414,3 @@ private fun periodLabel(period: Period): String = stringResource(
         Period.WEEK -> R.string.period_week
     },
 )
-
-private val LONG_CHOICES = listOf(90, 120, 180)

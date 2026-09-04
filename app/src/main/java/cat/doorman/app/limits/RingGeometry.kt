@@ -71,18 +71,22 @@ object RingGeometry {
      * shortening the wait is itself subject to the wait, so a slip costs five
      * minutes before it can be undone.
      *
-     * So a jump of more than half the dial is read as an overshoot rather than
-     * an intention, and the value is held at the end it was approaching. To
-     * reach the maximum the long way round is the only way, which is the point.
+     * So a jump of more than half a turn is read as an overshoot rather than an
+     * intention, and the dial is held at the end it was approaching. To reach
+     * the maximum the long way round is the only way, which is the point.
+     *
+     * Measured in turns rather than in the dial's own units, because the units
+     * are no longer evenly spaced around it: a budget dial's rungs are five
+     * minutes apart at the bottom and three hours apart at the top, and half
+     * the numbers is nowhere near half the way round.
      */
-    fun withoutCrossingSeam(candidate: Int, previous: Int, minValue: Int, maxValue: Int): Int {
-        val half = (maxValue - minValue) / 2
-        return when {
-            candidate - previous > half -> minValue
-            previous - candidate > half -> maxValue
-            else -> candidate
-        }
+    fun withoutCrossingSeam(candidateTurn: Float, previousTurn: Float): Float = when {
+        candidateTurn - previousTurn > HALF_TURN -> 0f
+        previousTurn - candidateTurn > HALF_TURN -> 1f
+        else -> candidateTurn
     }
+
+    private const val HALF_TURN = 0.5f
 
     /** Minutes between two points on the dial, the short way round. */
     fun distanceAround(a: Int, b: Int): Int {

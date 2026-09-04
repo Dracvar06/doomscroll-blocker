@@ -33,7 +33,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cat.doorman.app.R
+import cat.doorman.app.limits.DialScale
 import cat.doorman.app.limits.MINUTES_PER_DAY
+import cat.doorman.app.limits.Period
 import cat.doorman.app.limits.RingGeometry
 import cat.doorman.app.limits.Window
 import kotlin.math.cos
@@ -221,7 +223,7 @@ fun TimeRing(
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = durationLabel(window.lengthMinutes),
+                text = dialLabel(window.lengthMinutes),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -230,26 +232,28 @@ fun TimeRing(
 }
 
 /**
- * A rotary dial for a number of minutes, which is what a kitchen timer is.
+ * A rotary dial for a time budget, which is what a kitchen timer is.
  *
- * One turn is an hour, because that is how the thing on a kitchen counter
- * works. Longer budgets are reachable from the chips beside it rather than by
- * winding the dial round more than once, which is fiddly to do and impossible
- * to read back.
+ * One turn covers the whole of what the chosen period can mean: an hour, six
+ * hours, or forty-two hours. The numbers around it are not evenly spread --
+ * see [DialScale] -- so that five minutes a week and thirty hours a week are
+ * both reachable with the same thumb and neither needs surgical precision.
  */
 @Composable
-fun MinutesDial(minutes: Int, onChange: (Int) -> Unit, modifier: Modifier = Modifier) {
-    val label = androidx.compose.ui.res.pluralStringResource(R.plurals.minutes, minutes, minutes)
+fun MinutesDial(
+    minutes: Int,
+    period: Period,
+    onChange: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     RotaryDial(
         value = minutes,
-        maxValue = 60,
-        stepValue = 5,
-        minValue = 5,
-        centreText = "$minutes",
-        description = label,
-        centreTextFor = { "$it" },
+        positions = remember(period) { DialScale.positions(period) },
+        centreTextFor = { dialLabel(it) },
+        description = durationLabel(minutes),
         modifier = modifier,
-    ) { onChange(it) }
+        onChange = onChange,
+    )
 }
 
 /**
@@ -264,14 +268,12 @@ fun MinutesDial(minutes: Int, onChange: (Int) -> Unit, modifier: Modifier = Modi
 fun DelayDial(seconds: Int, onChange: (Int) -> Unit, modifier: Modifier = Modifier) {
     RotaryDial(
         value = seconds,
-        maxValue = MAX_DELAY_SECONDS,
-        stepValue = DELAY_STEP_SECONDS,
-        minValue = 0,
-        centreText = delayLabel(seconds),
-        description = delayLabel(seconds),
+        positions = remember { (0..MAX_DELAY_SECONDS step DELAY_STEP_SECONDS).toList() },
         centreTextFor = { delayLabel(it) },
+        description = delayLabel(seconds),
         modifier = modifier,
-    ) { onChange(it) }
+        onChange = onChange,
+    )
 }
 
 @Composable
@@ -284,16 +286,20 @@ private fun delayLabel(seconds: Int): String = when {
     else -> stringResource(R.string.change_delay_minutes_seconds, seconds / 60, seconds % 60)
 }
 
-/** One turn, from nothing to [maxValue]. */
+/**
+ * One turn, from the first of [positions] to the last.
+ *
+ * The dial knows nothing about what it is measuring; it turns through a list of
+ * values spread evenly around the circle. That is what lets the same control be
+ * a kitchen timer for minutes and a countdown for seconds, and what lets a
+ * budget dial accelerate without the drawing code knowing that it does.
+ */
 @Composable
 private fun RotaryDial(
     value: Int,
-    maxValue: Int,
-    stepValue: Int,
-    minValue: Int,
-    centreText: String,
-    description: String,
+    positions: List<Int>,
     centreTextFor: @Composable (Int) -> String,
+    description: String,
     modifier: Modifier = Modifier,
     onChange: (Int) -> Unit,
 ) {
@@ -303,14 +309,19 @@ private fun RotaryDial(
     val strokePx = with(LocalDensity.current) { 22.dp.toPx() }
     val handlePx = with(LocalDensity.current) { 10.dp.toPx() }
     val current by rememberUpdatedState(value)
+    val rungs by rememberUpdatedState(positions)
 
     // The dial follows the finger locally and reports once, when the finger
     // lifts. Reporting every step looked fine for a time budget and was wrong
     // for the change delay: shortening that wait is itself a change that has to
     // wait, so a continuous drag started a fresh countdown on every step while
     // the dial sat still, refusing to move.
-    var dragging by remember { mutableStateOf<Int?>(null) }
-    val shown = dragging ?: value
+    var draggingTurn by remember { mutableStateOf<Float?>(null) }
+    val turnOfValue = turnOf(positions, value)
+    // Snapped, so the handle clicks from one duration to the next under the
+    // finger rather than sliding between them, the way a dial with detents does.
+    val shownTurn = snapTurn(positions, draggingTurn ?: turnOfValue)
+    val shown = valueAtTurn(positions, shownTurn)
 
     Box(
         modifier = modifier
@@ -321,14 +332,11 @@ private fun RotaryDial(
         Canvas(
             modifier = Modifier
                 .size(160.dp)
-                .pointerInput(maxValue, stepValue, minValue) {
+                .pointerInput(positions) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
-                        val handle = handleAt(
-                            current.coerceIn(0, maxValue) / maxValue.toFloat(),
-                            size.width,
-                            size.height,
-                        )
+                        val from = turnOf(rungs, current)
+                        val handle = handleAt(from, size.width, size.height)
                         if (!nearHandle(down.position, handle)) return@awaitEachGesture
                         down.consume()
                         while (true) {
@@ -340,18 +348,16 @@ private fun RotaryDial(
                                 change.position.x - size.width / 2,
                                 change.position.y - size.height / 2,
                             )
-                            val raw = degrees / 360f * maxValue
-                            val candidate = (Math.round(raw / stepValue) * stepValue)
-                                .coerceIn(minValue, maxValue)
-                            dragging = RingGeometry.withoutCrossingSeam(
-                                candidate = candidate,
-                                previous = dragging ?: current,
-                                minValue = minValue,
-                                maxValue = maxValue,
+                            draggingTurn = RingGeometry.withoutCrossingSeam(
+                                candidateTurn = degrees / 360f,
+                                previousTurn = draggingTurn ?: from,
                             )
                         }
-                        dragging?.let { if (it != current) onChange(it) }
-                        dragging = null
+                        draggingTurn?.let {
+                            val landed = valueAtTurn(rungs, it)
+                            if (landed != current) onChange(landed)
+                        }
+                        draggingTurn = null
                     }
                 },
         ) {
@@ -366,19 +372,18 @@ private fun RotaryDial(
                 size = ringSize,
                 style = Stroke(width = strokePx),
             )
-            val fraction = shown.coerceIn(0, maxValue) / maxValue.toFloat()
-            if (fraction > 0f) {
+            if (shownTurn > 0f) {
                 drawArc(
                     color = held,
                     startAngle = -90f,
-                    sweepAngle = fraction * 360f,
+                    sweepAngle = shownTurn * 360f,
                     useCenter = false,
                     topLeft = topLeft,
                     size = ringSize,
                     style = Stroke(width = strokePx),
                 )
             }
-            val radians = Math.toRadians((fraction * 360f - 90f).toDouble())
+            val radians = Math.toRadians((shownTurn * 360f - 90f).toDouble())
             val radius = (size.minDimension - strokePx) / 2
             val centre = Offset(
                 size.width / 2 + (cos(radians) * radius).toFloat(),
@@ -388,30 +393,29 @@ private fun RotaryDial(
             drawCircle(color = held, radius = handlePx * 0.45f, center = centre)
         }
         Text(
-            text = if (dragging != null) centreTextFor(shown) else centreText,
+            text = centreTextFor(shown),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold,
         )
     }
 }
 
+/** How far round the dial a value sits, as a fraction of a turn. */
+private fun turnOf(positions: List<Int>, value: Int): Float =
+    DialScale.nearestIndex(positions, value).toFloat() / (positions.size - 1)
+
+/** The same fraction, pulled onto the nearest rung. */
+private fun snapTurn(positions: List<Int>, turn: Float): Float =
+    Math.round(turn * (positions.size - 1)).toFloat() / (positions.size - 1)
+
+private fun valueAtTurn(positions: List<Int>, turn: Float): Int =
+    positions[Math.round(turn * (positions.size - 1)).coerceIn(0, positions.size - 1)]
+
 /** Five minutes. Beyond this a wait is a punishment rather than a pause. */
 const val MAX_DELAY_SECONDS = 300
 
 /** Fine enough to land on ten and thirty seconds, coarse enough to be draggable. */
 const val DELAY_STEP_SECONDS = 10
-
-/** "12 h", "45 min", "1 h 30 min". */
-@Composable
-fun durationLabel(totalMinutes: Int): String {
-    val hours = totalMinutes / 60
-    val minutes = totalMinutes % 60
-    return when {
-        hours == 0 -> stringResource(R.string.duration_minutes, minutes)
-        minutes == 0 -> stringResource(R.string.duration_hours, hours)
-        else -> stringResource(R.string.duration_hours_minutes, hours, minutes)
-    }
-}
 
 /**
  * Where a handle sits, as a point on the ring.

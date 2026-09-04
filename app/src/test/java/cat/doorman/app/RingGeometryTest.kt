@@ -99,31 +99,33 @@ class RingGeometryTest {
      * carrying on a little too far used to land on five minutes -- and since
      * shortening the wait is itself subject to the wait, a slip of the thumb
      * cost five minutes before it could be undone.
+     *
+     * Measured in turns, because a budget dial's numbers are not evenly spread
+     * around it and half the numbers is nowhere near half the way round.
      */
     @Test
     fun `overshooting the bottom of a dial holds at the bottom`() {
-        assertEquals(0, RingGeometry.withoutCrossingSeam(290, 10, 0, 300))
-        assertEquals(0, RingGeometry.withoutCrossingSeam(300, 0, 0, 300))
+        assertEquals(0f, RingGeometry.withoutCrossingSeam(0.97f, 0.03f), 0.001f)
+        assertEquals(0f, RingGeometry.withoutCrossingSeam(1f, 0f), 0.001f)
     }
 
     @Test
     fun `overshooting the top of a dial holds at the top`() {
-        assertEquals(300, RingGeometry.withoutCrossingSeam(10, 290, 0, 300))
-        assertEquals(300, RingGeometry.withoutCrossingSeam(0, 300, 0, 300))
+        assertEquals(1f, RingGeometry.withoutCrossingSeam(0.03f, 0.97f), 0.001f)
+        assertEquals(1f, RingGeometry.withoutCrossingSeam(0f, 1f), 0.001f)
     }
 
     /** Ordinary movement is left alone; only a jump across the seam is caught. */
     @Test
     fun `normal turning of the dial passes through untouched`() {
-        assertEquals(60, RingGeometry.withoutCrossingSeam(60, 30, 0, 300))
-        assertEquals(30, RingGeometry.withoutCrossingSeam(30, 60, 0, 300))
-        assertEquals(150, RingGeometry.withoutCrossingSeam(150, 140, 0, 300))
+        assertEquals(0.2f, RingGeometry.withoutCrossingSeam(0.2f, 0.1f), 0.001f)
+        assertEquals(0.1f, RingGeometry.withoutCrossingSeam(0.1f, 0.2f), 0.001f)
+        assertEquals(0.5f, RingGeometry.withoutCrossingSeam(0.5f, 0.45f), 0.001f)
     }
 
-    /** The minutes dial starts at five rather than nothing, and still holds. */
+    /** Exactly half a turn is movement, not an overshoot. */
     @Test
-    fun `a dial that does not start at zero holds at its own bottom`() {
-        assertEquals(5, RingGeometry.withoutCrossingSeam(55, 10, 5, 60))
-        assertEquals(60, RingGeometry.withoutCrossingSeam(10, 55, 5, 60))
+    fun `half a turn is still allowed`() {
+        assertEquals(0.5f, RingGeometry.withoutCrossingSeam(0.5f, 0f), 0.001f)
     }
 }

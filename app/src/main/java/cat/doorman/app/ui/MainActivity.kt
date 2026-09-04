@@ -436,10 +436,7 @@ class MainActivity : ComponentActivity() {
         }
         if (left <= 0L) return getString(R.string.remaining_none)
         val minutes = Math.ceil(left / 60_000.0).toInt()
-        return getString(
-            R.string.remaining_left,
-            resources.getQuantityString(R.plurals.minutes, minutes, minutes),
-        )
+        return getString(R.string.remaining_left, durationText(resources, minutes))
     }
 
     /**
@@ -451,9 +448,7 @@ class MainActivity : ComponentActivity() {
         limits.isOff -> getString(R.string.mode_off)
         else -> buildList {
             limits.allowances.forEach { allowance ->
-                val minutes = resources.getQuantityString(
-                    R.plurals.minutes, allowance.minutes, allowance.minutes,
-                )
+                val minutes = durationText(resources, allowance.minutes)
                 add(
                     getString(
                         when (allowance.period) {
