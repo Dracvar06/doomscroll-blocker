@@ -23,6 +23,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -183,7 +184,20 @@ class MainActivity : ComponentActivity() {
         Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium)
         Text(stringResource(R.string.home_tagline), style = MaterialTheme.typography.bodyLarge)
 
-        Card {
+        // The only alarm colour in the app, and it is the only thing that
+        // deserves one: with the service off Doorman is a settings screen that
+        // blocks nothing, and a card the same colour as every other card is a
+        // card people scroll past.
+        Card(
+            colors = if (serviceEnabled) {
+                CardDefaults.cardColors()
+            } else {
+                CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            },
+        ) {
             Column(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),

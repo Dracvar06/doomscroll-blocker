@@ -153,6 +153,12 @@ fun BlockingSettings(
                         // A closed card still says whether it is doing
                         // anything. Collapsing should tidy the screen, not
                         // hide whether an app is being held.
+                        // Accent means "this is doing something". Reading the
+                        // summary is what tells you what; the colour is what
+                        // lets you find it without reading every row. Printing
+                        // "nothing blocked" in the same confident green as
+                        // "3 blocked" made the column decorative.
+                        val doingSomething = held > 0 && installed
                         Text(
                             text = when {
                                 open -> stringResource(R.string.card_close)
@@ -167,7 +173,11 @@ fun BlockingSettings(
                                 else -> pluralStringResource(R.plurals.screens_held, held, held)
                             },
                             style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = if (doingSomething && !open) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
                         )
                     }
                     if (!open) return@Column

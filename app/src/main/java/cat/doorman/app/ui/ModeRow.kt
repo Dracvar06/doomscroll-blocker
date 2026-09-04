@@ -91,10 +91,17 @@ fun LimitRow(
             HelpButton(label, help)
         }
         Spacer(Modifier.width(8.dp))
+        // Same rule as the cards above: accent for a row that is holding
+        // something, quiet for one that is not. A list of twenty rows should
+        // answer "what is on?" at a glance rather than by being read.
         Text(
             text = remaining ?: limitsSummary(limits),
             style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
+            color = if (limits.isOff) {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            } else {
+                MaterialTheme.colorScheme.primary
+            },
         )
     }
     if (editing) {
