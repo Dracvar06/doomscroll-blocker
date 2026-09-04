@@ -48,6 +48,9 @@ class Prefs(private val context: Context) {
         /** One row per day of what actually happened. See [Journal]. */
         val JOURNAL = stringPreferencesKey("journal")
 
+        /** Whether the weekly report is kept at all. */
+        val WEEKLY_REPORT = booleanPreferencesKey("weekly_report")
+
         /**
          * Removed. Doorman used to record which apps it had watched the user
          * open, to offer them in the picker.
@@ -156,6 +159,24 @@ class Prefs(private val context: Context) {
         context.dataStore.data.map { decodeJournal(it[Keys.JOURNAL]) }
 
     /**
+     * Whether Doorman keeps a record of how the week went.
+     *
+     * On by default, because the report is only ever a count of what Doorman
+     * did and the app is no use to somebody who cannot see whether it is
+     * working. Off means off: nothing new is written, and the report has no
+     * door in the navigation bar. What was already recorded is left alone
+     * rather than deleted, so turning the switch back on after a mistaken tap
+     * does not cost the user their history; it ages out on its own within
+     * [Journal.KEEP_DAYS] days.
+     */
+    val weeklyReport: Flow<Boolean> =
+        context.dataStore.data.map { it[Keys.WEEKLY_REPORT] ?: true }
+
+    suspend fun setWeeklyReport(on: Boolean) {
+        context.dataStore.edit { it[Keys.WEEKLY_REPORT] = on }
+    }
+
+    /**
      * Adds to today's row and forgets anything too old to matter.
      *
      * Pruning here rather than on a schedule: this is the only place the record
@@ -165,6 +186,10 @@ class Prefs(private val context: Context) {
     suspend fun recordToday(stops: Int = 0, spentMillis: Long = 0L, loosenings: Int = 0) {
         val today = java.time.LocalDate.now()
         context.dataStore.edit { prefs ->
+            // Checked here, inside the write, rather than at each call site:
+            // there is one place history can be created and so one place the
+            // switch has to be honoured for it to mean anything.
+            if (prefs[Keys.WEEKLY_REPORT] == false) return@edit
             val updated = Journal.record(
                 days = decodeJournal(prefs[Keys.JOURNAL]),
                 date = today,

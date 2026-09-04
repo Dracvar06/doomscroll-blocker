@@ -185,4 +185,7 @@
         <item quantity="one">%1$d parada menos que la semana anterior.</item>
         <item quantity="other">%1$d paradas menos que la semana anterior.</item>
     </plurals>
+    <string name="section_weekly_report">Informe semanal</string>
+    <string name="weekly_report_switch">Guardar un informe semanal</string>
+    <string name="weekly_report_help">Doorman cuenta cuántas veces te ha parado, cuánto tiempo se ha contado contra un límite y cuántos límites has aflojado. Apagado, no registra nada nuevo y la pestaña del informe desaparece. Lo ya registrado se queda hasta que caduca.</string>
 </resources>

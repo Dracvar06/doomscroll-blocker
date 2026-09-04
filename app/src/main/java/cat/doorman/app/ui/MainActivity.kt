@@ -132,6 +132,7 @@ class MainActivity : ComponentActivity() {
     private var screen by mutableStateOf(Screen.HOME)
     private var tab by mutableStateOf(Tab.BLOCKS)
     private var journal by mutableStateOf(emptyList<cat.doorman.app.limits.DayRecord>())
+    private var weeklyReport by mutableStateOf(true)
     private var selectedPackage by mutableStateOf<String?>(null)
     private var secondsRemaining by mutableIntStateOf(0)
     private var wasReset by mutableStateOf(false)
@@ -171,6 +172,15 @@ class MainActivity : ComponentActivity() {
             prefs.changeDelaySeconds.collectLatest { changeDelaySeconds = it }
         }
         lifecycleScope.launch { prefs.journal.collectLatest { journal = it } }
+        lifecycleScope.launch {
+            prefs.weeklyReport.collectLatest { on ->
+                weeklyReport = on
+                // Somebody standing on the report when they switch it off
+                // has to be put somewhere; leaving them on a tab that no
+                // longer has a button would strand them.
+                if (!on && tab == Tab.REPORT) tab = Tab.SETTINGS
+            }
+        }
 
         setContent {
             DoormanTheme {
@@ -182,7 +192,8 @@ class MainActivity : ComponentActivity() {
                         // off mid-way would be offering a way to lose it.
                         if (screen == Screen.HOME) {
                             NavigationBar {
-                                Tab.entries.forEach { entry ->
+                                Tab.entries.filter { it != Tab.REPORT || weeklyReport }
+                                    .forEach { entry ->
                                     NavigationBarItem(
                                         selected = tab == entry,
                                         onClick = { tab = entry },
@@ -216,7 +227,8 @@ class MainActivity : ComponentActivity() {
                         when (screen) {
                             Screen.HOME -> when (tab) {
                                 Tab.BLOCKS -> BlocksTab()
-                                Tab.REPORT -> WeeklyReport(journal, java.time.LocalDate.now())
+                                Tab.REPORT ->
+                                    WeeklyReport(journal, java.time.LocalDate.now())
                                 Tab.SETTINGS -> SettingsTab()
                             }
                             Screen.UNLOCK -> UnlockScreen(
@@ -386,6 +398,23 @@ class MainActivity : ComponentActivity() {
             }) {
                 Text(stringResource(R.string.action_get_pass))
             }
+
+            // Kept with the behaviour group rather than with language and
+            // diagnostics: this one is about the user's week, not about the
+            // app, and it belongs beside the other things that change what
+            // Doorman does to them.
+            Text(
+                stringResource(R.string.section_weekly_report),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            SwitchRow(
+                label = stringResource(R.string.weekly_report_switch),
+                checked = weeklyReport,
+                onCheckedChange = { on ->
+                    lifecycleScope.launch { prefs.setWeeklyReport(on) }
+                },
+                help = stringResource(R.string.weekly_report_help),
+            )
         }
 
         // The app itself: which language it speaks and what to do when a rule

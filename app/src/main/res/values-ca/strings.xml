@@ -181,4 +181,7 @@
         <item quantity="one">%1$d aturada menys que la setmana anterior.</item>
         <item quantity="other">%1$d aturades menys que la setmana anterior.</item>
     </plurals>
+    <string name="section_weekly_report">Informe setmanal</string>
+    <string name="weekly_report_switch">Guarda un informe setmanal</string>
+    <string name="weekly_report_help">Doorman compta quantes vegades t\'ha aturat, quant temps s\'ha comptat contra un límit i quants límits has afluixat. Apagat, no enregistra res de nou i la pestanya de l\'informe desapareix. El que ja hi ha es queda fins que caduca.</string>
 </resources>

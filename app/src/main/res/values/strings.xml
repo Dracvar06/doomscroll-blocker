@@ -188,4 +188,7 @@
         <item quantity="one">%1$d fewer stop than the week before.</item>
         <item quantity="other">%1$d fewer stops than the week before.</item>
     </plurals>
+    <string name="section_weekly_report">Weekly report</string>
+    <string name="weekly_report_switch">Keep a weekly report</string>
+    <string name="weekly_report_help">Doorman counts how often it stopped you, how much time was counted against a budget, and how many limits you loosened. Switched off, it records nothing new and the report tab disappears. What is already recorded stays until it ages out.</string>
 </resources>
