@@ -18,6 +18,7 @@ import cat.doorman.app.block.BlockOverlayController
 import cat.doorman.app.data.Prefs
 import cat.doorman.app.debug.TreeDumper
 import cat.doorman.app.model.SnapshotCapture
+import cat.doorman.app.report.WeeklyReportNotifier
 import cat.doorman.app.rules.RuleLoader
 import cat.doorman.app.rules.RuleSet
 import cat.doorman.app.rules.ScreenEvaluator
@@ -32,6 +33,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -107,6 +109,16 @@ class DoormanAccessibilityService : AccessibilityService() {
         // the next restart, so both are collected for the life of the service
         // and every change re-runs the current screen through the rules.
         val prefs = Prefs(this)
+
+        // Alarms do not survive a reboot, and the service coming back is the
+        // one thing that always happens after one -- Doorman does nothing at
+        // all until it does. Rebooking here costs nothing and saves asking for
+        // RECEIVE_BOOT_COMPLETED. Scheduling replaces rather than stacks.
+        serviceScope.launch {
+            if (prefs.weeklyReport.first()) {
+                WeeklyReportNotifier.schedule(this@DoormanAccessibilityService)
+            }
+        }
         serviceScope.launch {
             prefs.screenLimits(screenDefaults).collectLatest {
                 screenLimits = it

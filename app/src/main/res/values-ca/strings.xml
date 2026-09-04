@@ -184,4 +184,18 @@
     <string name="section_weekly_report">Informe setmanal</string>
     <string name="weekly_report_switch">Guarda un informe setmanal</string>
     <string name="weekly_report_help">Doorman compta quantes vegades t\'ha aturat, quant temps s\'ha comptat contra un límit i quants límits has afluixat. Apagat, no enregistra res de nou i la pestanya de l\'informe desapareix. El que ja hi ha es queda fins que caduca.</string>
+    <string name="notify_channel_weekly">Informe setmanal</string>
+    <string name="notify_channel_weekly_help">Una notificació a la setmana, dilluns al matí.</string>
+    <string name="notify_week_title">Com ha anat la setmana</string>
+    <plurals name="notify_week_stops">
+        <item quantity="one">Doorman t\'ha aturat %1$d vegada la setmana passada, i ha comptat %2$s contra un límit.</item>
+        <item quantity="many">Doorman t\'ha aturat %1$d vegades la setmana passada, i ha comptat %2$s contra un límit.</item>
+        <item quantity="other">Doorman t\'ha aturat %1$d vegades la setmana passada, i ha comptat %2$s contra un límit.</item>
+    </plurals>
+    <plurals name="notify_week_loosenings">
+        <item quantity="one">Has afluixat un límit. El vols mantenir així?</item>
+        <item quantity="many">Has afluixat %1$d límits. Els vols mantenir així?</item>
+        <item quantity="other">Has afluixat %1$d límits. Els vols mantenir així?</item>
+    </plurals>
+    <string name="notify_week_none">Doorman no t\'ha hagut d\'aturar ni una vegada la setmana passada.</string>
 </resources>

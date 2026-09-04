@@ -12,6 +12,7 @@ import android.os.LocaleList
 import android.provider.Settings
 import android.view.accessibility.AccessibilityManager
 import androidx.activity.ComponentActivity
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
@@ -49,6 +50,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import cat.doorman.app.R
+import cat.doorman.app.report.WeeklyReportNotifier
 import cat.doorman.app.data.Prefs
 import cat.doorman.app.limits.Allowances
 import cat.doorman.app.limits.Limits
@@ -110,6 +112,16 @@ private sealed interface PendingChange {
 
 class MainActivity : ComponentActivity() {
 
+    /**
+     * Asked for the moment the report is switched on, and never otherwise.
+     *
+     * The answer is not stored and nothing is undone if it is no: the report
+     * still records, and its tab is still there to open by hand. A refusal
+     * means "do not interrupt me", not "do not keep this".
+     */
+    private val notificationPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+
     private lateinit var prefs: Prefs
 
     private var serviceEnabled by mutableStateOf(false)
@@ -133,6 +145,9 @@ class MainActivity : ComponentActivity() {
     private var tab by mutableStateOf(Tab.BLOCKS)
     private var journal by mutableStateOf(emptyList<cat.doorman.app.limits.DayRecord>())
     private var weeklyReport by mutableStateOf(true)
+
+    /** So opening the report twice in one sitting is not two prompts. */
+    private var hasAskedToNotify = false
     private var selectedPackage by mutableStateOf<String?>(null)
     private var secondsRemaining by mutableIntStateOf(0)
     private var wasReset by mutableStateOf(false)
@@ -154,6 +169,7 @@ class MainActivity : ComponentActivity() {
         prefs = Prefs(this)
         rules = RuleLoader.load(this)
         screenDefaults = RuleLoader.screenDefaults(rules)
+        openReportIfAsked(intent)
 
         lifecycleScope.launch {
             prefs.screenLimits(screenDefaults).collectLatest { screenLimits = it }
@@ -175,6 +191,11 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             prefs.weeklyReport.collectLatest { on ->
                 weeklyReport = on
+                if (on) {
+                    WeeklyReportNotifier.schedule(this@MainActivity)
+                } else {
+                    WeeklyReportNotifier.cancel(this@MainActivity)
+                }
                 // Somebody standing on the report when they switch it off
                 // has to be put somewhere; leaving them on a tab that no
                 // longer has a button would strand them.
@@ -196,7 +217,18 @@ class MainActivity : ComponentActivity() {
                                     .forEach { entry ->
                                     NavigationBarItem(
                                         selected = tab == entry,
-                                        onClick = { tab = entry },
+                                        onClick = {
+                                            tab = entry
+                                            // Asked here rather than at first
+                                            // launch. The report is on by
+                                            // default, so the switch is often
+                                            // never touched, and a permission
+                                            // dialog on the very first screen
+                                            // is a dialog about nothing. Here
+                                            // the user is looking at the thing
+                                            // being offered.
+                                            if (entry == Tab.REPORT) askToNotify()
+                                        },
                                         icon = { Icon(iconFor(entry), contentDescription = null) },
                                         label = { Text(stringResource(tabLabel(entry))) },
                                     )
@@ -411,6 +443,7 @@ class MainActivity : ComponentActivity() {
                 label = stringResource(R.string.weekly_report_switch),
                 checked = weeklyReport,
                 onCheckedChange = { on ->
+                    if (on) askToNotify()
                     lifecycleScope.launch { prefs.setWeeklyReport(on) }
                 },
                 help = stringResource(R.string.weekly_report_help),
@@ -726,6 +759,29 @@ class MainActivity : ComponentActivity() {
             wasReset = true
             secondsRemaining = waitSeconds
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        openReportIfAsked(intent)
+    }
+
+    /**
+     * The notification's only job is to get somebody to the report, so tapping
+     * it lands on the report and not on wherever they happened to leave the app.
+     */
+    private fun openReportIfAsked(intent: Intent?) {
+        if (intent?.getBooleanExtra(WeeklyReportNotifier.EXTRA_OPEN_REPORT, false) != true) return
+        screen = Screen.HOME
+        tab = Tab.REPORT
+    }
+
+    private fun askToNotify() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        if (hasAskedToNotify) return
+        hasAskedToNotify = true
+        notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
     }
 
     override fun onResume() {

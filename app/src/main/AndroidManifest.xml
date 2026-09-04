@@ -15,6 +15,13 @@
       This is deliberately one intent rather than QUERY_ALL_PACKAGES. Doorman
       has no network permission and no business knowing what else is installed.
     -->
+    <!--
+      Android 13 and later. Asked for only when the weekly report is switched
+      on, and the report works without it: the tab is always there to open by
+      hand. Doorman posts exactly one notification a week and nothing else.
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <queries>
         <intent>
             <action android:name="android.intent.action.MAIN" />
@@ -53,6 +60,7 @@
 
         <activity
             android:name=".ui.MainActivity"
+            android:launchMode="singleTop"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -72,6 +80,12 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- Monday morning. Not exported: nothing outside Doorman has any
+             business asking for the weekly report. -->
+        <receiver
+            android:name=".report.WeeklyReportReceiver"
+            android:exported="false" />
 
         <service
             android:name=".service.DoormanAccessibilityService"

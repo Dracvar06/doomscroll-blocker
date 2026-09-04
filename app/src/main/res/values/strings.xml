@@ -191,4 +191,16 @@
     <string name="section_weekly_report">Weekly report</string>
     <string name="weekly_report_switch">Keep a weekly report</string>
     <string name="weekly_report_help">Doorman counts how often it stopped you, how much time was counted against a budget, and how many limits you loosened. Switched off, it records nothing new and the report tab disappears. What is already recorded stays until it ages out.</string>
+    <string name="notify_channel_weekly">Weekly report</string>
+    <string name="notify_channel_weekly_help">One notification a week, on Monday morning.</string>
+    <string name="notify_week_title">How the week went</string>
+    <plurals name="notify_week_stops">
+        <item quantity="one">Doorman stopped you %1$d time last week, and counted %2$s against a budget.</item>
+        <item quantity="other">Doorman stopped you %1$d times last week, and counted %2$s against a budget.</item>
+    </plurals>
+    <plurals name="notify_week_loosenings">
+        <item quantity="one">You loosened one limit. Do you want to keep it that way?</item>
+        <item quantity="other">You loosened %1$d limits. Do you want to keep them that way?</item>
+    </plurals>
+    <string name="notify_week_none">Doorman did not have to stop you once last week.</string>
 </resources>

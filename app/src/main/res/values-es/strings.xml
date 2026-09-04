@@ -188,4 +188,18 @@
     <string name="section_weekly_report">Informe semanal</string>
     <string name="weekly_report_switch">Guardar un informe semanal</string>
     <string name="weekly_report_help">Doorman cuenta cuántas veces te ha parado, cuánto tiempo se ha contado contra un límite y cuántos límites has aflojado. Apagado, no registra nada nuevo y la pestaña del informe desaparece. Lo ya registrado se queda hasta que caduca.</string>
+    <string name="notify_channel_weekly">Informe semanal</string>
+    <string name="notify_channel_weekly_help">Una notificación a la semana, el lunes por la mañana.</string>
+    <string name="notify_week_title">Cómo ha ido la semana</string>
+    <plurals name="notify_week_stops">
+        <item quantity="one">Doorman te ha parado %1$d vez la semana pasada, y ha contado %2$s contra un límite.</item>
+        <item quantity="many">Doorman te ha parado %1$d veces la semana pasada, y ha contado %2$s contra un límite.</item>
+        <item quantity="other">Doorman te ha parado %1$d veces la semana pasada, y ha contado %2$s contra un límite.</item>
+    </plurals>
+    <plurals name="notify_week_loosenings">
+        <item quantity="one">Has aflojado un límite. ¿Lo quieres mantener así?</item>
+        <item quantity="many">Has aflojado %1$d límites. ¿Los quieres mantener así?</item>
+        <item quantity="other">Has aflojado %1$d límites. ¿Los quieres mantener así?</item>
+    </plurals>
+    <string name="notify_week_none">Doorman no ha tenido que pararte ni una vez la semana pasada.</string>
 </resources>
