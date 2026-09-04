@@ -159,4 +159,9 @@
     <string name="duration_hours_minutes">%1$d h %2$d min</string>
     <string name="duration_hours_short">%1$d h %2$02d</string>
     <string name="change_delay_minutes_seconds">%1$d min %2$d s</string>
+    <string name="dial_type_title">Type the time</string>
+    <string name="dial_type_action">type it in</string>
+    <string name="dial_field_hours">hours</string>
+    <string name="dial_field_minutes">minutes</string>
+    <string name="dial_field_seconds">seconds</string>
 </resources>

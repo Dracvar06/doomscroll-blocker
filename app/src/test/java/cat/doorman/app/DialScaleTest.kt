@@ -10,7 +10,7 @@ import org.junit.Test
  * The ladder of durations a budget dial turns through.
  *
  * The point of the whole thing is that one turn of a thumb has to serve both
- * "five minutes an hour" and "thirty hours a week", so what is tested here is
+ * "two minutes an hour" and "thirty hours a week", so what is tested here is
  * that both ends stay reachable and that the numbers in between are ones a
  * person would actually choose.
  */
@@ -24,23 +24,50 @@ class DialScaleTest {
     }
 
     @Test
-    fun `a dial starts at five minutes and ends exactly on its maximum`() {
+    fun `a dial starts at its shortest budget and ends exactly on its maximum`() {
         Period.entries.forEach { period ->
             val positions = DialScale.positions(period)
-            assertEquals("$period", DialScale.SHORTEST_MINUTES, positions.first())
+            assertEquals("$period", DialScale.shortestMinutes(period), positions.first())
             assertEquals("$period", DialScale.maxMinutes(period), positions.last())
         }
     }
 
+    /**
+     * Under a quarter of an hour every single minute is on the dial. One minute
+     * an hour and two minutes an hour are genuinely different rules -- a glance
+     * against a visit -- and a dial that cannot tell them apart is no use for
+     * the tightest budgets, which are the ones people set when they mean it.
+     */
     @Test
-    fun `an hour is a kitchen timer -- five minutes at a time, all the way round`() {
-        assertEquals((5..60 step 5).toList(), DialScale.positions(Period.HOUR))
+    fun `the first quarter of an hour is offered a minute at a time`() {
+        listOf(Period.HOUR, Period.DAY).forEach { period ->
+            val positions = DialScale.positions(period)
+            assertEquals("$period", (1..15).toList(), positions.take(15))
+        }
+    }
+
+    /** Past that, fives. Nobody sets seventeen minutes an hour. */
+    @Test
+    fun `an hour runs by single minutes and then by fives`() {
+        assertEquals(
+            (1..15).toList() + (20..60 step 5).toList(),
+            DialScale.positions(Period.HOUR),
+        )
+    }
+
+    /**
+     * A minute a week is not a budget anybody means, and fourteen of them at
+     * the bottom would crowd out the hours the weekly dial is there for.
+     */
+    @Test
+    fun `a weekly dial does not bother with single minutes`() {
+        assertEquals(5, DialScale.positions(Period.WEEK).first())
     }
 
     /**
      * The ask in one test: the beginning has to count for less than the end.
-     * Without it, either the first five minutes are unreachable on a weekly
-     * dial or thirty hours takes thirty turns of the wrist.
+     * Without it, either the first minutes are unreachable on a weekly dial or
+     * thirty hours takes thirty turns of the wrist.
      */
     @Test
     fun `the numbers accelerate and never go backwards`() {
@@ -62,14 +89,14 @@ class DialScaleTest {
     fun `every dial has a sensible number of stops`() {
         Period.entries.forEach { period ->
             val count = DialScale.positions(period).size
-            assertTrue("$period has $count", count in 10..60)
+            assertTrue("$period has $count", count in 20..60)
         }
     }
 
     @Test
-    fun `every stop is a round number of minutes`() {
+    fun `past a quarter of an hour every stop is a round five minutes`() {
         Period.entries.forEach { period ->
-            DialScale.positions(period).forEach { minutes ->
+            DialScale.positions(period).filter { it > 15 }.forEach { minutes ->
                 assertEquals("$period: $minutes", 0, minutes % 5)
             }
         }
@@ -85,12 +112,13 @@ class DialScaleTest {
         }
     }
 
-    /** A budget saved when the ladder was finer still has to put the handle somewhere. */
+    /** A typed budget lands between rungs, and the handle still has to go somewhere. */
     @Test
     fun `a value between two rungs takes the nearer one`() {
         val week = DialScale.positions(Period.WEEK)
         assertEquals(600, week[DialScale.nearestIndex(week, 610)])
-        assertEquals(20, week[DialScale.nearestIndex(week, 21)])
+        val day = DialScale.positions(Period.DAY)
+        assertEquals(35, day[DialScale.nearestIndex(day, 37)])
     }
 
     /**
@@ -103,6 +131,7 @@ class DialScaleTest {
         assertEquals(60, DialScale.clampTo(3 * 60, Period.HOUR))
         assertEquals(6 * 60, DialScale.clampTo(20 * 60, Period.DAY))
         assertEquals(20, DialScale.clampTo(20, Period.HOUR))
-        assertEquals(DialScale.SHORTEST_MINUTES, DialScale.clampTo(0, Period.DAY))
+        assertEquals(1, DialScale.clampTo(0, Period.DAY))
+        assertEquals(5, DialScale.clampTo(0, Period.WEEK))
     }
 }

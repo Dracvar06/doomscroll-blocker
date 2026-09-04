@@ -1,6 +1,7 @@
 package cat.doorman.app.ui
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -23,8 +24,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -236,7 +240,7 @@ fun TimeRing(
  *
  * One turn covers the whole of what the chosen period can mean: an hour, six
  * hours, or forty-two hours. The numbers around it are not evenly spread --
- * see [DialScale] -- so that five minutes a week and thirty hours a week are
+ * see [DialScale] -- so that two minutes an hour and thirty hours a week are
  * both reachable with the same thumb and neither needs surgical precision.
  */
 @Composable
@@ -246,14 +250,32 @@ fun MinutesDial(
     onChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var typing by remember { mutableStateOf(false) }
     RotaryDial(
         value = minutes,
         positions = remember(period) { DialScale.positions(period) },
         centreTextFor = { dialLabel(it) },
         description = durationLabel(minutes),
+        onType = { typing = true },
         modifier = modifier,
         onChange = onChange,
     )
+    if (typing) {
+        DurationEntryDialog(
+            majorLabel = stringResource(R.string.dial_field_hours),
+            minorLabel = stringResource(R.string.dial_field_minutes),
+            major = minutes / 60,
+            minor = minutes % 60,
+            onDismiss = { typing = false },
+            onConfirm = { hours, mins ->
+                // Clamped, not rejected. Someone typing 90 minutes an hour has
+                // said something impossible, and the nearest thing they can
+                // have is the whole hour.
+                onChange(DialScale.clampTo(hours * 60 + mins, period))
+                typing = false
+            },
+        )
+    }
 }
 
 /**
@@ -266,14 +288,29 @@ fun MinutesDial(
  */
 @Composable
 fun DelayDial(seconds: Int, onChange: (Int) -> Unit, modifier: Modifier = Modifier) {
+    var typing by remember { mutableStateOf(false) }
     RotaryDial(
         value = seconds,
         positions = remember { (0..MAX_DELAY_SECONDS step DELAY_STEP_SECONDS).toList() },
         centreTextFor = { delayLabel(it) },
         description = delayLabel(seconds),
+        onType = { typing = true },
         modifier = modifier,
         onChange = onChange,
     )
+    if (typing) {
+        DurationEntryDialog(
+            majorLabel = stringResource(R.string.dial_field_minutes),
+            minorLabel = stringResource(R.string.dial_field_seconds),
+            major = seconds / 60,
+            minor = seconds % 60,
+            onDismiss = { typing = false },
+            onConfirm = { mins, secs ->
+                onChange((mins * 60 + secs).coerceIn(0, MAX_DELAY_SECONDS))
+                typing = false
+            },
+        )
+    }
 }
 
 @Composable
@@ -300,10 +337,10 @@ private fun RotaryDial(
     positions: List<Int>,
     centreTextFor: @Composable (Int) -> String,
     description: String,
+    onType: () -> Unit,
     modifier: Modifier = Modifier,
     onChange: (Int) -> Unit,
 ) {
-    val held = MaterialTheme.colorScheme.primary
     val track = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.22f)
     val handleFill = MaterialTheme.colorScheme.onPrimaryContainer
     val strokePx = with(LocalDensity.current) { 22.dp.toPx() }
@@ -321,7 +358,13 @@ private fun RotaryDial(
     // Snapped, so the handle clicks from one duration to the next under the
     // finger rather than sliding between them, the way a dial with detents does.
     val shownTurn = snapTurn(positions, draggingTurn ?: turnOfValue)
-    val shown = valueAtTurn(positions, shownTurn)
+    // While a finger is on it, the dial says what the rung under the finger
+    // says. At rest it says the value itself, which is not always a rung: a
+    // typed 5 h 04 has to read back as 5 h 04, not as the nearest thing the
+    // dial could have been turned to.
+    val shown = if (draggingTurn == null) value else valueAtTurn(positions, shownTurn)
+    val colourStops = remember(positions) { colourStopsFor(positions) }
+    val typeLabel = stringResource(R.string.dial_type_action)
 
     Box(
         modifier = modifier
@@ -373,15 +416,24 @@ private fun RotaryDial(
                 style = Stroke(width = strokePx),
             )
             if (shownTurn > 0f) {
-                drawArc(
-                    color = held,
-                    startAngle = -90f,
-                    sweepAngle = shownTurn * 360f,
-                    useCenter = false,
-                    topLeft = topLeft,
-                    size = ringSize,
-                    style = Stroke(width = strokePx),
-                )
+                // Turned a quarter so the gradient's own zero lands at the top
+                // of the dial, where the arc starts. A sweep gradient begins at
+                // three o'clock; rotating the canvas is cheaper than rewriting
+                // every colour stop to account for the offset.
+                rotate(degrees = -90f) {
+                    drawArc(
+                        brush = Brush.sweepGradient(
+                            colorStops = colourStops,
+                            center = center,
+                        ),
+                        startAngle = 0f,
+                        sweepAngle = shownTurn * 360f,
+                        useCenter = false,
+                        topLeft = topLeft,
+                        size = ringSize,
+                        style = Stroke(width = strokePx),
+                    )
+                }
             }
             val radians = Math.toRadians((shownTurn * 360f - 90f).toDouble())
             val radius = (size.minDimension - strokePx) / 2
@@ -390,15 +442,75 @@ private fun RotaryDial(
                 size.height / 2 + (sin(radians) * radius).toFloat(),
             )
             drawCircle(color = handleFill, radius = handlePx, center = centre)
-            drawCircle(color = held, radius = handlePx * 0.45f, center = centre)
+            drawCircle(
+                color = rampColour(shown.toFloat() / positions.last()),
+                radius = handlePx * 0.45f,
+                center = centre,
+            )
         }
+        // The number is a button. Tapping it opens a keyboard, for anyone who
+        // knows exactly what they want and would rather say it than hunt for it
+        // around a circle.
         Text(
             text = centreTextFor(shown),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold,
+            modifier = Modifier
+                .clickable(onClickLabel = typeLabel, onClick = onType)
+                .padding(horizontal = 12.dp, vertical = 6.dp),
         )
     }
 }
+
+/**
+ * Green at the bottom of a dial, red at the top.
+ *
+ * The colour is saying one thing: how much. On a budget dial that is a
+ * judgement as well as a quantity -- forty-two hours a week is a lot of
+ * scrolling and the ring should not pretend otherwise -- and on the change
+ * delay it marks the end Doorman itself calls punishing.
+ *
+ * Fixed colours rather than the theme's, because the theme is taken from the
+ * user's wallpaper: "green to red" has to mean green to red on every phone, not
+ * whatever two colours the wallpaper happens to offer. They are mid-toned so
+ * that neither end disappears against a light background or a dark one.
+ *
+ * The ring the day is drawn on keeps the theme colour and no gradient. There
+ * the arc is the *block*, and a longer one is someone taking better care of
+ * themselves; turning that red would be the app frowning at the thing it exists
+ * to encourage.
+ */
+private val DIAL_LOW = Color(0xFF63BE72)
+private val DIAL_MID = Color(0xFFE0B341)
+private val DIAL_HIGH = Color(0xFFDF6350)
+
+private fun rampColour(shareOfTheMost: Float): Color {
+    val t = shareOfTheMost.coerceIn(0f, 1f)
+    return if (t < 0.5f) {
+        lerp(DIAL_LOW, DIAL_MID, t * 2f)
+    } else {
+        lerp(DIAL_MID, DIAL_HIGH, (t - 0.5f) * 2f)
+    }
+}
+
+/**
+ * The gradient's colour at each point around the dial.
+ *
+ * The colour follows the *duration* the dial is showing there, not the angle.
+ * Those are not the same thing once the rungs stop being evenly spaced: twenty
+ * minutes a day sits a third of the way round the dial, and colouring it by
+ * angle painted it amber -- an alarm over a budget that is nothing of the sort.
+ * Sampled at enough points for the curve to read as smooth.
+ */
+private fun colourStopsFor(positions: List<Int>): Array<Pair<Float, Color>> {
+    val most = positions.last().toFloat()
+    return Array(STOPS) { i ->
+        val turn = i / (STOPS - 1f)
+        turn to rampColour(valueAtTurn(positions, turn) / most)
+    }
+}
+
+private const val STOPS = 16
 
 /** How far round the dial a value sits, as a fraction of a turn. */
 private fun turnOf(positions: List<Int>, value: Int): Float =
