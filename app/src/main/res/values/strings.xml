@@ -203,4 +203,12 @@
         <item quantity="other">You loosened %1$d limits. Do you want to keep them that way?</item>
     </plurals>
     <string name="notify_week_none">Doorman did not have to stop you once last week.</string>
+    <string name="report_usage_title">Time in the apps you hold</string>
+    <string name="report_usage_offer">Doorman cannot tell you whether you were on your phone less: it only sees the screens it watches, and a blocked screen spends no time at all. Android keeps that figure. Doorman can read it while drawing this report, for the apps you chose to hold and no others. It keeps none of it and has no way to send it anywhere.</string>
+    <string name="action_usage_access">Let Doorman read it</string>
+    <string name="report_usage_week_before">The week before</string>
+    <string name="report_usage_same">About the same as the week before.</string>
+    <string name="report_usage_more">%1$s more than the week before.</string>
+    <string name="report_usage_less">%1$s less than the week before.</string>
+    <string name="report_usage_no_history">Android only keeps these figures for about a week, so there is nothing yet to compare last week against.</string>
 </resources>

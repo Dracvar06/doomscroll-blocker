@@ -198,4 +198,12 @@
         <item quantity="other">Has afluixat %1$d límits. Els vols mantenir així?</item>
     </plurals>
     <string name="notify_week_none">Doorman no t\'ha hagut d\'aturar ni una vegada la setmana passada.</string>
+    <string name="report_usage_title">Temps a les aplicacions que retens</string>
+    <string name="report_usage_offer">Doorman no et pot dir si has mirat menys el mòbil: només veu les pantalles que vigila, i una pantalla bloquejada no gasta temps. Aquesta xifra la guarda l\'Android. Doorman la pot llegir mentre dibuixa aquest informe, només de les aplicacions que has triat retenir. No en guarda res i no té cap manera d\'enviar-ho enlloc.</string>
+    <string name="action_usage_access">Deixa que Doorman ho llegeixi</string>
+    <string name="report_usage_week_before">La setmana anterior</string>
+    <string name="report_usage_same">Més o menys igual que la setmana anterior.</string>
+    <string name="report_usage_more">%1$s més que la setmana anterior.</string>
+    <string name="report_usage_less">%1$s menys que la setmana anterior.</string>
+    <string name="report_usage_no_history">L\'Android només guarda aquestes xifres una setmana aproximadament, així que encara no hi ha res amb què comparar la setmana passada.</string>
 </resources>

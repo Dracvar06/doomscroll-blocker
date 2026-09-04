@@ -22,6 +22,20 @@
     -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!--
+      Android's own screen-time figures, for the one question Doorman cannot
+      answer about itself: whether the phone got picked up less.
+
+      Granted by hand from a list in Android's settings, never by a dialog, and
+      offered only from inside the report. Everything else in the report works
+      without it. Doorman reads it while drawing the report, only for the apps
+      the user chose to hold, keeps none of it, and has no network permission
+      to send it anywhere.
+    -->
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+
     <queries>
         <intent>
             <action android:name="android.intent.action.MAIN" />

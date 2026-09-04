@@ -50,6 +50,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import cat.doorman.app.R
+import cat.doorman.app.report.UsageAccess
+import cat.doorman.app.report.WatchedUse
 import cat.doorman.app.report.WeeklyReportNotifier
 import cat.doorman.app.data.Prefs
 import cat.doorman.app.limits.Allowances
@@ -146,6 +148,8 @@ class MainActivity : ComponentActivity() {
     private var journal by mutableStateOf(emptyList<cat.doorman.app.limits.DayRecord>())
     private var weeklyReport by mutableStateOf(true)
 
+    private var watchedUse by mutableStateOf<WatchedUse?>(null)
+
     /** So opening the report twice in one sitting is not two prompts. */
     private var hasAskedToNotify = false
     private var selectedPackage by mutableStateOf<String?>(null)
@@ -227,7 +231,10 @@ class MainActivity : ComponentActivity() {
                                             // is a dialog about nothing. Here
                                             // the user is looking at the thing
                                             // being offered.
-                                            if (entry == Tab.REPORT) askToNotify()
+                                            if (entry == Tab.REPORT) {
+                                                askToNotify()
+                                                refreshUsage()
+                                            }
                                         },
                                         icon = { Icon(iconFor(entry), contentDescription = null) },
                                         label = { Text(stringResource(tabLabel(entry))) },
@@ -259,8 +266,12 @@ class MainActivity : ComponentActivity() {
                         when (screen) {
                             Screen.HOME -> when (tab) {
                                 Tab.BLOCKS -> BlocksTab()
-                                Tab.REPORT ->
-                                    WeeklyReport(journal, java.time.LocalDate.now())
+                                Tab.REPORT -> WeeklyReport(
+                                    days = journal,
+                                    today = java.time.LocalDate.now(),
+                                    use = watchedUse,
+                                    onAskForUsageAccess = { askForUsageAccess() },
+                                )
                                 Tab.SETTINGS -> SettingsTab()
                             }
                             Screen.UNLOCK -> UnlockScreen(
@@ -777,6 +788,27 @@ class MainActivity : ComponentActivity() {
         tab = Tab.REPORT
     }
 
+    /**
+     * Read at the moment the report is drawn, not collected in the background.
+     *
+     * Nothing is cached across launches on purpose: a figure Doorman keeps is a
+     * figure Doorman has to be trusted with, and this one it can simply ask
+     * Android for again.
+     */
+    private fun refreshUsage() {
+        watchedUse = UsageAccess.lastTwoWeeks(
+            context = this,
+            packages = rules.supportedPackages + appLimits.keys,
+            today = java.time.LocalDate.now(),
+        )
+    }
+
+    private fun askForUsageAccess() {
+        // No dialog exists for this one; the most an app may do is open the
+        // list in Android's settings and let the user find it there.
+        runCatching { startActivity(UsageAccess.settingsIntent()) }
+    }
+
     private fun askToNotify() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
         if (hasAskedToNotify) return
@@ -786,6 +818,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        // Usage access is granted in Android's settings, so coming back to
+        // Doorman is the only moment it can have changed.
+        refreshUsage()
         serviceEnabled = isAccessibilityServiceEnabled(this)
         lastSeen = DoormanAccessibilityService.instance?.lastSeen()
         if (screen == Screen.UNLOCK && selectedPackage != null && secondsRemaining > 0) {
