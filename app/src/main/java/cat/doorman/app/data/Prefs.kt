@@ -288,6 +288,12 @@ class Prefs(private val context: Context) {
          */
         const val DEFAULT_CHANGE_DELAY_SECONDS = 0
         const val MAX_SEEN_APPS = 60
-        val CHANGE_DELAY_CHOICES = listOf(0, 10, 30, 120)
+        /**
+         * The wait is set on a dial now rather than picked from these, but the
+         * ends of the range still have to be stated somewhere: nothing, and
+         * five minutes. Past five it stops being a pause for thought.
+         */
+        const val MIN_CHANGE_DELAY_SECONDS = 0
+        const val MAX_CHANGE_DELAY_SECONDS = 300
     }
 }

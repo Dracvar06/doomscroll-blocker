@@ -154,4 +154,8 @@
     <string name="action_save">Save</string>
     <string name="action_remove">Remove</string>
     <string name="limits_reuse">Hours you already use elsewhere:</string>
+    <string name="duration_hours">%1$d h</string>
+    <string name="duration_minutes">%1$d min</string>
+    <string name="duration_hours_minutes">%1$d h %2$d min</string>
+    <string name="change_delay_minutes_seconds">%1$d min %2$d s</string>
 </resources>

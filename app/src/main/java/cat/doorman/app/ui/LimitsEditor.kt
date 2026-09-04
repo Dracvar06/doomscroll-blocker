@@ -5,7 +5,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -166,6 +168,13 @@ fun LimitsEditor(
                 draft.windows.forEachIndexed { index, window ->
                     WindowRow(
                         window = window,
+                        onChange = { updated ->
+                            draft = draft.copy(
+                                blocked = false,
+                                windows = draft.windows.toMutableList()
+                                    .also { it[index] = updated },
+                            )
+                        },
                         onPick = { isStart ->
                             val current = if (isStart) window.fromMinute else window.toMinute
                             TimePickerDialog(
@@ -281,25 +290,27 @@ private fun AllowanceRow(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.End,
             ) {
-                Text(
-                    text = pluralStringResource(
-                        R.plurals.minutes, allowance.minutes, allowance.minutes,
-                    ),
-                    style = MaterialTheme.typography.titleMedium,
-                )
                 TextButton(onClick = onRemove) {
                     Text(stringResource(R.string.action_remove))
                 }
             }
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                MinutesDial(
+                    minutes = allowance.minutes,
+                    onChange = { onChange(allowance.copy(minutes = it)) },
+                )
+            }
+            // Past an hour the dial would have to be wound round more than
+            // once, which is fiddly to do and impossible to read back, so the
+            // longer budgets are chips beside it.
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                MINUTE_CHOICES.forEach { minutes ->
+                LONG_CHOICES.forEach { minutes ->
                     FilterChip(
                         selected = minutes == allowance.minutes,
                         onClick = { onChange(allowance.copy(minutes = minutes)) },
-                        label = { Text("$minutes") },
+                        label = { Text(stringResource(R.string.duration_minutes, minutes)) },
                     )
                 }
             }
@@ -321,6 +332,7 @@ private fun AllowanceRow(
 @Composable
 private fun WindowRow(
     window: Window,
+    onChange: (Window) -> Unit,
     onPick: (Boolean) -> Unit,
     onDaysChange: (Days) -> Unit,
     onRemove: () -> Unit,
@@ -335,24 +347,17 @@ private fun WindowRow(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    AssistChip(
-                        onClick = { onPick(true) },
-                        label = { Text(formatMinute(window.fromMinute)) },
-                    )
-                    Text(
-                        text = " → ",
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                    AssistChip(
-                        onClick = { onPick(false) },
-                        label = { Text(formatMinute(window.toMinute)) },
-                    )
-                }
+                Spacer(Modifier.weight(1f))
                 TextButton(onClick = onRemove) {
                     Text(stringResource(R.string.action_remove))
                 }
             }
+            TimeRing(
+                window = window,
+                onChange = onChange,
+                onPickExactly = onPick,
+                modifier = Modifier.padding(horizontal = 24.dp),
+            )
             if (window.wrapsMidnight) {
                 Text(
                     text = stringResource(R.string.limits_wraps_midnight),
@@ -412,4 +417,4 @@ private fun periodLabel(period: Period): String = stringResource(
     },
 )
 
-private val MINUTE_CHOICES = listOf(5, 10, 15, 20, 30, 45, 60, 90, 120)
+private val LONG_CHOICES = listOf(90, 120, 180)

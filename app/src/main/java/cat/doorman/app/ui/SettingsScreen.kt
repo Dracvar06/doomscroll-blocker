@@ -278,22 +278,8 @@ fun BlockingSettings(
             text = stringResource(R.string.change_delay_explainer),
             style = MaterialTheme.typography.bodyMedium,
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Prefs.CHANGE_DELAY_CHOICES.forEach { seconds ->
-                FilterChip(
-                    selected = seconds == changeDelaySeconds,
-                    onClick = { onChangeDelay(seconds) },
-                    label = {
-                        Text(
-                            when {
-                                seconds == 0 -> stringResource(R.string.change_delay_instant)
-                                seconds < 60 -> stringResource(R.string.change_delay_seconds, seconds)
-                                else -> stringResource(R.string.change_delay_minutes, seconds / 60)
-                            }
-                        )
-                    },
-                )
-            }
+        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            DelayDial(seconds = changeDelaySeconds, onChange = onChangeDelay)
         }
     }
 }

@@ -73,7 +73,10 @@ class FreshInstallTest {
     @Test
     fun `changes take effect at once until a wait is asked for`() {
         assertEquals(0, Prefs.DEFAULT_CHANGE_DELAY_SECONDS)
-        assertEquals(true, 0 in Prefs.CHANGE_DELAY_CHOICES)
+        assertEquals(Prefs.MIN_CHANGE_DELAY_SECONDS, Prefs.DEFAULT_CHANGE_DELAY_SECONDS)
+        // Five minutes is the far end of the dial. Past that a wait stops being
+        // a pause for thought and starts being a reason to uninstall the app.
+        assertEquals(300, Prefs.MAX_CHANGE_DELAY_SECONDS)
     }
 
     /** Every app with rules of its own can be blocked without any setup. */
