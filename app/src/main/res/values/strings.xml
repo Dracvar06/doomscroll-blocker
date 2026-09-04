@@ -167,4 +167,6 @@
     <string name="section_show">Show</string>
     <string name="section_behaviour">How Doorman behaves</string>
     <string name="section_about">The app</string>
+    <string name="preset_permissive">Permissive</string>
+    <string name="preset_permissive_hint">Permissive holds only the feeds that never end. Home pages, subscriptions and friends\' stories stay open.</string>
 </resources>

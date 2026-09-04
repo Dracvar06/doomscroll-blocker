@@ -2,6 +2,8 @@ package cat.doorman.app.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -37,6 +39,7 @@ import cat.doorman.app.R
 import cat.doorman.app.data.Prefs
 import cat.doorman.app.limits.Limits
 import cat.doorman.app.limits.Window
+import cat.doorman.app.rules.RuleLoader
 import cat.doorman.app.rules.RuleSet
 
 /** An app the user has been seen using, offered for holding as a whole. */
@@ -47,6 +50,7 @@ data class OtherApp(val packageName: String, val label: String)
  * whole apps: a screen someone did not ask to have blocked is the failure that
  * teaches people to bypass the app entirely.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun BlockingSettings(
     rules: RuleSet,
@@ -84,7 +88,10 @@ fun BlockingSettings(
             style = MaterialTheme.typography.labelLarge,
         )
         val allScreens = rules.apps.values.flatMap { it.screens }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        // Four rather than three. The old set went "everything", "the usual",
+        // "nothing", and the gap between the last two was a cliff: anyone who
+        // found the balanced setting too much had nowhere left to go but off.
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             AssistChip(
                 onClick = { onPreset(allScreens.map { it.id }.toSet()) },
                 label = { Text(stringResource(R.string.preset_strict)) },
@@ -94,10 +101,19 @@ fun BlockingSettings(
                 label = { Text(stringResource(R.string.preset_balanced)) },
             )
             AssistChip(
+                onClick = { onPreset(RuleLoader.endlessScreenIds(rules)) },
+                label = { Text(stringResource(R.string.preset_permissive)) },
+            )
+            AssistChip(
                 onClick = { onPreset(emptySet()) },
                 label = { Text(stringResource(R.string.preset_nothing)) },
             )
         }
+        Text(
+            text = stringResource(R.string.preset_permissive_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
 
         rules.apps.forEach { (packageName, app) ->
             Card {

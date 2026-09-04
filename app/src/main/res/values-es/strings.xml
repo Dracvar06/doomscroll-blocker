@@ -162,4 +162,6 @@
     <string name="section_show">Mostrar</string>
     <string name="section_behaviour">Cómo se comporta Doorman</string>
     <string name="section_about">La aplicación</string>
+    <string name="preset_permissive">Permisivo</string>
+    <string name="preset_permissive_hint">Permisivo solo detiene los flujos que no acaban nunca. Las páginas de inicio, las suscripciones y las historias de tus amigos siguen abiertas.</string>
 </resources>

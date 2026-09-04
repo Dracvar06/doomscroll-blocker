@@ -19,7 +19,8 @@
               "pivot_bar"
             ]
           },
-          "helpKey": "help_yt_single_short"
+          "helpKey": "help_yt_single_short",
+          "endless": true
         },
         {
           "id": "yt_shorts",
@@ -31,7 +32,8 @@
               "reel_player_page_container"
             ]
           },
-          "helpKey": "help_yt_shorts"
+          "helpKey": "help_yt_shorts",
+          "endless": true
         },
         {
           "id": "yt_home_feed",
@@ -92,7 +94,8 @@
               "clips_tab"
             ]
           },
-          "helpKey": "help_ig_single_reel"
+          "helpKey": "help_ig_single_reel",
+          "endless": true
         },
         {
           "id": "ig_stories",
@@ -115,7 +118,8 @@
               "clips_tab"
             ]
           },
-          "helpKey": "help_ig_reels"
+          "helpKey": "help_ig_reels",
+          "endless": true
         },
         {
           "id": "ig_reel_viewer",
@@ -161,7 +165,8 @@
           "keepVisibleTopViewIds": [
             "action_bar_search_edit_text"
           ],
-          "helpKey": "help_ig_explore"
+          "helpKey": "help_ig_explore",
+          "endless": true
         }
       ],
       "keepVisibleViewIds": [
@@ -197,7 +202,8 @@
             ],
             "arrivedFromAnotherApp": true
           },
-          "helpKey": "help_tt_shared_video"
+          "helpKey": "help_tt_shared_video",
+          "endless": true
         },
         {
           "id": "tt_feed",
@@ -212,7 +218,8 @@
               "video_player_progress"
             ]
           },
-          "helpKey": "help_tt_feed"
+          "helpKey": "help_tt_feed",
+          "endless": true
         }
       ],
       "keepVisibleTopViewIds": [
@@ -243,7 +250,8 @@
               "memories_grid"
             ]
           },
-          "helpKey": "help_sc_spotlight"
+          "helpKey": "help_sc_spotlight",
+          "endless": true
         },
         {
           "id": "sc_stories",

@@ -158,4 +158,6 @@
     <string name="section_show">Mostra</string>
     <string name="section_behaviour">Com es comporta Doorman</string>
     <string name="section_about">L\'aplicació</string>
+    <string name="preset_permissive">Permissiu</string>
+    <string name="preset_permissive_hint">Permissiu només atura els fluxos que no s\'acaben mai. Les pàgines d\'inici, les subscripcions i les històries dels amics et queden obertes.</string>
 </resources>

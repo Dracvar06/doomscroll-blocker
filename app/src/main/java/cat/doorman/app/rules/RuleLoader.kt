@@ -23,4 +23,15 @@ object RuleLoader {
 
     fun defaultEnabledScreenIds(rules: RuleSet): Set<String> =
         screenDefaults(rules).filterValues { it }.keys
+
+    /**
+     * The screens the gentlest preset still holds: the ones that never end.
+     *
+     * Doorman's quick settings went from "everything" to "the usual" to
+     * "nothing", and the gap between the last two was a cliff. Someone who
+     * found the balanced setting too much had only one place left to go, and
+     * that place blocks nothing at all.
+     */
+    fun endlessScreenIds(rules: RuleSet): Set<String> =
+        rules.apps.values.flatMap { it.screens }.filter { it.endless }.map { it.id }.toSet()
 }

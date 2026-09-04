@@ -109,6 +109,18 @@ data class ScreenRule(
     /** Every screen is opt-in; this is only what a fresh install starts with. */
     val defaultEnabled: Boolean = false,
     /**
+     * Whether the gentlest preset still holds this screen.
+     *
+     * The line is whether the screen *ends*. A home page, a subscriptions list
+     * and a friend's stories all run out; Shorts, Reels, Spotlight and the For
+     * You feed are built never to. Someone who wants Doorman out of the way as
+     * much as possible still wants the ones that never end.
+     *
+     * Data rather than a list in the code, so adding an app means editing one
+     * file and the presets follow.
+     */
+    val endless: Boolean = false,
+    /**
      * "BLOCK" covers the screen outright. "ALLOW_ONCE" lets it be watched and
      * blocks only once the user moves past [budget] items -- which is how a reel
      * someone sent you stays watchable without becoming a feed.
