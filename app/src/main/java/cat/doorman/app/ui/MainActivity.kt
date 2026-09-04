@@ -357,8 +357,16 @@ class MainActivity : ComponentActivity() {
      */
     private fun requestLimitsChange(targetId: String, limits: Limits) {
         val current = screenLimits[targetId] ?: appLimits[targetId] ?: Limits.OFF
-        if (!isLoosening(current, limits) || changeDelaySeconds <= 0) {
-            lifecycleScope.launch { prefs.setLimits(targetId, limits) }
+        val loosening = isLoosening(current, limits)
+        if (!loosening || changeDelaySeconds <= 0) {
+            lifecycleScope.launch {
+                prefs.setLimits(targetId, limits)
+                // Recorded where the change actually lands, not where it is
+                // asked for: a change that sits through the delay and is walked
+                // away from never happened, and a report that counted it would
+                // be telling somebody they gave in when they did not.
+                if (loosening) prefs.recordToday(loosenings = 1)
+            }
             return
         }
         startPending(PendingChange.Mode(targetId, limits))
@@ -367,7 +375,10 @@ class MainActivity : ComponentActivity() {
     private fun requestPreset(ids: Set<String>) {
         val weakens = screenLimits.any { (id, limits) -> !limits.isOff && id !in ids }
         if (!weakens || changeDelaySeconds <= 0) {
-            lifecycleScope.launch { prefs.setEnabledScreens(ids, screenDefaults.keys) }
+            lifecycleScope.launch {
+                prefs.setEnabledScreens(ids, screenDefaults.keys)
+                if (weakens) prefs.recordToday(loosenings = 1)
+            }
             return
         }
         startPending(PendingChange.Preset(ids))
@@ -446,11 +457,19 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun applyPendingChange() {
+        // Anything that waited, waited because it weakened something. Surviving
+        // the wait is exactly the moment worth recording.
         when (val change = pendingChange) {
             is PendingChange.Mode ->
-                lifecycleScope.launch { prefs.setLimits(change.id, change.limits) }
+                lifecycleScope.launch {
+                    prefs.setLimits(change.id, change.limits)
+                    prefs.recordToday(loosenings = 1)
+                }
             is PendingChange.Preset ->
-                lifecycleScope.launch { prefs.setEnabledScreens(change.ids, screenDefaults.keys) }
+                lifecycleScope.launch {
+                    prefs.setEnabledScreens(change.ids, screenDefaults.keys)
+                    prefs.recordToday(loosenings = 1)
+                }
             is PendingChange.Delay ->
                 lifecycleScope.launch { prefs.setChangeDelaySeconds(change.seconds) }
             null -> Unit

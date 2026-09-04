@@ -414,15 +414,27 @@ class DoormanAccessibilityService : AccessibilityService() {
         when (outcome) {
             is Allowances.Outcome.Allow -> {
                 stopClock()
+                stoppedTarget = null
                 if (overlay.isShowing) overlay.hide()
             }
 
             is Allowances.Outcome.Block -> {
                 stopClock()
+                // Counted once per encounter, not once per evaluation. The
+                // service re-decides on every content event, so counting here
+                // without the guard would score one glance at a blocked feed as
+                // several hundred stops and make the report meaningless.
+                if (stoppedTarget != outcome.targetId) {
+                    stoppedTarget = outcome.targetId
+                    serviceScope.launch {
+                        Prefs(this@DoormanAccessibilityService).recordToday(stops = 1)
+                    }
+                }
                 showBlock(outcome, snapshot, pkg)
             }
 
             is Allowances.Outcome.OnTheClock -> {
+                stoppedTarget = null
                 if (overlay.isShowing) overlay.hide()
                 startClock(outcome)
             }
@@ -549,10 +561,25 @@ class DoormanAccessibilityService : AccessibilityService() {
         }.toMap()
         if (charges.isEmpty()) return
         ledger = ledger + charges
-        serviceScope.launch { Prefs(this@DoormanAccessibilityService).chargeSpent(charges) }
+        // The largest of the charges, not their sum: one stretch of watching is
+        // charged to every budget that applies to it, so adding them would
+        // report an hour of Reels as two or three.
+        val watched = pending.values.maxOrNull() ?: 0L
+        serviceScope.launch {
+            Prefs(this@DoormanAccessibilityService).let {
+                it.chargeSpent(charges)
+                if (watched > 0L) it.recordToday(spentMillis = watched)
+            }
+        }
     }
 
     private var lastFlushAt = 0L
+
+    /**
+     * Which target the block currently standing is for, so one encounter counts
+     * once. Cleared the moment the screen is let through again.
+     */
+    private var stoppedTarget: String? = null
 
     /**
      * Nothing re-evaluates on its own when a pass runs out, so the block has to

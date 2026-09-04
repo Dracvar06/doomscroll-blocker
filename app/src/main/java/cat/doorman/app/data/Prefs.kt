@@ -10,9 +10,12 @@ import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import cat.doorman.app.limits.Allowances
 import cat.doorman.app.limits.Limits
+import cat.doorman.app.limits.DayRecord
+import cat.doorman.app.limits.Journal
 import cat.doorman.app.limits.LimitsCodec
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.json.Json
 import org.json.JSONObject
 
 private val Context.dataStore by preferencesDataStore(name = "doorman")
@@ -41,6 +44,9 @@ class Prefs(private val context: Context) {
 
         /** Target id -> {"p":periodKey,"m":millis}: the allowance ledger. */
         val SPENT = stringPreferencesKey("spent")
+
+        /** One row per day of what actually happened. See [Journal]. */
+        val JOURNAL = stringPreferencesKey("journal")
 
         /**
          * Removed. Doorman used to record which apps it had watched the user
@@ -139,6 +145,46 @@ class Prefs(private val context: Context) {
     }
 
     /** Adds time to the ledger for several targets at once. */
+    /**
+     * What actually happened, day by day, for the weekly report.
+     *
+     * Separate from [spent], which is a live budget that resets every hour, day
+     * or week and cannot answer a question about last month. This is history,
+     * and it is the only part of Doorman that keeps any.
+     */
+    val journal: Flow<List<DayRecord>> =
+        context.dataStore.data.map { decodeJournal(it[Keys.JOURNAL]) }
+
+    /**
+     * Adds to today's row and forgets anything too old to matter.
+     *
+     * Pruning here rather than on a schedule: this is the only place the record
+     * is written, so it is the only place it can grow, and a record that tidies
+     * itself needs no job to remember to run.
+     */
+    suspend fun recordToday(stops: Int = 0, spentMillis: Long = 0L, loosenings: Int = 0) {
+        val today = java.time.LocalDate.now()
+        context.dataStore.edit { prefs ->
+            val updated = Journal.record(
+                days = decodeJournal(prefs[Keys.JOURNAL]),
+                date = today,
+                stops = stops,
+                spentMillis = spentMillis,
+                loosenings = loosenings,
+            )
+            prefs[Keys.JOURNAL] = journalJson.encodeToString(Journal.prune(updated, today))
+        }
+    }
+
+    private fun decodeJournal(raw: String?): List<DayRecord> {
+        if (raw.isNullOrBlank()) return emptyList()
+        // A record that cannot be read is a record we start again, never a
+        // crash: history is the least important thing in the app and the report
+        // is not worth failing to open Doorman over.
+        return runCatching { journalJson.decodeFromString<List<DayRecord>>(raw) }
+            .getOrDefault(emptyList())
+    }
+
     suspend fun chargeSpent(charges: Map<String, Allowances.Spent>) {
         if (charges.isEmpty()) return
         context.dataStore.edit { prefs ->
@@ -297,3 +343,5 @@ class Prefs(private val context: Context) {
         const val MAX_CHANGE_DELAY_SECONDS = 300
     }
 }
+
+private val journalJson = Json { ignoreUnknownKeys = true }
