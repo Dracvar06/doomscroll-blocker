@@ -1,6 +1,10 @@
 package cat.doorman.app.ui
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -12,6 +16,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,15 +27,19 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -76,6 +85,12 @@ fun TimeRing(
     // Chosen when a drag begins and kept for the whole gesture, so a handle
     // dragged past the other one does not hand over mid-swipe.
     var draggingStart by remember { mutableStateOf(true) }
+    var dragging by remember { mutableStateOf(false) }
+    val haptics = LocalHapticFeedback.current
+    // Everything about the handle answers to the finger: it swells, its halo
+    // brightens, and it ticks at every five-minute step. A dial you cannot feel
+    // is a picture of a dial.
+    val press by animateFloatAsState(if (dragging) 1f else 0f, label = "grip")
 
     val strokePx = with(LocalDensity.current) { 26.dp.toPx() }
     val handlePx = with(LocalDensity.current) { 11.dp.toPx() }
@@ -122,12 +137,22 @@ fun TimeRing(
                         } else {
                             grabbedStart
                         }
+                        dragging = true
+                        var lastMinute = if (draggingStart) {
+                            current.fromMinute
+                        } else {
+                            current.toMinute
+                        }
                         while (true) {
                             val event = awaitPointerEvent()
                             val change = event.changes.firstOrNull { it.id == down.id } ?: break
                             if (!change.pressed) break
                             change.consume()
                             val minute = minuteFor(change.position, size.width, size.height)
+                            if (minute != lastMinute) {
+                                lastMinute = minute
+                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            }
                             onChange(
                                 if (draggingStart) {
                                     current.copy(fromMinute = minute)
@@ -136,6 +161,7 @@ fun TimeRing(
                                 },
                             )
                         }
+                        dragging = false
                     }
                 },
         ) {
@@ -178,8 +204,7 @@ fun TimeRing(
                     size.width / 2 + (cos(radians) * radius).toFloat(),
                     size.height / 2 + (sin(radians) * radius).toFloat(),
                 )
-                drawCircle(color = handleFill, radius = handlePx, center = centre)
-                drawCircle(color = held, radius = handlePx * 0.45f, center = centre)
+                drawHandle(centre, handlePx, held, handleFill, press)
             }
 
         }
@@ -256,6 +281,7 @@ fun MinutesDial(
         positions = remember(period) { DialScale.positions(period) },
         centreTextFor = { dialLabel(it) },
         description = durationLabel(minutes),
+        colourAt = { budgetColour(it.toFloat() / DialScale.maxMinutes(period)) },
         onType = { typing = true },
         modifier = modifier,
         onChange = onChange,
@@ -294,6 +320,7 @@ fun DelayDial(seconds: Int, onChange: (Int) -> Unit, modifier: Modifier = Modifi
         positions = remember { (0..MAX_DELAY_SECONDS step DELAY_STEP_SECONDS).toList() },
         centreTextFor = { delayLabel(it) },
         description = delayLabel(seconds),
+        colourAt = { waitColour(it) },
         onType = { typing = true },
         modifier = modifier,
         onChange = onChange,
@@ -337,6 +364,7 @@ private fun RotaryDial(
     positions: List<Int>,
     centreTextFor: @Composable (Int) -> String,
     description: String,
+    colourAt: (Int) -> Color,
     onType: () -> Unit,
     modifier: Modifier = Modifier,
     onChange: (Int) -> Unit,
@@ -347,6 +375,7 @@ private fun RotaryDial(
     val handlePx = with(LocalDensity.current) { 10.dp.toPx() }
     val current by rememberUpdatedState(value)
     val rungs by rememberUpdatedState(positions)
+    val haptics = LocalHapticFeedback.current
 
     // The dial follows the finger locally and reports once, when the finger
     // lifts. Reporting every step looked fine for a time budget and was wrong
@@ -357,13 +386,24 @@ private fun RotaryDial(
     val turnOfValue = turnOf(positions, value)
     // Snapped, so the handle clicks from one duration to the next under the
     // finger rather than sliding between them, the way a dial with detents does.
-    val shownTurn = snapTurn(positions, draggingTurn ?: turnOfValue)
+    val target = snapTurn(positions, draggingTurn ?: turnOfValue)
+    // A value that arrives from anywhere but the finger -- typed in, clamped by
+    // a change of period, restored from storage -- travels there. Under the
+    // finger the dial goes exactly where the finger is, because a control that
+    // lags behind a thumb feels broken rather than smooth.
+    val settled by animateFloatAsState(
+        targetValue = target,
+        animationSpec = tween(durationMillis = 420, easing = FastOutSlowInEasing),
+        label = "dial",
+    )
+    val press by animateFloatAsState(if (draggingTurn != null) 1f else 0f, label = "grip")
+    val shownTurn = if (draggingTurn == null) settled else target
     // While a finger is on it, the dial says what the rung under the finger
     // says. At rest it says the value itself, which is not always a rung: a
     // typed 5 h 04 has to read back as 5 h 04, not as the nearest thing the
     // dial could have been turned to.
     val shown = if (draggingTurn == null) value else valueAtTurn(positions, shownTurn)
-    val colourStops = remember(positions) { colourStopsFor(positions) }
+    val colourStops = remember(positions, colourAt) { colourStopsFor(positions, colourAt) }
     val typeLabel = stringResource(R.string.dial_type_action)
 
     Box(
@@ -382,6 +422,7 @@ private fun RotaryDial(
                         val handle = handleAt(from, size.width, size.height)
                         if (!nearHandle(down.position, handle)) return@awaitEachGesture
                         down.consume()
+                        var lastRung = Math.round(from * (rungs.size - 1))
                         while (true) {
                             val event = awaitPointerEvent()
                             val change = event.changes.firstOrNull { it.id == down.id } ?: break
@@ -391,10 +432,19 @@ private fun RotaryDial(
                                 change.position.x - size.width / 2,
                                 change.position.y - size.height / 2,
                             )
-                            draggingTurn = RingGeometry.withoutCrossingSeam(
+                            val turn = RingGeometry.withoutCrossingSeam(
                                 candidateTurn = degrees / 360f,
                                 previousTurn = draggingTurn ?: from,
                             )
+                            draggingTurn = turn
+                            // One tick per rung, the way a kitchen timer clicks.
+                            // It is also the only way to tell, without looking,
+                            // that the numbers are moving at all.
+                            val rung = Math.round(turn * (rungs.size - 1))
+                            if (rung != lastRung) {
+                                lastRung = rung
+                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            }
                         }
                         draggingTurn?.let {
                             val landed = valueAtTurn(rungs, it)
@@ -441,12 +491,7 @@ private fun RotaryDial(
                 size.width / 2 + (cos(radians) * radius).toFloat(),
                 size.height / 2 + (sin(radians) * radius).toFloat(),
             )
-            drawCircle(color = handleFill, radius = handlePx, center = centre)
-            drawCircle(
-                color = rampColour(shown.toFloat() / positions.last()),
-                radius = handlePx * 0.45f,
-                center = centre,
-            )
+            drawHandle(centre, handlePx, colourAt(shown), handleFill, press)
         }
         // The number is a button. Tapping it opens a keyboard, for anyone who
         // knows exactly what they want and would rather say it than hunt for it
@@ -456,22 +501,32 @@ private fun RotaryDial(
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier
+                .clip(RoundedCornerShape(percent = 50))
                 .clickable(onClickLabel = typeLabel, onClick = onType)
-                .padding(horizontal = 12.dp, vertical = 6.dp),
+                // A faint pill, so the number reads as something you can press.
+                // Without it the keyboard is a feature nobody finds: plain text
+                // in the middle of a ring looks like a readout.
+                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
+                .padding(horizontal = 14.dp, vertical = 6.dp),
         )
     }
 }
 
 /**
- * Green at the bottom of a dial, red at the top.
+ * The colours a dial can wear, and what they mean.
  *
- * The colour is saying one thing: how much. On a budget dial that is a
- * judgement as well as a quantity -- forty-two hours a week is a lot of
- * scrolling and the ring should not pretend otherwise -- and on the change
- * delay it marks the end Doorman itself calls punishing.
+ * Green is "this is fine" and red is "look at this". Which end of a dial earns
+ * which is not the same question twice:
+ *
+ * - On a **budget**, more is worse. Forty-two hours a week is a lot of
+ *   scrolling and the ring should not pretend otherwise.
+ * - On the **change delay**, less is worse. No wait at all means an impulse can
+ *   undo a decision before the impulse passes, which is the one thing this app
+ *   exists to prevent -- so "immediate" is the red end, and half a minute of
+ *   pause is already enough to be green.
  *
  * Fixed colours rather than the theme's, because the theme is taken from the
- * user's wallpaper: "green to red" has to mean green to red on every phone, not
+ * user's wallpaper: green to red has to mean green to red on every phone, not
  * whatever two colours the wallpaper happens to offer. They are mid-toned so
  * that neither end disappears against a light background or a dark one.
  *
@@ -484,12 +539,28 @@ private val DIAL_LOW = Color(0xFF63BE72)
 private val DIAL_MID = Color(0xFFE0B341)
 private val DIAL_HIGH = Color(0xFFDF6350)
 
-private fun rampColour(shareOfTheMost: Float): Color {
-    val t = shareOfTheMost.coerceIn(0f, 1f)
-    return if (t < 0.5f) {
-        lerp(DIAL_LOW, DIAL_MID, t * 2f)
+/** Green while the budget is small, red as it takes over the period. */
+private fun budgetColour(shareOfTheMost: Float): Color = between(shareOfTheMost)
+
+/**
+ * Red at no wait at all, green by half a minute.
+ *
+ * The scale is short on purpose. The pause only has to outlast the reach for
+ * the phone, and a dial that stayed amber until four minutes would be telling
+ * people their perfectly good thirty seconds was not good enough.
+ */
+private fun waitColour(seconds: Int): Color =
+    between(1f - (seconds.toFloat() / SETTLED_WAIT_SECONDS))
+
+private const val SETTLED_WAIT_SECONDS = 30f
+
+/** 0 is green, 1 is red, and the amber in the middle keeps the pair from muddying. */
+private fun between(t: Float): Color {
+    val f = t.coerceIn(0f, 1f)
+    return if (f < 0.5f) {
+        lerp(DIAL_LOW, DIAL_MID, f * 2f)
     } else {
-        lerp(DIAL_MID, DIAL_HIGH, (t - 0.5f) * 2f)
+        lerp(DIAL_MID, DIAL_HIGH, (f - 0.5f) * 2f)
     }
 }
 
@@ -502,15 +573,40 @@ private fun rampColour(shareOfTheMost: Float): Color {
  * angle painted it amber -- an alarm over a budget that is nothing of the sort.
  * Sampled at enough points for the curve to read as smooth.
  */
-private fun colourStopsFor(positions: List<Int>): Array<Pair<Float, Color>> {
-    val most = positions.last().toFloat()
-    return Array(STOPS) { i ->
-        val turn = i / (STOPS - 1f)
-        turn to rampColour(valueAtTurn(positions, turn) / most)
-    }
+private fun colourStopsFor(
+    positions: List<Int>,
+    colourAt: (Int) -> Color,
+): Array<Pair<Float, Color>> = Array(STOPS) { i ->
+    val turn = i / (STOPS - 1f)
+    turn to colourAt(valueAtTurn(positions, turn))
 }
 
 private const val STOPS = 16
+
+/**
+ * A handle that answers to the finger: a soft halo the size of the area that
+ * actually grabs it, swelling while it is held.
+ *
+ * The halo is not decoration. Grabbing was narrowed to the handle so that
+ * scrolling the page past a dial would stop turning it, and that fix is only
+ * fair if the handle looks like the part you are meant to take hold of.
+ */
+private fun DrawScope.drawHandle(
+    centre: Offset,
+    handlePx: Float,
+    colour: Color,
+    fill: Color,
+    press: Float,
+) {
+    drawCircle(
+        color = colour.copy(alpha = 0.14f + 0.14f * press),
+        radius = handlePx * (1.9f + 0.5f * press),
+        center = centre,
+    )
+    val grown = handlePx * (1f + 0.18f * press)
+    drawCircle(color = fill, radius = grown, center = centre)
+    drawCircle(color = colour, radius = grown * 0.45f, center = centre)
+}
 
 /** How far round the dial a value sits, as a fraction of a turn. */
 private fun turnOf(positions: List<Int>, value: Int): Float =
