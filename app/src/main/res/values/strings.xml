@@ -211,4 +211,16 @@
     <string name="report_usage_more">%1$s more than the week before.</string>
     <string name="report_usage_less">%1$s less than the week before.</string>
     <string name="report_usage_no_history">Android only keeps these figures for about a week, so there is nothing yet to compare last week against.</string>
+    <string name="tutorial_skip">Skip</string>
+    <string name="tutorial_next">Next</string>
+    <string name="tutorial_start">Start</string>
+    <string name="tutorial_1_title">Messages get through. The feed does not.</string>
+    <string name="tutorial_1_body">Doorman holds the screens that never end — reels, shorts, the endless feed — and leaves the rest of the app alone. Your messages, your searches and the video a friend sent you all still work.</string>
+    <string name="tutorial_2_title">You choose what is held</string>
+    <string name="tutorial_2_body">Doorman holds screens, not whole apps, so you can keep Instagram and lose Reels. Start from one of the quick settings and then turn any single screen back on. Nothing is decided for you.</string>
+    <string name="tutorial_3_title">Loosening a limit is slow on purpose</string>
+    <string name="tutorial_3_body">Weakening a block does not take effect straight away — there is a wait, and you choose how long it is. That wait is the whole idea: the moment you want to undo a limit is the moment you are least able to judge it.</string>
+    <string name="tutorial_4_title">There is always a way in</string>
+    <string name="tutorial_4_body">If you genuinely need a held screen, ask for a short pass: you wait a few seconds and it opens. Once a week Doorman tells you how the week went, and you can switch that off.</string>
+    <string name="tutorial_replay">Show the introduction again</string>
 </resources>

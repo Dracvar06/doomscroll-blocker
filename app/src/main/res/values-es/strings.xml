@@ -210,4 +210,16 @@
     <string name="report_usage_more">%1$s más que la semana anterior.</string>
     <string name="report_usage_less">%1$s menos que la semana anterior.</string>
     <string name="report_usage_no_history">Android solo guarda estas cifras alrededor de una semana, así que todavía no hay nada con qué comparar la semana pasada.</string>
+    <string name="tutorial_skip">Saltar</string>
+    <string name="tutorial_next">Siguiente</string>
+    <string name="tutorial_start">Empezar</string>
+    <string name="tutorial_1_title">Los mensajes pasan. El flujo, no.</string>
+    <string name="tutorial_1_body">Doorman retiene las pantallas que no se acaban nunca — los reels, los shorts, el flujo infinito — y deja el resto de la aplicación intacto. Tus mensajes, tus búsquedas y el vídeo que te ha enviado un amigo siguen funcionando.</string>
+    <string name="tutorial_2_title">Tú eliges qué se retiene</string>
+    <string name="tutorial_2_body">Doorman retiene pantallas, no aplicaciones enteras, así que puedes conservar Instagram y perder los Reels. Empieza por una de las configuraciones rápidas y luego vuelve a abrir las pantallas que quieras. No se decide nada por ti.</string>
+    <string name="tutorial_3_title">Aflojar un límite va lento a propósito</string>
+    <string name="tutorial_3_body">Debilitar un bloqueo no tiene efecto inmediato: hay una espera, y tú eliges cuánto dura. Esa espera es toda la idea — el momento en que quieres deshacer un límite es el momento en que menos puedes juzgarlo.</string>
+    <string name="tutorial_4_title">Siempre hay una manera de entrar</string>
+    <string name="tutorial_4_body">Si realmente necesitas una pantalla retenida, pide un permiso corto: esperas unos segundos y se abre. Una vez por semana Doorman te cuenta cómo ha ido la semana, y eso lo puedes apagar.</string>
+    <string name="tutorial_replay">Volver a ver la introducción</string>
 </resources>

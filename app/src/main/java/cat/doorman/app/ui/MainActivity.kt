@@ -150,6 +150,12 @@ class MainActivity : ComponentActivity() {
 
     private var watchedUse by mutableStateOf<WatchedUse?>(null)
 
+    /**
+     * Null until read. Not false: defaulting to "not seen" would flash the
+     * walkthrough at every returning user for the length of one disk read.
+     */
+    private var tutorialSeen by mutableStateOf<Boolean?>(null)
+
     /** So opening the report twice in one sitting is not two prompts. */
     private var hasAskedToNotify = false
     private var selectedPackage by mutableStateOf<String?>(null)
@@ -192,6 +198,7 @@ class MainActivity : ComponentActivity() {
             prefs.changeDelaySeconds.collectLatest { changeDelaySeconds = it }
         }
         lifecycleScope.launch { prefs.journal.collectLatest { journal = it } }
+        lifecycleScope.launch { prefs.tutorialSeen.collectLatest { tutorialSeen = it } }
         lifecycleScope.launch {
             prefs.weeklyReport.collectLatest { on ->
                 weeklyReport = on
@@ -215,7 +222,10 @@ class MainActivity : ComponentActivity() {
                         // Hidden while getting a pass. That flow is a decision
                         // with a countdown running, and offering a way to wander
                         // off mid-way would be offering a way to lose it.
-                        if (screen == Screen.HOME) {
+                        // Hidden during the walkthrough too: four pages with
+                        // a Next button are not a place to be offered three
+                        // other places to be.
+                        if (screen == Screen.HOME && tutorialSeen == true) {
                             NavigationBar {
                                 Tab.entries.filter { it != Tab.REPORT || weeklyReport }
                                     .forEach { entry ->
@@ -264,7 +274,11 @@ class MainActivity : ComponentActivity() {
                             onCancel = { cancelPendingChange() },
                         )
                         when (screen) {
-                            Screen.HOME -> when (tab) {
+                            Screen.HOME -> if (tutorialSeen == false) {
+                                Tutorial(onDone = {
+                                    lifecycleScope.launch { prefs.setTutorialSeen(true) }
+                                })
+                            } else if (tutorialSeen == true) when (tab) {
                                 Tab.BLOCKS -> BlocksTab()
                                 Tab.REPORT -> WeeklyReport(
                                     days = journal,
@@ -473,6 +487,15 @@ class MainActivity : ComponentActivity() {
                 currentTag = appLocaleTag(),
                 onPick = { tag -> setAppLocale(tag) },
             )
+
+            // The walkthrough explains the change delay and the pass, which
+            // are the two things people forget how to use. Somewhere to find
+            // it again costs one button.
+            TextButton(onClick = {
+                lifecycleScope.launch { prefs.setTutorialSeen(false) }
+            }) {
+                Text(stringResource(R.string.tutorial_replay))
+            }
 
             DiagnosticsSection(
                 lastSeen = lastSeen,

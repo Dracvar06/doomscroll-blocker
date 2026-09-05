@@ -51,6 +51,9 @@ class Prefs(private val context: Context) {
         /** Whether the weekly report is kept at all. */
         val WEEKLY_REPORT = booleanPreferencesKey("weekly_report")
 
+        /** Whether the first-run walkthrough has been finished or skipped. */
+        val TUTORIAL_SEEN = booleanPreferencesKey("tutorial_seen")
+
         /**
          * Removed. Doorman used to record which apps it had watched the user
          * open, to offer them in the picker.
@@ -171,6 +174,19 @@ class Prefs(private val context: Context) {
      */
     val weeklyReport: Flow<Boolean> =
         context.dataStore.data.map { it[Keys.WEEKLY_REPORT] ?: true }
+
+    /**
+     * Whether the walkthrough has been shown.
+     *
+     * Skipping counts as seeing it: somebody who closed it once meant it, and
+     * an introduction that comes back is not an introduction.
+     */
+    val tutorialSeen: Flow<Boolean> =
+        context.dataStore.data.map { it[Keys.TUTORIAL_SEEN] ?: false }
+
+    suspend fun setTutorialSeen(seen: Boolean) {
+        context.dataStore.edit { it[Keys.TUTORIAL_SEEN] = seen }
+    }
 
     suspend fun setWeeklyReport(on: Boolean) {
         context.dataStore.edit { it[Keys.WEEKLY_REPORT] = on }

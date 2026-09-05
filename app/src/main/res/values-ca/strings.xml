@@ -206,4 +206,16 @@
     <string name="report_usage_more">%1$s més que la setmana anterior.</string>
     <string name="report_usage_less">%1$s menys que la setmana anterior.</string>
     <string name="report_usage_no_history">L\'Android només guarda aquestes xifres una setmana aproximadament, així que encara no hi ha res amb què comparar la setmana passada.</string>
+    <string name="tutorial_skip">Salta</string>
+    <string name="tutorial_next">Següent</string>
+    <string name="tutorial_start">Comença</string>
+    <string name="tutorial_1_title">Els missatges passen. El flux, no.</string>
+    <string name="tutorial_1_body">Doorman reté les pantalles que no s\'acaben mai — els reels, els shorts, el flux infinit — i deixa la resta de l\'aplicació intacta. Els teus missatges, les teves cerques i el vídeo que t\'ha enviat un amic segueixen funcionant.</string>
+    <string name="tutorial_2_title">Tu tries què es reté</string>
+    <string name="tutorial_2_body">Doorman reté pantalles, no aplicacions senceres, així que pots conservar l\'Instagram i perdre els Reels. Comença per una de les configuracions ràpides i després torna a obrir les pantalles que vulguis. No es decideix res per tu.</string>
+    <string name="tutorial_3_title">Afluixar un límit va lent expressament</string>
+    <string name="tutorial_3_body">Debilitar un bloqueig no té efecte immediat: hi ha una espera, i tu tries quant dura. Aquesta espera és tota la idea — el moment en què vols desfer un límit és el moment en què menys el pots jutjar.</string>
+    <string name="tutorial_4_title">Sempre hi ha una manera d\'entrar</string>
+    <string name="tutorial_4_body">Si realment necessites una pantalla retinguda, demana un permís curt: esperes uns segons i s\'obre. Un cop per setmana Doorman t\'explica com ha anat la setmana, i això ho pots apagar.</string>
+    <string name="tutorial_replay">Torna a veure la introducció</string>
 </resources>
