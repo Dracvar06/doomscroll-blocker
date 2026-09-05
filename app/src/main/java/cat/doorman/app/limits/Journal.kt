@@ -121,4 +121,61 @@ object Journal {
         val lastMonday = weekOf(today).minusWeeks(1)
         return week(days, lastMonday) to week(days, lastMonday.minusWeeks(1))
     }
+
+    /**
+     * The last [count] finished weeks, oldest first, ending with the week just
+     * gone.
+     *
+     * Two numbers can only say up or down. A run of them has a shape, and the
+     * shape is the thing worth knowing -- whether a bad week was a bad week or
+     * the fourth in a row. The rows to draw it have been on disk all along.
+     *
+     * Weeks with nothing recorded come back empty rather than being dropped, so
+     * a gap stays visible as a gap instead of closing up and pretending the
+     * weeks either side were consecutive.
+     */
+    fun recentWeeks(days: List<DayRecord>, today: LocalDate, count: Int): List<WeekSummary> {
+        val lastMonday = weekOf(today).minusWeeks(1)
+        return (count - 1 downTo 0).map { back ->
+            week(days, lastMonday.minusWeeks(back.toLong()))
+        }
+    }
+
+    /**
+     * The seven days of the week beginning [monday], Monday first.
+     *
+     * Null for a day with no row at all, which is not the same fact as a day
+     * with a row of zeroes: the first means Doorman was not watching, the
+     * second means it was watching and nothing happened. Drawing them the same
+     * way would credit the app for silences it never heard.
+     */
+    /**
+     * How many finished weeks in a row end with no limit having been weakened,
+     * counting back from the week just gone.
+     *
+     * The one streak Doorman can count honestly. It is not a claim about
+     * anybody's habits -- it says nothing about how much they used their phone
+     * -- but it is a true statement about sticking to a decision they made when
+     * they were thinking clearly, which is the thing the app is actually for.
+     *
+     * A week with nothing recorded ends the streak rather than continuing it.
+     * Doorman was not watching, so it has no business counting that week as
+     * one it kept.
+     */
+    fun weeksWithoutLoosening(days: List<DayRecord>, today: LocalDate, limit: Int = 10): Int {
+        val lastMonday = weekOf(today).minusWeeks(1)
+        var kept = 0
+        while (kept < limit) {
+            val week = week(days, lastMonday.minusWeeks(kept.toLong()))
+            if (week.isEmpty || week.loosenings > 0) break
+            kept++
+        }
+        return kept
+    }
+
+    fun daysOf(days: List<DayRecord>, monday: LocalDate): List<DayRecord?> =
+        (0L until 7L).map { offset ->
+            val date = monday.plusDays(offset).toString()
+            days.firstOrNull { it.date == date }
+        }
 }

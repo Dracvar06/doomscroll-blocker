@@ -170,17 +170,6 @@
     <string name="report_stops">Vegades que t\'ha aturat</string>
     <string name="report_time">Temps comptat contra un límit</string>
     <string name="report_loosenings">Límits afluixats</string>
-    <string name="report_same_stops">Les mateixes aturades que la setmana anterior.</string>
-    <plurals name="report_more_stops">
-        <item quantity="many">%1$d d\'aturades més que la setmana anterior.</item>
-        <item quantity="one">%1$d aturada més que la setmana anterior.</item>
-        <item quantity="other">%1$d aturades més que la setmana anterior.</item>
-    </plurals>
-    <plurals name="report_fewer_stops">
-        <item quantity="many">%1$d d\'aturades menys que la setmana anterior.</item>
-        <item quantity="one">%1$d aturada menys que la setmana anterior.</item>
-        <item quantity="other">%1$d aturades menys que la setmana anterior.</item>
-    </plurals>
     <string name="section_weekly_report">Informe setmanal</string>
     <string name="weekly_report_switch">Guarda un informe setmanal</string>
     <string name="weekly_report_help">Doorman compta quantes vegades t\'ha aturat, quant temps s\'ha comptat contra un límit i quants límits has afluixat. Apagat, no enregistra res de nou i la pestanya de l\'informe desapareix. El que ja hi ha es queda fins que caduca.</string>
@@ -201,10 +190,6 @@
     <string name="report_usage_title">Temps a les aplicacions que retens</string>
     <string name="report_usage_offer">Doorman no et pot dir si has mirat menys el mòbil: només veu les pantalles que vigila, i una pantalla bloquejada no gasta temps. Aquesta xifra la guarda l\'Android. Doorman la pot llegir mentre dibuixa aquest informe, només de les aplicacions que has triat retenir. No en guarda res i no té cap manera d\'enviar-ho enlloc.</string>
     <string name="action_usage_access">Deixa que Doorman ho llegeixi</string>
-    <string name="report_usage_week_before">La setmana anterior</string>
-    <string name="report_usage_same">Més o menys igual que la setmana anterior.</string>
-    <string name="report_usage_more">%1$s més que la setmana anterior.</string>
-    <string name="report_usage_less">%1$s menys que la setmana anterior.</string>
     <string name="report_usage_no_history">L\'Android només guarda aquestes xifres una setmana aproximadament, així que encara no hi ha res amb què comparar la setmana passada.</string>
     <string name="tutorial_skip">Salta</string>
     <string name="tutorial_next">Següent</string>
@@ -218,4 +203,33 @@
     <string name="tutorial_4_title">Sempre hi ha una manera d\'entrar</string>
     <string name="tutorial_4_body">Si realment necessites una pantalla retinguda, demana un permís curt: esperes uns segons i s\'obre. Un cop per setmana Doorman t\'explica com ha anat la setmana, i això ho pots apagar.</string>
     <string name="tutorial_replay">Torna a veure la introducció</string>
+    <string name="report_delta_down">↓ %1$s</string>
+    <string name="report_delta_up">↑ %1$s</string>
+    <string name="report_delta_against">respecte la setmana anterior</string>
+    <string name="report_delta_same">Pràcticament igual que la setmana anterior.</string>
+    <string name="report_stops_unknowable">No es marca com a millor ni pitjor: en alguna d\'aquestes setmanes es va afluixar un límit, així que menys aturades tant pot voler dir menys impulsos com menys bloqueig.</string>
+    <string name="report_streak_help">Setmanes seguides sense afluixar cap límit. No és una afirmació sobre els teus hàbits — és el registre d\'haver mantingut una decisió que vas prendre amb el cap clar.</string>
+    <string name="report_loosened_help">Els vas canviar quan volies la pantalla. Ara és un moment més tranquil per decidir si els vols així.</string>
+    <string name="action_review_limits">Revisa els límits</string>
+    <string name="report_trend_title">Les últimes setmanes</string>
+    <string name="report_days_title">Per dies</string>
+    <string name="report_days_caption">Vegades que t\'ha aturat cada dia de la setmana passada.</string>
+    <string name="report_chart_peak">màxim %1$d</string>
+    <plurals name="report_streak">
+        <item quantity="one">Una setmana sense afluixar cap límit</item>
+        <item quantity="many">%1$d setmanes sense afluixar cap límit</item>
+        <item quantity="other">%1$d setmanes sense afluixar cap límit</item>
+    </plurals>
+    <plurals name="report_loosened">
+        <item quantity="one">La setmana passada vas afluixar un límit</item>
+        <item quantity="many">La setmana passada vas afluixar %1$d límits</item>
+        <item quantity="other">La setmana passada vas afluixar %1$d límits</item>
+    </plurals>
+    <plurals name="report_partial_week">
+        <item quantity="one">Doorman només va enregistrar un dia d\'aquella setmana.</item>
+        <item quantity="many">Doorman només va enregistrar %1$d dies d\'aquella setmana.</item>
+        <item quantity="other">Doorman només va enregistrar %1$d dies d\'aquella setmana.</item>
+    </plurals>
+    <string name="report_trend_caption">Vegades que t\'ha aturat, per setmana. La més recent és a la dreta.</string>
+    <string name="report_trend_caption_gap">Vegades que t\'ha aturat, per setmana. La més recent és a la dreta; una columna esvaïda és una setmana que Doorman no vigilava.</string>
 </resources>

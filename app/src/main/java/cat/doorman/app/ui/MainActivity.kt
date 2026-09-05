@@ -285,6 +285,7 @@ class MainActivity : ComponentActivity() {
                                     today = java.time.LocalDate.now(),
                                     use = watchedUse,
                                     onAskForUsageAccess = { askForUsageAccess() },
+                                    onReviewLimits = { tab = Tab.BLOCKS },
                                 )
                                 Tab.SETTINGS -> SettingsTab()
                             }

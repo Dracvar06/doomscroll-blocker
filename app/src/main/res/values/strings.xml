@@ -179,15 +179,6 @@
     <string name="report_stops">Times you were stopped</string>
     <string name="report_time">Time counted against a budget</string>
     <string name="report_loosenings">Limits weakened</string>
-    <string name="report_same_stops">The same number of stops as the week before.</string>
-    <plurals name="report_more_stops">
-        <item quantity="one">%1$d more stop than the week before.</item>
-        <item quantity="other">%1$d more stops than the week before.</item>
-    </plurals>
-    <plurals name="report_fewer_stops">
-        <item quantity="one">%1$d fewer stop than the week before.</item>
-        <item quantity="other">%1$d fewer stops than the week before.</item>
-    </plurals>
     <string name="section_weekly_report">Weekly report</string>
     <string name="weekly_report_switch">Keep a weekly report</string>
     <string name="weekly_report_help">Doorman counts how often it stopped you, how much time was counted against a budget, and how many limits you loosened. Switched off, it records nothing new and the report tab disappears. What is already recorded stays until it ages out.</string>
@@ -206,10 +197,6 @@
     <string name="report_usage_title">Time in the apps you hold</string>
     <string name="report_usage_offer">Doorman cannot tell you whether you were on your phone less: it only sees the screens it watches, and a blocked screen spends no time at all. Android keeps that figure. Doorman can read it while drawing this report, for the apps you chose to hold and no others. It keeps none of it and has no way to send it anywhere.</string>
     <string name="action_usage_access">Let Doorman read it</string>
-    <string name="report_usage_week_before">The week before</string>
-    <string name="report_usage_same">About the same as the week before.</string>
-    <string name="report_usage_more">%1$s more than the week before.</string>
-    <string name="report_usage_less">%1$s less than the week before.</string>
     <string name="report_usage_no_history">Android only keeps these figures for about a week, so there is nothing yet to compare last week against.</string>
     <string name="tutorial_skip">Skip</string>
     <string name="tutorial_next">Next</string>
@@ -223,4 +210,30 @@
     <string name="tutorial_4_title">There is always a way in</string>
     <string name="tutorial_4_body">If you genuinely need a held screen, ask for a short pass: you wait a few seconds and it opens. Once a week Doorman tells you how the week went, and you can switch that off.</string>
     <string name="tutorial_replay">Show the introduction again</string>
+    <string name="report_delta_down">↓ %1$s</string>
+    <string name="report_delta_up">↑ %1$s</string>
+    <string name="report_delta_against">vs the week before</string>
+    <string name="report_delta_same">Much the same as the week before.</string>
+    <string name="report_stops_unknowable">Not marked as better or worse: a limit was weakened in one of these weeks, so fewer stops could mean fewer urges or simply less blocking.</string>
+    <string name="report_streak_help">Weeks in a row without weakening a limit. Not a claim about your habits — a record of keeping a decision you made when you were thinking clearly.</string>
+    <string name="report_loosened_help">You changed these when you wanted the screen. Now is a calmer moment to decide whether that is how you want them.</string>
+    <string name="action_review_limits">Review the limits</string>
+    <string name="report_trend_title">The last few weeks</string>
+    <string name="report_days_title">By day</string>
+    <string name="report_days_caption">Times you were stopped on each day of last week.</string>
+    <string name="report_chart_peak">peak %1$d</string>
+    <plurals name="report_streak">
+        <item quantity="one">One week without weakening a limit</item>
+        <item quantity="other">%1$d weeks without weakening a limit</item>
+    </plurals>
+    <plurals name="report_loosened">
+        <item quantity="one">You weakened one limit last week</item>
+        <item quantity="other">You weakened %1$d limits last week</item>
+    </plurals>
+    <plurals name="report_partial_week">
+        <item quantity="one">Doorman only recorded one day of that week.</item>
+        <item quantity="other">Doorman only recorded %1$d days of that week.</item>
+    </plurals>
+    <string name="report_trend_caption">Times you were stopped, per week. The most recent is on the right.</string>
+    <string name="report_trend_caption_gap">Times you were stopped, per week. The most recent is on the right; a faint column is a week Doorman was not watching.</string>
 </resources>
