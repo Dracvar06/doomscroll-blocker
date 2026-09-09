@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="accessibility_service_description">Doorman mira qué pantalla tienes abierta en las aplicaciones que elijas, para poder tapar los flujos infinitos dejando intactos los mensajes, las búsquedas y los vídeos concretos.\n\nSolo lee la estructura de la pantalla — los nombres de los elementos que tienes delante. Nunca lee tus mensajes, contraseñas ni datos de la cuenta. Guarda un recuento de cuántas veces te ha parado, solo en tu teléfono. Nunca sale nada de él.</string>
+    <string name="accessibility_service_description">Doorman mira qué pantalla tienes abierta en las aplicaciones que elijas, para poder tapar los flujos infinitos dejando intactos los mensajes, las búsquedas y los vídeos concretos.\n\nSolo lee la estructura de la pantalla — los nombres de los elementos que tienes delante. Nunca lee tus mensajes, contraseñas ni datos de la cuenta. Guarda un recuento de cuántas veces te ha parado y de cuánto tiempo pasas en las aplicaciones que retienes, solo en tu teléfono. Nunca sale nada de él.</string>
 
     <string name="home_tagline">Los mensajes pasan. El flujo, no.</string>
     <string name="status_enabled">Doorman está activo</string>
@@ -248,4 +248,9 @@
     <string name="notify_service_off_body">La actualización ha desactivado el acceso de accesibilidad de Doorman, así que ahora mismo no retiene nada. Toca para volver a activarlo.</string>
     <string name="report_per_day">%1$s al día de media</string>
     <string name="report_this_week_caption">Veces que te ha parado cada día hasta ahora. Hoy es la barra más oscura.</string>
+    <string name="report_app_time_this_week">Tiempo por aplicación, esta semana</string>
+    <string name="report_app_time_last_week">Tiempo por aplicación, la semana pasada</string>
+    <string name="report_other_screens">otras</string>
+    <string name="report_app_time_caption">Tiempo que Doorman te ha visto en cada aplicación donde retiene algo, y qué pantallas ha podido nombrar. El tiempo mirando un bloqueo no cuenta: eso es una parada.</string>
+    <string name="notify_week_top_app">La mayor parte en %1$s: %2$s.</string>
 </resources>

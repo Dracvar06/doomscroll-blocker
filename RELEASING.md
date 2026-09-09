@@ -126,7 +126,7 @@ For the record, so the form is filled in the same way every time:
 | Question | Answer |
 |---|---|
 | Collects or shares data? | No — nothing leaves the device (no `INTERNET` permission) |
-| Data stored on device | App settings; a 70-day activity journal (stops, budget time, loosenings); user-initiated diagnostics reports (redacted) |
+| Data stored on device | App settings; a 70-day activity journal (stops, budget time, loosenings, time per held app and per recognised screen); user-initiated diagnostics reports (redacted) |
 | Encrypted in transit | N/A |
 | Deletion | Uninstall; the journal can be switched off in Settings |
 | Accessibility service purpose | Digital wellbeing — recognising which screen of a chosen app is open |

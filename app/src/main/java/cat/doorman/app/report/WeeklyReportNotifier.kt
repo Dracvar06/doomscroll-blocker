@@ -115,8 +115,8 @@ object WeeklyReportNotifier {
         val notification = NotificationCompat.Builder(context, CHANNEL)
             .setSmallIcon(R.drawable.ic_launcher_monochrome)
             .setContentTitle(context.getString(R.string.notify_week_title))
-            .setContentText(body)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setContentText(body + topAppLine(context, week))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body + topAppLine(context, week)))
             .setContentIntent(openReportIntent(context))
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -167,6 +167,18 @@ object WeeklyReportNotifier {
             @Suppress("MissingPermission")
             manager.notify(SERVICE_OFF_ID, notification)
         }
+    }
+
+    /** "Most of it in Instagram: 4 h 12 min." Only when there is something to say. */
+    private fun topAppLine(context: Context, week: WeekSummary): String {
+        val (pkg, millis) = week.apps.maxByOrNull { it.value } ?: return ""
+        if (millis < 60_000L) return ""
+        val label = runCatching {
+            val pm = context.packageManager
+            pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+        }.getOrDefault(pkg)
+        val minutes = TimeUnit.MILLISECONDS.toMinutes(millis).toInt()
+        return " " + context.getString(R.string.notify_week_top_app, label, durationText(context.resources, minutes))
     }
 
     private fun createChannel(context: Context) {

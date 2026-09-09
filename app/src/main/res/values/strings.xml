@@ -6,7 +6,7 @@
          disclosure Google Play requires before the permission is requested.
          It has to be true, specific, and readable by someone who is rightly
          suspicious of an app asking to read their screen. -->
-    <string name="accessibility_service_description">Doorman watches which screen is open in apps you choose, so it can cover endless feeds while leaving messages, searches and individual videos alone.\n\nIt reads only the structure of the screen — the names of the elements in front of you. It never reads your messages, passwords or account details. It keeps a count of how often it stopped you, on your phone only. Nothing ever leaves your phone.</string>
+    <string name="accessibility_service_description">Doorman watches which screen is open in apps you choose, so it can cover endless feeds while leaving messages, searches and individual videos alone.\n\nIt reads only the structure of the screen — the names of the elements in front of you. It never reads your messages, passwords or account details. It keeps a count of how often it stopped you and how long you spend in the apps you hold, on your phone only. Nothing ever leaves your phone.</string>
 
     <string name="home_tagline">Messages get through. The feed does not.</string>
     <string name="status_enabled">Doorman is on</string>
@@ -248,4 +248,9 @@
     <string name="notify_service_off_body">The update switched off Doorman\'s accessibility access, so nothing is being held right now. Tap to turn it back on.</string>
     <string name="report_per_day">%1$s a day on average</string>
     <string name="report_this_week_caption">Times you were stopped each day so far. Today is the darker bar.</string>
+    <string name="report_app_time_this_week">Time by app, this week</string>
+    <string name="report_app_time_last_week">Time by app, last week</string>
+    <string name="report_other_screens">other</string>
+    <string name="report_app_time_caption">Time Doorman saw you in each app it holds something in, and which screens it could name. Time spent looking at a block is not counted — that is a stop.</string>
+    <string name="notify_week_top_app">Most of it in %1$s: %2$s.</string>
 </resources>

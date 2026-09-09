@@ -209,7 +209,13 @@ class Prefs(private val context: Context) {
      * is written, so it is the only place it can grow, and a record that tidies
      * itself needs no job to remember to run.
      */
-    suspend fun recordToday(stops: Int = 0, spentMillis: Long = 0L, loosenings: Int = 0) {
+    suspend fun recordToday(
+        stops: Int = 0,
+        spentMillis: Long = 0L,
+        loosenings: Int = 0,
+        apps: Map<String, Long> = emptyMap(),
+        screens: Map<String, Long> = emptyMap(),
+    ) {
         val today = java.time.LocalDate.now()
         context.dataStore.edit { prefs ->
             // Checked here, inside the write, rather than at each call site:
@@ -222,6 +228,8 @@ class Prefs(private val context: Context) {
                 stops = stops,
                 spentMillis = spentMillis,
                 loosenings = loosenings,
+                apps = apps,
+                screens = screens,
             )
             prefs[Keys.JOURNAL] = journalJson.encodeToString(Journal.prune(updated, today))
         }

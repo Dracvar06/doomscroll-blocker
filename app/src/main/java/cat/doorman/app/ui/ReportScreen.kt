@@ -69,6 +69,7 @@ fun WeeklyReport(
     coffeeNudge: Boolean = false,
     onCoffee: () -> Unit = {},
     onNotNow: () -> Unit = {},
+    appTimesFor: (WeekSummary) -> List<AppTime> = { emptyList() },
 ) {
     val weeks = Journal.recentWeeks(days, today, count = WEEKS_CHARTED)
     val justGone = weeks.last()
@@ -90,8 +91,10 @@ fun WeeklyReport(
     StreakCard(Journal.weeksWithoutLoosening(days, today))
     if (justGone.loosenings > 0) LooseningCard(justGone.loosenings, onReviewLimits)
     ThisWeekCard(Journal.daysOf(days, thisWeek.monday), thisWeek, today)
+    AppTimeCard(stringResource(R.string.report_app_time_this_week), appTimesFor(thisWeek))
     TrendCard(weeks)
     DayCard(Journal.daysOf(days, justGone.monday), justGone)
+    AppTimeCard(stringResource(R.string.report_app_time_last_week), appTimesFor(justGone))
     if (coffeeNudge) SupportNudgeCard(onCoffee, onNotNow)
 }
 
@@ -645,5 +648,94 @@ private fun Figure(label: String, value: String) {
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.primary,
         )
+    }
+}
+
+// ------------------------------------------------------------- by app
+
+/**
+ * Time in one held app, with the part of it Doorman could name.
+ *
+ * Built outside this file, because naming needs the rules and the string
+ * table; the card only needs labels and numbers.
+ */
+data class AppTime(
+    val label: String,
+    val millis: Long,
+    /** Recognised screens inside the app, largest first. */
+    val screens: List<Pair<String, Long>>,
+)
+
+/**
+ * The screen-time card, with the one thing a screen-time app cannot do: say
+ * which part of the app the time went to. "Four hours in Instagram" is what
+ * the phone already says. "Three of them in Stories, with Reels blocked" is
+ * what changes what somebody does next.
+ *
+ * Only time Doorman was there for, and never time spent looking at a block;
+ * the caption says so, because a figure that quietly differs from the
+ * phone's own is a figure that gets called a bug.
+ */
+@Composable
+private fun AppTimeCard(title: String, times: List<AppTime>) {
+    if (times.isEmpty()) return
+    val most = times.maxOf { it.millis }.coerceAtLeast(1L)
+    Card {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            times.forEach { app ->
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(app.label, style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            durationLabel((app.millis / 60_000L).toInt()),
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                    // A bar scaled to the longest app, so the eye ranks them
+                    // before the numbers are read.
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(app.millis.toFloat() / most)
+                                .height(6.dp)
+                                .background(MaterialTheme.colorScheme.primary),
+                        )
+                    }
+                    val other = app.millis - app.screens.sumOf { it.second }
+                    val otherLabel = stringResource(R.string.report_other_screens)
+                    val res = LocalResources.current
+                    val parts = app.screens +
+                        (if (other >= 60_000L) listOf(otherLabel to other) else emptyList())
+                    if (parts.isNotEmpty()) {
+                        Text(
+                            parts.joinToString(" · ") { (label, ms) ->
+                                "$label ${durationText(res, (ms / 60_000L).toInt())}"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+            Text(
+                stringResource(R.string.report_app_time_caption),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }

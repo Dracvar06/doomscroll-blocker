@@ -74,6 +74,19 @@ class JournalShapeTest {
     }
 
     @Test
+    fun `app and screen time add up across the day and the week`() {
+        var days = Journal.record(emptyList(), LocalDate.parse("2026-08-25"),
+            apps = mapOf("ig" to 1_000L), screens = mapOf("ig_stories" to 600L))
+        days = Journal.record(days, LocalDate.parse("2026-08-25"),
+            apps = mapOf("ig" to 500L, "yt" to 200L), screens = mapOf("ig_stories" to 100L))
+        days = Journal.record(days, LocalDate.parse("2026-08-26"), apps = mapOf("ig" to 1L))
+
+        val week = Journal.week(days, LocalDate.parse("2026-08-24"))
+        assertEquals(mapOf("ig" to 1_501L, "yt" to 200L), week.apps)
+        assertEquals(mapOf("ig_stories" to 700L), week.screens)
+    }
+
+    @Test
     fun `the days of a week come back Monday first`() {
         val days = Journal.daysOf(
             days = listOf(day("2026-08-31", 3), day("2026-09-06", 9)),

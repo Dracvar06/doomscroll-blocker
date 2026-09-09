@@ -26,6 +26,18 @@ data class DayRecord(
     val stops: Int = 0,
     val spentMillis: Long = 0L,
     val loosenings: Int = 0,
+    /**
+     * Time in front of each held app, by package. Only apps with something
+     * held in them, and never the time spent looking at a block: that is a
+     * stop, and it is counted as one.
+     */
+    val apps: Map<String, Long> = emptyMap(),
+    /**
+     * The same time split by recognised screen, by rule id. What no rule
+     * recognises -- a conversation, a profile -- is the app total minus these,
+     * and is shown as "other" rather than guessed at.
+     */
+    val screens: Map<String, Long> = emptyMap(),
 )
 
 /** What a week came to, and how much of it Doorman was actually there for. */
@@ -35,6 +47,8 @@ data class WeekSummary(
     val spentMillis: Long,
     val loosenings: Int,
     val daysRecorded: Int,
+    val apps: Map<String, Long> = emptyMap(),
+    val screens: Map<String, Long> = emptyMap(),
 ) {
     val isEmpty: Boolean get() = daysRecorded == 0
 }
@@ -74,6 +88,8 @@ object Journal {
         stops: Int = 0,
         spentMillis: Long = 0L,
         loosenings: Int = 0,
+        apps: Map<String, Long> = emptyMap(),
+        screens: Map<String, Long> = emptyMap(),
     ): List<DayRecord> {
         val key = date.toString()
         val existing = days.firstOrNull { it.date == key }
@@ -82,6 +98,8 @@ object Journal {
             stops = existing.stops + stops,
             spentMillis = existing.spentMillis + spentMillis,
             loosenings = existing.loosenings + loosenings,
+            apps = sumByKey(existing.apps, apps),
+            screens = sumByKey(existing.screens, screens),
         )
         return days.filterNot { it.date == key } + updated
     }
@@ -107,8 +125,13 @@ object Journal {
             spentMillis = inWeek.sumOf { it.spentMillis },
             loosenings = inWeek.sumOf { it.loosenings },
             daysRecorded = inWeek.size,
+            apps = inWeek.fold(emptyMap()) { acc, row -> sumByKey(acc, row.apps) },
+            screens = inWeek.fold(emptyMap()) { acc, row -> sumByKey(acc, row.screens) },
         )
     }
+
+    fun sumByKey(a: Map<String, Long>, b: Map<String, Long>): Map<String, Long> =
+        (a.keys + b.keys).associateWith { (a[it] ?: 0L) + (b[it] ?: 0L) }
 
     /**
      * The week just gone and the one before it, for comparing.

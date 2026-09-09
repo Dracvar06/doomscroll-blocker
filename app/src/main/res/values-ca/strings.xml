@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="accessibility_service_description">Doorman mira quina pantalla tens oberta a les aplicacions que triïs, per poder tapar els fluxos infinits deixant intactes els missatges, les cerques i els vídeos concrets.\n\nNomés llegeix l\'estructura de la pantalla — els noms dels elements que tens al davant. No llegeix mai els teus missatges, contrasenyes ni dades del compte. Guarda un recompte de quantes vegades t\'ha aturat, només al teu telèfon. No en surt mai res.</string>
+    <string name="accessibility_service_description">Doorman mira quina pantalla tens oberta a les aplicacions que triïs, per poder tapar els fluxos infinits deixant intactes els missatges, les cerques i els vídeos concrets.\n\nNomés llegeix l\'estructura de la pantalla — els noms dels elements que tens al davant. No llegeix mai els teus missatges, contrasenyes ni dades del compte. Guarda un recompte de quantes vegades t\'ha aturat i de quant temps passes a les aplicacions que retens, només al teu telèfon. No en surt mai res.</string>
 
     <string name="home_tagline">Els missatges passen. El flux, no.</string>
     <string name="status_enabled">Doorman està actiu</string>
@@ -244,4 +244,9 @@
     <string name="notify_service_off_body">L\'actualització ha desactivat l\'accés d\'accessibilitat de Doorman, així que ara mateix no reté res. Toca per tornar-lo a activar.</string>
     <string name="report_per_day">%1$s al dia de mitjana</string>
     <string name="report_this_week_caption">Vegades que t\'ha aturat cada dia fins ara. Avui és la barra més fosca.</string>
+    <string name="report_app_time_this_week">Temps per aplicació, aquesta setmana</string>
+    <string name="report_app_time_last_week">Temps per aplicació, la setmana passada</string>
+    <string name="report_other_screens">altres</string>
+    <string name="report_app_time_caption">Temps que Doorman t\'ha vist a cada aplicació on reté alguna cosa, i quines pantalles ha pogut anomenar. El temps mirant un bloqueig no compta: això és una aturada.</string>
+    <string name="notify_week_top_app">La major part a %1$s: %2$s.</string>
 </resources>

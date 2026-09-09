@@ -30,8 +30,11 @@ nowhere else.
 
 - **Your decisions**: which screens are held, budgets, delays, language.
 - **A daily journal**: how many times Doorman stopped you, how much time was
-  counted against a budget, and how many limits you weakened. One row per day,
-  kept for 70 days, then deleted. This feeds the weekly report and can be
+  counted against a budget, how many limits you weakened, and how long each
+  app you hold something in was in front of you — split by the screens
+  Doorman recognises (for example, Stories versus Reels). Only apps with a
+  block or limit in them; time spent looking at a block is not counted. One
+  row per day, kept for 70 days, then deleted. This feeds the weekly report and can be
   switched off in Settings → Weekly report, which also stops recording.
 - **A diagnostics report, only if you make one**: from Settings → "Doesn't
   work?", you can capture the structure of a screen to help fix a broken rule.

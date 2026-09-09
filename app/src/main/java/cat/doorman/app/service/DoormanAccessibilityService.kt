@@ -188,6 +188,9 @@ class DoormanAccessibilityService : AccessibilityService() {
     override fun onUnbind(intent: Intent?): Boolean {
         instance = null
         stopClock()
+        presenceClock.stop()
+        flushPresence()
+        handler.removeCallbacks(presenceTick)
         scrollBudget.reset()
         serviceScope.cancel()
         handler.removeCallbacks(evaluate)
@@ -337,6 +340,13 @@ class DoormanAccessibilityService : AccessibilityService() {
         rules.supportedPackages + appLimits.filterValues { !it.isOff }.keys
 
     private fun evaluateCurrentScreen() {
+        evaluateCurrentScreenNow()
+        // Whatever was decided -- blocked, allowed, not recognised -- is the
+        // state the presence clock should be timing from here on.
+        notePresence()
+    }
+
+    private fun evaluateCurrentScreenNow() {
         lastEvaluationAt = SystemClock.uptimeMillis()
         val snapshot = SnapshotCapture.capture(this, preferPackage = lastPackage)
         // A game is often one drawing surface with nothing readable in it, so
@@ -587,6 +597,80 @@ class DoormanAccessibilityService : AccessibilityService() {
 
     private var lastFlushAt = 0L
 
+    // ------------------------------------------------------------ presence
+
+    /**
+     * How long each held app, and each recognised screen in it, is in front.
+     *
+     * Separate from the allowance clock, which only runs where a budget
+     * applies. This one runs for any app with anything held in it -- Reels
+     * blocked but Stories open still counts the Stories -- because "you spent
+     * four hours in Instagram this week" is the sentence somebody who blocked
+     * Reels most needs to hear, and no budget would ever have produced it.
+     */
+    private val presenceClock = PresenceClock { System.currentTimeMillis() }
+    private var presenceTicking = false
+    private var lastPresenceFlushAt = 0L
+
+    private val presenceTick = Runnable {
+        presenceTicking = false
+        notePresence()
+        flushPresence()
+    }
+
+    /**
+     * Tells the clock what is in front right now: a held app and, when a rule
+     * recognised it, which screen. Nothing when the screen is off, when the
+     * app is not held, or when a block is standing -- time spent looking at
+     * Doorman's overlay is a stop, and it is already counted as one.
+     */
+    private fun notePresence() {
+        val power = getSystemService(android.os.PowerManager::class.java)
+        val pkg = lastPackage
+        val canonical = pkg?.let { rules.canonicalPackage(it) ?: it }
+        val watching = when {
+            power?.isInteractive == false -> emptyList()
+            canonical == null || !isHeld(canonical) -> emptyList()
+            ::overlay.isInitialized && overlay.isShowing -> emptyList()
+            else -> listOfNotNull(
+                "$PRESENCE_APP|$canonical",
+                lastEvaluatedScreenId?.let { "$PRESENCE_SCREEN|$it" },
+            )
+        }
+        if (watching.isEmpty()) {
+            presenceClock.stop()
+            flushPresence()
+            return
+        }
+        presenceClock.tick(watching)
+        if (!presenceTicking) {
+            presenceTicking = true
+            handler.postDelayed(presenceTick, PRESENCE_TICK_MS)
+        }
+    }
+
+    /** An app with at least one screen held, or held as a whole. */
+    private fun isHeld(canonical: String): Boolean {
+        val app = rules.apps[canonical]
+        if (app != null && app.screens.any { it.id in enabledScreenIds }) return true
+        return !(appLimits[canonical] ?: Limits.OFF).isOff
+    }
+
+    private fun flushPresence() {
+        val now = System.currentTimeMillis()
+        if (now - lastPresenceFlushAt < FLUSH_INTERVAL_MS && presenceTicking) return
+        val pending = presenceClock.drain()
+        if (pending.isEmpty()) return
+        lastPresenceFlushAt = now
+        val apps = pending.filterKeys { it.startsWith("$PRESENCE_APP|") }
+            .mapKeys { it.key.substringAfter('|') }
+        val screens = pending.filterKeys { it.startsWith("$PRESENCE_SCREEN|") }
+            .mapKeys { it.key.substringAfter('|') }
+        serviceScope.launch {
+            Prefs(this@DoormanAccessibilityService).recordToday(apps = apps, screens = screens)
+        }
+    }
+
     /**
      * Which target the block currently standing is for, so one encounter counts
      * once. Cleared the moment the screen is let through again.
@@ -633,6 +717,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         // to the app being left rather than the one being entered.
         stopClock()
         lastPackage = pkg
+        notePresence()
         val relevance = if (pkg in rules.supportedPackages) "SUPPORTED" else "ignored"
         Log.i(TAG, "foreground: ${previous ?: "(none)"} -> $pkg [$relevance] window=${event.className}")
     }
@@ -685,6 +770,9 @@ class DoormanAccessibilityService : AccessibilityService() {
 
         const val TAG = "Doorman"
         const val ACTION_DUMP = "cat.doorman.app.DUMP"
+        private const val PRESENCE_APP = "app"
+        private const val PRESENCE_SCREEN = "screen"
+        private const val PRESENCE_TICK_MS = 30_000L
 
         /** Long enough to ride out a burst of feed updates, short enough that
          *  the block still lands before the user has read anything. */

@@ -307,6 +307,7 @@ class MainActivity : ComponentActivity() {
                                     use = watchedUse,
                                     onAskForUsageAccess = { askForUsageAccess() },
                                     onReviewLimits = { tab = Tab.BLOCKS },
+                                    appTimesFor = { week -> appTimes(week) },
                                     coffeeNudge = coffeeNudgeDue(),
                                     onCoffee = { openCoffee() },
                                     onNotNow = { stampCoffeeNudge() },
@@ -880,6 +881,25 @@ class MainActivity : ComponentActivity() {
     private fun stampCoffeeNudge() {
         lifecycleScope.launch { prefs.setCoffeeNudgedOn(java.time.LocalDate.now().toString()) }
     }
+
+    /**
+     * Names for the report's screen-time card. Screens under a minute are
+     * dropped: a "Reels 0 min" line next to a blocked Reels would read as the
+     * block leaking.
+     */
+    private fun appTimes(week: cat.doorman.app.limits.WeekSummary): List<AppTime> =
+        week.apps.entries
+            .filter { it.value >= 60_000L }
+            .sortedByDescending { it.value }
+            .map { (pkg, millis) ->
+                val screens = rules.apps[pkg]?.screens.orEmpty()
+                    .mapNotNull { screen ->
+                        val ms = week.screens[screen.id] ?: return@mapNotNull null
+                        if (ms < 60_000L) null else labelFor(labelKeyFor(screen.id)) to ms
+                    }
+                    .sortedByDescending { it.second }
+                AppTime(label = appLabelFor(pkg), millis = millis, screens = screens)
+            }
 
     private fun askForUsageAccess() {
         // No dialog exists for this one; the most an app may do is open the
