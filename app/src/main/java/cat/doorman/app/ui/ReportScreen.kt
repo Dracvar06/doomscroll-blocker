@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
@@ -22,6 +23,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -86,9 +89,9 @@ fun WeeklyReport(
     HeadlineCard(use, justGone, weekBefore, onAskForUsageAccess)
     StreakCard(Journal.weeksWithoutLoosening(days, today))
     if (justGone.loosenings > 0) LooseningCard(justGone.loosenings, onReviewLimits)
+    ThisWeekCard(Journal.daysOf(days, thisWeek.monday), thisWeek, today)
     TrendCard(weeks)
     DayCard(Journal.daysOf(days, justGone.monday), justGone)
-    ThisWeekCard(thisWeek)
     if (coffeeNudge) SupportNudgeCard(onCoffee, onNotNow)
 }
 
@@ -166,6 +169,18 @@ private fun HeadlineCard(
                 Text(
                     stringResource(R.string.report_usage_title),
                     style = MaterialTheme.typography.bodyMedium,
+                )
+                // A week total is hard to feel; a day is not. Android's figure
+                // covers the whole week whether or not Doorman was watching,
+                // so dividing by seven is honest here in a way it would not be
+                // for Doorman's own counts.
+                Text(
+                    stringResource(
+                        R.string.report_per_day,
+                        durationLabel((use.lastWeekMillis / 7 / 60_000L).toInt()),
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 val before = use.weekBeforeMillis
                 if (before == null) {
@@ -376,23 +391,37 @@ private fun TrendCard(weeks: List<WeekSummary>) {
 @Composable
 private fun DayCard(days: List<DayRecord?>, week: WeekSummary) {
     if (week.isEmpty) return
-    val locale = LocalResources.current.configuration.locales[0]
     ChartCard(
         title = stringResource(R.string.report_days_title),
         caption = stringResource(R.string.report_days_caption),
-        bars = days.mapIndexed { index, day ->
-            Bar(
-                label = DayOfWeek.of(index + 1)
-                    .getDisplayName(TextStyle.SHORT, locale)
-                    .take(2),
-                value = day?.stops ?: 0,
-                recorded = day != null,
-            )
-        },
+        bars = dayBars(days),
     )
 }
 
-private class Bar(val label: String, val value: Int, val recorded: Boolean)
+@Composable
+private fun dayBars(days: List<DayRecord?>, today: LocalDate? = null, monday: LocalDate? = null): List<Bar> {
+    val locale = LocalResources.current.configuration.locales[0]
+    return days.mapIndexed { index, day ->
+        val date = monday?.plusDays(index.toLong())
+        Bar(
+            label = DayOfWeek.of(index + 1).getDisplayName(TextStyle.SHORT, locale).take(2),
+            value = day?.stops ?: 0,
+            recorded = day != null,
+            emphasis = date != null && date == today,
+            future = date != null && today != null && date.isAfter(today),
+        )
+    }
+}
+
+private class Bar(
+    val label: String,
+    val value: Int,
+    val recorded: Boolean,
+    /** Today: drawn stronger, because it is the one still being written. */
+    val emphasis: Boolean = false,
+    /** A day that has not happened yet: drawn as nothing, not as a gap. */
+    val future: Boolean = false,
+)
 
 @Composable
 private fun ChartCard(title: String, caption: String, bars: List<Bar>) {
@@ -407,13 +436,17 @@ private fun ChartCard(title: String, caption: String, bars: List<Bar>) {
                 verticalAlignment = Alignment.Bottom,
             ) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    stringResource(R.string.report_chart_peak, bars.maxOf { it.value }),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                // The peak is only worth printing when the bars themselves
+                // carry no numbers.
+                if (bars.size > 7) {
+                    Text(
+                        stringResource(R.string.report_chart_peak, bars.maxOf { it.value }),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
-            BarChart(bars)
+            BarChart(bars, showValues = bars.size <= 7)
             Text(
                 caption,
                 style = MaterialTheme.typography.bodySmall,
@@ -435,10 +468,19 @@ private fun ChartCard(title: String, caption: String, bars: List<Bar>) {
  * not read alike.
  */
 @Composable
-private fun BarChart(bars: List<Bar>, height: Dp = 84.dp) {
+private fun BarChart(bars: List<Bar>, showValues: Boolean = false, height: Dp = 84.dp) {
     val peak = bars.maxOfOrNull { it.value }?.coerceAtLeast(1) ?: 1
+    // Read aloud as a list of values: a chart an accessibility service cannot
+    // describe would be a poor joke from an app built on one.
+    val spoken = bars.filter { !it.future }.joinToString { bar ->
+        if (bar.recorded) "${bar.label} ${bar.value}" else "${bar.label} –"
+    }
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            // Headroom for the values, which sit above the tallest bar.
+            .padding(top = if (showValues) VALUE_LIFT else 0.dp)
+            .semantics { contentDescription = spoken },
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         bars.forEach { bar ->
@@ -451,7 +493,18 @@ private fun BarChart(bars: List<Bar>, height: Dp = 84.dp) {
                     modifier = Modifier.fillMaxWidth().height(height),
                     contentAlignment = Alignment.BottomCenter,
                 ) {
-                    Box(
+                    if (showValues && bar.recorded && bar.value > 0) {
+                        Text(
+                            bar.value.toString(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .padding(bottom = 2.dp)
+                                .offset(y = height * (1f - bar.value.toFloat() / peak) - VALUE_LIFT),
+                        )
+                    }
+                    if (!bar.future) Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             // Full height, faint: a week Doorman did not watch
@@ -467,10 +520,11 @@ private fun BarChart(bars: List<Bar>, height: Dp = 84.dp) {
                             )
                             .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
                             .background(
-                                if (bar.recorded) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f)
+                                when {
+                                    !bar.recorded ->
+                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.07f)
+                                    bar.emphasis -> MaterialTheme.colorScheme.primary
+                                    else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
                                 },
                             ),
                     )
@@ -489,6 +543,9 @@ private fun BarChart(bars: List<Bar>, height: Dp = 84.dp) {
 
 private val STUB = 3.dp
 
+/** How far above its bar a value sits. */
+private val VALUE_LIFT = 16.dp
+
 // -------------------------------------------------------------- this week
 
 /**
@@ -500,7 +557,7 @@ private val STUB = 3.dp
  * from it.
  */
 @Composable
-private fun ThisWeekCard(week: WeekSummary) {
+private fun ThisWeekCard(days: List<DayRecord?>, week: WeekSummary, today: LocalDate) {
     Card {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -510,6 +567,17 @@ private fun ThisWeekCard(week: WeekSummary) {
                 stringResource(R.string.report_this_week),
                 style = MaterialTheme.typography.titleMedium,
             )
+            // The week being lived, day by day, with today drawn stronger.
+            // For somebody in their first week this is the whole report, and
+            // it should look like one rather than like a footnote.
+            if (!week.isEmpty) {
+                BarChart(dayBars(days, today, week.monday), showValues = true)
+                Text(
+                    stringResource(R.string.report_this_week_caption),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Figure(stringResource(R.string.report_stops), week.stops.toString())
             Figure(
                 stringResource(R.string.report_time),

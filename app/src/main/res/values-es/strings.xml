@@ -246,4 +246,6 @@
     <string name="notify_channel_service_help">Solo si una actualización ha apagado Doorman.</string>
     <string name="notify_service_off_title">Doorman está apagado</string>
     <string name="notify_service_off_body">La actualización ha desactivado el acceso de accesibilidad de Doorman, así que ahora mismo no retiene nada. Toca para volver a activarlo.</string>
+    <string name="report_per_day">%1$s al día de media</string>
+    <string name="report_this_week_caption">Veces que te ha parado cada día hasta ahora. Hoy es la barra más oscura.</string>
 </resources>

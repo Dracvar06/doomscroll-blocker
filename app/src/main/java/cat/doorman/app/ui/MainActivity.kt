@@ -12,6 +12,7 @@ import android.os.LocaleList
 import android.provider.Settings
 import android.view.accessibility.AccessibilityManager
 import androidx.activity.ComponentActivity
+import androidx.compose.animation.Crossfade
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -293,7 +294,12 @@ class MainActivity : ComponentActivity() {
                                         }
                                     },
                                 )
-                            } else if (tutorialSeen == true) when (tab) {
+                            } else if (tutorialSeen == true) Crossfade(
+                                targetState = tab,
+                                label = "tab",
+                            ) { shown ->
+                                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                    when (shown) {
                                 Tab.BLOCKS -> BlocksTab()
                                 Tab.REPORT -> WeeklyReport(
                                     days = journal,
@@ -306,6 +312,8 @@ class MainActivity : ComponentActivity() {
                                     onNotNow = { stampCoffeeNudge() },
                                 )
                                 Tab.SETTINGS -> SettingsTab()
+                                    }
+                                }
                             }
                             Screen.UNLOCK -> UnlockScreen(
                                 rules = rules,

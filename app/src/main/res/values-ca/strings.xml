@@ -242,4 +242,6 @@
     <string name="notify_channel_service_help">Només si una actualització ha apagat Doorman.</string>
     <string name="notify_service_off_title">Doorman està apagat</string>
     <string name="notify_service_off_body">L\'actualització ha desactivat l\'accés d\'accessibilitat de Doorman, així que ara mateix no reté res. Toca per tornar-lo a activar.</string>
+    <string name="report_per_day">%1$s al dia de mitjana</string>
+    <string name="report_this_week_caption">Vegades que t\'ha aturat cada dia fins ara. Avui és la barra més fosca.</string>
 </resources>
