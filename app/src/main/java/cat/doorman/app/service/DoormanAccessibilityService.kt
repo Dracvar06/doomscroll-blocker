@@ -313,6 +313,9 @@ class DoormanAccessibilityService : AccessibilityService() {
      */
     private var lastEvaluatedScreenId: String? = null
 
+    /** What the rules call the current screen, held or not. Null when nothing matches. */
+    private var lastRecognisedScreenId: String? = null
+
     /** The app the user was in just before the one in front of them. */
     private var arrivedFromPackage: String? = null
 
@@ -381,6 +384,11 @@ class DoormanAccessibilityService : AccessibilityService() {
             ScreenEvaluator.evaluate(snapshot, rules, enabledScreenIds, arrivedFromAnotherApp)
         } else {
             ScreenEvaluator.Verdict.ALLOW
+        }
+        // For the presence clock, not for blocking: the screen's name whether
+        // or not it is held, so time in an unblocked Stories is called Stories.
+        lastRecognisedScreenId = snapshot?.let {
+            ScreenEvaluator.recognise(it, rules, arrivedFromAnotherApp)
         }
         Log.i(
             TAG,
@@ -634,7 +642,7 @@ class DoormanAccessibilityService : AccessibilityService() {
             ::overlay.isInitialized && overlay.isShowing -> emptyList()
             else -> listOfNotNull(
                 "$PRESENCE_APP|$canonical",
-                lastEvaluatedScreenId?.let { "$PRESENCE_SCREEN|$it" },
+                lastRecognisedScreenId?.let { "$PRESENCE_SCREEN|$it" },
             )
         }
         if (watching.isEmpty()) {
@@ -717,6 +725,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         // to the app being left rather than the one being entered.
         stopClock()
         lastPackage = pkg
+        lastRecognisedScreenId = null
         notePresence()
         val relevance = if (pkg in rules.supportedPackages) "SUPPORTED" else "ignored"
         Log.i(TAG, "foreground: ${previous ?: "(none)"} -> $pkg [$relevance] window=${event.className}")

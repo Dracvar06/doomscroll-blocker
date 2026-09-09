@@ -44,6 +44,27 @@ object ScreenEvaluator {
      * screen someone needs teaches them to bypass the app, which is a far worse
      * failure than missing a feed.
      */
+    /**
+     * Which known screen this is, whether or not the user holds it.
+     *
+     * [evaluate] only looks at the screens that are switched on, because it
+     * decides what to block. This looks at all of them, because the report
+     * needs to say "three hours in Stories" precisely when Stories is the
+     * screen somebody chose not to block. Same rules, same order, so the name
+     * given here is the one a block would have used.
+     */
+    fun recognise(
+        snapshot: ScreenSnapshot,
+        rules: RuleSet,
+        arrivedFromAnotherApp: Boolean = false,
+    ): String? {
+        val app = rules.appFor(snapshot.packageName) ?: return null
+        return app.screens.firstOrNull { rule ->
+            val matcher = rule.match ?: return@firstOrNull false
+            matches(snapshot, matcher, arrivedFromAnotherApp)
+        }?.id
+    }
+
     fun evaluate(
         snapshot: ScreenSnapshot,
         rules: RuleSet,
