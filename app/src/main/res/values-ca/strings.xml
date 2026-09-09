@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="accessibility_service_description">Doorman mira quina pantalla tens oberta a les aplicacions que triïs, per poder tapar els fluxos infinits deixant intactes els missatges, les cerques i els vídeos concrets.\n\nNomés llegeix l\'estructura de la pantalla — els noms dels elements que tens al davant. No llegeix mai els teus missatges, contrasenyes ni dades del compte. No es desa res, i no surt mai res del teu telèfon.</string>
+    <string name="accessibility_service_description">Doorman mira quina pantalla tens oberta a les aplicacions que triïs, per poder tapar els fluxos infinits deixant intactes els missatges, les cerques i els vídeos concrets.\n\nNomés llegeix l\'estructura de la pantalla — els noms dels elements que tens al davant. No llegeix mai els teus missatges, contrasenyes ni dades del compte. Guarda un recompte de quantes vegades t\'ha aturat, només al teu telèfon. No en surt mai res.</string>
 
     <string name="home_tagline">Els missatges passen. El flux, no.</string>
     <string name="status_enabled">Doorman està actiu</string>
@@ -232,4 +232,10 @@
     </plurals>
     <string name="report_trend_caption">Vegades que t\'ha aturat, per setmana. La més recent és a la dreta.</string>
     <string name="report_trend_caption_gap">Vegades que t\'ha aturat, per setmana. La més recent és a la dreta; una columna esvaïda és una setmana que Doorman no vigilava.</string>
+    <string name="support_title">Dona suport a Doorman</string>
+    <string name="support_body">Doorman és gratuït i ho seguirà sent: sense anuncis, sense subscripció, sense vendre res. Si t\'ajuda i vols ajudar-me a seguir fent coses com aquesta, em pots convidar a un cafè. Funciona exactament igual tant si ho fas com si no.</string>
+    <string name="action_coffee">Convida\'m a un cafè</string>
+    <string name="action_not_now">Ara no</string>
+    <string name="support_nudge_title">Doorman encara et serveix?</string>
+    <string name="support_nudge_body">Seguirà sent gratuït. Si vols ajudar que ho continuï sent, hi ha un botó de cafè. Aquesta nota surt un cop cada temporada, només aquí, i mai com a notificació.</string>
 </resources>

@@ -63,6 +63,9 @@ fun WeeklyReport(
     use: WatchedUse?,
     onAskForUsageAccess: () -> Unit,
     onReviewLimits: () -> Unit,
+    coffeeNudge: Boolean = false,
+    onCoffee: () -> Unit = {},
+    onNotNow: () -> Unit = {},
 ) {
     val weeks = Journal.recentWeeks(days, today, count = WEEKS_CHARTED)
     val justGone = weeks.last()
@@ -86,6 +89,36 @@ fun WeeklyReport(
     TrendCard(weeks)
     DayCard(Journal.daysOf(days, justGone.monday), justGone)
     ThisWeekCard(thisWeek)
+    if (coffeeNudge) SupportNudgeCard(onCoffee, onNotNow)
+}
+
+/**
+ * Last on the page, once a season, only for people with a month of use behind
+ * them. Below the figures rather than above: somebody came here to see their
+ * week, and the ask waits until they have.
+ */
+@Composable
+private fun SupportNudgeCard(onCoffee: () -> Unit, onNotNow: () -> Unit) {
+    Card {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                stringResource(R.string.support_nudge_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                stringResource(R.string.support_nudge_body),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = onCoffee) { Text(stringResource(R.string.action_coffee)) }
+                TextButton(onClick = onNotNow) { Text(stringResource(R.string.action_not_now)) }
+            }
+        }
+    }
 }
 
 /** Eight bars is two months: long enough for a shape, short enough to read. */

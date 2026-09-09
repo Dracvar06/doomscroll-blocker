@@ -155,6 +155,7 @@ class MainActivity : ComponentActivity() {
      * walkthrough at every returning user for the length of one disk read.
      */
     private var tutorialSeen by mutableStateOf<Boolean?>(null)
+    private var coffeeNudgedOn by mutableStateOf<String?>(null)
 
     /** So opening the report twice in one sitting is not two prompts. */
     private var hasAskedToNotify = false
@@ -199,6 +200,7 @@ class MainActivity : ComponentActivity() {
         }
         lifecycleScope.launch { prefs.journal.collectLatest { journal = it } }
         lifecycleScope.launch { prefs.tutorialSeen.collectLatest { tutorialSeen = it } }
+        lifecycleScope.launch { prefs.coffeeNudgedOn.collectLatest { coffeeNudgedOn = it } }
         lifecycleScope.launch {
             prefs.weeklyReport.collectLatest { on ->
                 weeklyReport = on
@@ -275,9 +277,22 @@ class MainActivity : ComponentActivity() {
                         )
                         when (screen) {
                             Screen.HOME -> if (tutorialSeen == false) {
-                                Tutorial(onDone = {
-                                    lifecycleScope.launch { prefs.setTutorialSeen(true) }
-                                })
+                                Tutorial(
+                                    languageSupported =
+                                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU,
+                                    languageTag = appLocaleTag(),
+                                    onPickLanguage = { tag -> setAppLocale(tag) },
+                                    onCoffee = { openCoffee() },
+                                    onDone = {
+                                        lifecycleScope.launch {
+                                            // Stamped now so the first seasonal
+                                            // reminder is a season after install,
+                                            // not the first time the report opens.
+                                            prefs.setCoffeeNudgedOn(java.time.LocalDate.now().toString())
+                                            prefs.setTutorialSeen(true)
+                                        }
+                                    },
+                                )
                             } else if (tutorialSeen == true) when (tab) {
                                 Tab.BLOCKS -> BlocksTab()
                                 Tab.REPORT -> WeeklyReport(
@@ -286,6 +301,9 @@ class MainActivity : ComponentActivity() {
                                     use = watchedUse,
                                     onAskForUsageAccess = { askForUsageAccess() },
                                     onReviewLimits = { tab = Tab.BLOCKS },
+                                    coffeeNudge = coffeeNudgeDue(),
+                                    onCoffee = { openCoffee() },
+                                    onNotNow = { stampCoffeeNudge() },
                                 )
                                 Tab.SETTINGS -> SettingsTab()
                             }
@@ -488,6 +506,18 @@ class MainActivity : ComponentActivity() {
                 currentTag = appLocaleTag(),
                 onPick = { tag -> setAppLocale(tag) },
             )
+
+            Text(
+                stringResource(R.string.support_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                stringResource(R.string.support_body),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            TextButton(onClick = { openCoffee() }) {
+                Text(stringResource(R.string.action_coffee))
+            }
 
             // The walkthrough explains the change delay and the pass, which
             // are the two things people forget how to use. Somewhere to find
@@ -825,6 +855,22 @@ class MainActivity : ComponentActivity() {
             packages = rules.supportedPackages + appLimits.keys,
             today = java.time.LocalDate.now(),
         )
+    }
+
+    /**
+     * Once a season, and only once there is a month of use to have an opinion
+     * about. Never a notification, never a dialog: it is a card at the bottom
+     * of a screen the user chose to open.
+     */
+    private fun coffeeNudgeDue(): Boolean {
+        if (journal.size < COFFEE_NUDGE_MIN_DAYS_RECORDED) return false
+        val last = coffeeNudgedOn?.let { runCatching { java.time.LocalDate.parse(it) }.getOrNull() }
+            ?: return true
+        return java.time.temporal.ChronoUnit.DAYS.between(last, java.time.LocalDate.now()) >= COFFEE_NUDGE_DAYS
+    }
+
+    private fun stampCoffeeNudge() {
+        lifecycleScope.launch { prefs.setCoffeeNudgedOn(java.time.LocalDate.now().toString()) }
     }
 
     private fun askForUsageAccess() {

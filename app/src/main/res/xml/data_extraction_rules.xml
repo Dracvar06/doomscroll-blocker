@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12 and later. Diagnostics dumps stay out of cloud backup and
+  device-to-device transfer: the in-app ones are redacted, but a debug build can
+  write unredacted ones, and neither has any business in somebody's Google
+  account. The rest (the user's decisions and the weekly journal) is small,
+  theirs, and worth keeping across a new phone.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="external" path="dumps/" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="external" path="dumps/" />
+    </device-transfer>
+</data-extraction-rules>

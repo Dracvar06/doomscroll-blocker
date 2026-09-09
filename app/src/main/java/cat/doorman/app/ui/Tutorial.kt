@@ -40,7 +40,13 @@ import cat.doorman.app.R
  * toll gate, and Doorman is asking for a lot of trust on the very next screen.
  */
 @Composable
-fun Tutorial(onDone: () -> Unit) {
+fun Tutorial(
+    languageSupported: Boolean,
+    languageTag: String?,
+    onPickLanguage: (String?) -> Unit,
+    onCoffee: () -> Unit,
+    onDone: () -> Unit,
+) {
     var page by remember { mutableIntStateOf(0) }
     val pages = tutorialPages()
     val last = page == pages.lastIndex
@@ -57,6 +63,34 @@ fun Tutorial(onDone: () -> Unit) {
             stringResource(pages[page].body),
             style = MaterialTheme.typography.bodyLarge,
         )
+
+        // The language picker on the first page rather than a page of its
+        // own. Doorman already follows the phone's language, so for most
+        // people this is a confirmation, not a question -- and picking one
+        // recreates the activity with the walkthrough back on page one, in
+        // the language they just chose. On Android 12 and older the section
+        // simply says it follows the phone.
+        if (page == 0) {
+            LanguageSection(
+                supported = languageSupported,
+                currentTag = languageTag,
+                onPick = onPickLanguage,
+            )
+        }
+
+        // The coffee, once, at the end, as a text button. Somebody who has
+        // read four pages about an app that will get in their way has earned
+        // being told how it is paid for, and being told exactly once.
+        if (last) {
+            Text(
+                stringResource(R.string.support_body),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            TextButton(onClick = onCoffee) {
+                Text(stringResource(R.string.action_coffee))
+            }
+        }
 
         Spacer(Modifier.height(8.dp))
         Dots(count = pages.size, current = page)

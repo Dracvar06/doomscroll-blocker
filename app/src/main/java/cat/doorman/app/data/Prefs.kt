@@ -54,6 +54,9 @@ class Prefs(private val context: Context) {
         /** Whether the first-run walkthrough has been finished or skipped. */
         val TUTORIAL_SEEN = booleanPreferencesKey("tutorial_seen")
 
+        /** ISO date the coffee reminder was last shown or dismissed. */
+        val COFFEE_NUDGED_ON = stringPreferencesKey("coffee_nudged_on")
+
         /**
          * Removed. Doorman used to record which apps it had watched the user
          * open, to offer them in the picker.
@@ -183,6 +186,13 @@ class Prefs(private val context: Context) {
      */
     val tutorialSeen: Flow<Boolean> =
         context.dataStore.data.map { it[Keys.TUTORIAL_SEEN] ?: false }
+
+    val coffeeNudgedOn: Flow<String?> =
+        context.dataStore.data.map { it[Keys.COFFEE_NUDGED_ON] }
+
+    suspend fun setCoffeeNudgedOn(isoDate: String) {
+        context.dataStore.edit { it[Keys.COFFEE_NUDGED_ON] = isoDate }
+    }
 
     suspend fun setTutorialSeen(seen: Boolean) {
         context.dataStore.edit { it[Keys.TUTORIAL_SEEN] = seen }

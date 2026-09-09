@@ -6,7 +6,7 @@
          disclosure Google Play requires before the permission is requested.
          It has to be true, specific, and readable by someone who is rightly
          suspicious of an app asking to read their screen. -->
-    <string name="accessibility_service_description">Doorman watches which screen is open in apps you choose, so it can cover endless feeds while leaving messages, searches and individual videos alone.\n\nIt reads only the structure of the screen — the names of the elements in front of you. It never reads your messages, passwords or account details. Nothing is recorded, and nothing ever leaves your phone.</string>
+    <string name="accessibility_service_description">Doorman watches which screen is open in apps you choose, so it can cover endless feeds while leaving messages, searches and individual videos alone.\n\nIt reads only the structure of the screen — the names of the elements in front of you. It never reads your messages, passwords or account details. It keeps a count of how often it stopped you, on your phone only. Nothing ever leaves your phone.</string>
 
     <string name="home_tagline">Messages get through. The feed does not.</string>
     <string name="status_enabled">Doorman is on</string>
@@ -236,4 +236,10 @@
     </plurals>
     <string name="report_trend_caption">Times you were stopped, per week. The most recent is on the right.</string>
     <string name="report_trend_caption_gap">Times you were stopped, per week. The most recent is on the right; a faint column is a week Doorman was not watching.</string>
+    <string name="support_title">Support Doorman</string>
+    <string name="support_body">Doorman is free and will stay free: no ads, no subscription, nothing sold. If it helps you and you would like to help me keep making things like it, you can buy me a coffee. It works exactly the same either way.</string>
+    <string name="action_coffee">Buy me a coffee</string>
+    <string name="action_not_now">Not now</string>
+    <string name="support_nudge_title">Still finding Doorman useful?</string>
+    <string name="support_nudge_body">It stays free. If you would like to help keep it that way, there is a coffee button. This note appears about once a season, only here, and never as a notification.</string>
 </resources>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="accessibility_service_description">Doorman mira qué pantalla tienes abierta en las aplicaciones que elijas, para poder tapar los flujos infinitos dejando intactos los mensajes, las búsquedas y los vídeos concretos.\n\nSolo lee la estructura de la pantalla — los nombres de los elementos que tienes delante. Nunca lee tus mensajes, contraseñas ni datos de la cuenta. No se guarda nada, y nunca sale nada de tu teléfono.</string>
+    <string name="accessibility_service_description">Doorman mira qué pantalla tienes abierta en las aplicaciones que elijas, para poder tapar los flujos infinitos dejando intactos los mensajes, las búsquedas y los vídeos concretos.\n\nSolo lee la estructura de la pantalla — los nombres de los elementos que tienes delante. Nunca lee tus mensajes, contraseñas ni datos de la cuenta. Guarda un recuento de cuántas veces te ha parado, solo en tu teléfono. Nunca sale nada de él.</string>
 
     <string name="home_tagline">Los mensajes pasan. El flujo, no.</string>
     <string name="status_enabled">Doorman está activo</string>
@@ -236,4 +236,10 @@
     </plurals>
     <string name="report_trend_caption">Veces que te ha parado, por semana. La más reciente está a la derecha.</string>
     <string name="report_trend_caption_gap">Veces que te ha parado, por semana. La más reciente está a la derecha; una columna difuminada es una semana que Doorman no vigilaba.</string>
+    <string name="support_title">Apoya a Doorman</string>
+    <string name="support_body">Doorman es gratuito y lo seguirá siendo: sin anuncios, sin suscripción, sin vender nada. Si te ayuda y quieres ayudarme a seguir haciendo cosas como esta, puedes invitarme a un café. Funciona exactamente igual tanto si lo haces como si no.</string>
+    <string name="action_coffee">Invítame a un café</string>
+    <string name="action_not_now">Ahora no</string>
+    <string name="support_nudge_title">¿Doorman te sigue sirviendo?</string>
+    <string name="support_nudge_body">Seguirá siendo gratuito. Si quieres ayudar a que lo siga siendo, hay un botón de café. Esta nota aparece una vez por temporada, solo aquí, y nunca como notificación.</string>
 </resources>
