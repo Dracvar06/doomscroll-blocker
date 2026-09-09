@@ -103,6 +103,17 @@
             android:name=".report.WeeklyReportReceiver"
             android:exported="false" />
 
+        <!-- Fires once after each update. MY_PACKAGE_REPLACED is a protected
+             broadcast only the system can send, and the system delivers it to
+             a non-exported receiver, so exported stays false. -->
+        <receiver
+            android:name=".report.UpdateReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
         <service
             android:name=".service.DoormanAccessibilityService"
             android:exported="true"

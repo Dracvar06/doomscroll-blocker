@@ -65,8 +65,14 @@ object SnapshotCapture {
                 index = index,
                 className = node.className?.toString(),
                 viewId = node.viewIdResourceName,
-                contentDescription = node.contentDescription?.toString(),
-                text = node.text?.toString(),
+                // Text and content descriptions are deliberately not read.
+                // No rule matches on either -- Doorman recognises screens by
+                // view id and structure -- so copying them would hold the
+                // contents of somebody's conversation in memory for nothing.
+                // The disclosure says Doorman never reads your messages, and
+                // this is the line that makes it literally true. (The fields
+                // stay on UiNode so recorded fixtures still deserialise; the
+                // developer dumper has its own walk, with its own redaction.)
                 bounds = "${rect.left},${rect.top},${rect.right},${rect.bottom}",
                 scrollable = node.isScrollable,
                 clickable = node.isClickable,

@@ -238,4 +238,8 @@
     <string name="action_not_now">Ara no</string>
     <string name="support_nudge_title">Doorman encara et serveix?</string>
     <string name="support_nudge_body">Seguirà sent gratuït. Si vols ajudar que ho continuï sent, hi ha un botó de cafè. Aquesta nota surt un cop cada temporada, només aquí, i mai com a notificació.</string>
+    <string name="notify_channel_service">Estat de Doorman</string>
+    <string name="notify_channel_service_help">Només si una actualització ha apagat Doorman.</string>
+    <string name="notify_service_off_title">Doorman està apagat</string>
+    <string name="notify_service_off_body">L\'actualització ha desactivat l\'accés d\'accessibilitat de Doorman, així que ara mateix no reté res. Toca per tornar-lo a activar.</string>
 </resources>

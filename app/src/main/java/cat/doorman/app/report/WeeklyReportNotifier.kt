@@ -32,6 +32,10 @@ object WeeklyReportNotifier {
     private const val REQUEST_ALARM = 100
     private const val REQUEST_OPEN = 101
 
+    private const val SERVICE_CHANNEL = "service_status"
+    private const val SERVICE_OFF_ID = 2
+    private const val REQUEST_ACCESSIBILITY = 102
+
     /**
      * Books the next Monday.
      *
@@ -124,6 +128,44 @@ object WeeklyReportNotifier {
         if (manager.areNotificationsEnabled()) {
             @Suppress("MissingPermission")
             manager.notify(NOTIFICATION_ID, notification)
+        }
+    }
+
+    /**
+     * "Doorman is off." Posted only by [UpdateReceiver], only when it is true.
+     *
+     * Its own channel, so somebody who silences the weekly report does not
+     * also silence the one notification that tells them nothing is being held.
+     */
+    fun notifyServiceOff(context: Context) {
+        val manager = NotificationManagerCompat.from(context)
+        val channel = NotificationChannel(
+            SERVICE_CHANNEL,
+            context.getString(R.string.notify_channel_service),
+            NotificationManager.IMPORTANCE_HIGH,
+        ).apply { description = context.getString(R.string.notify_channel_service_help) }
+        context.getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
+
+        val open = PendingIntent.getActivity(
+            context,
+            REQUEST_ACCESSIBILITY,
+            Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val body = context.getString(R.string.notify_service_off_body)
+        val notification = NotificationCompat.Builder(context, SERVICE_CHANNEL)
+            .setSmallIcon(R.drawable.ic_launcher_monochrome)
+            .setContentTitle(context.getString(R.string.notify_service_off_title))
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setContentIntent(open)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .build()
+        if (manager.areNotificationsEnabled()) {
+            @Suppress("MissingPermission")
+            manager.notify(SERVICE_OFF_ID, notification)
         }
     }
 

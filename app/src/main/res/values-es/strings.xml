@@ -242,4 +242,8 @@
     <string name="action_not_now">Ahora no</string>
     <string name="support_nudge_title">¿Doorman te sigue sirviendo?</string>
     <string name="support_nudge_body">Seguirá siendo gratuito. Si quieres ayudar a que lo siga siendo, hay un botón de café. Esta nota aparece una vez por temporada, solo aquí, y nunca como notificación.</string>
+    <string name="notify_channel_service">Estado de Doorman</string>
+    <string name="notify_channel_service_help">Solo si una actualización ha apagado Doorman.</string>
+    <string name="notify_service_off_title">Doorman está apagado</string>
+    <string name="notify_service_off_body">La actualización ha desactivado el acceso de accesibilidad de Doorman, así que ahora mismo no retiene nada. Toca para volver a activarlo.</string>
 </resources>

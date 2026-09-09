@@ -89,10 +89,12 @@ expected). Then install the **release** build on a real device and check:
 - [ ] The weekly report tab renders; the notification channel exists.
 - [ ] Turning the language chip recreates the app in that language.
 
-**Reinstalling disables the accessibility service.** Every install over the
-top of a previous one leaves Doorman switched off until the user re-enables it.
-Users updating through a store see the same thing. There is no way around this
-in Android; the status card is the warning.
+**The accessibility service can come back switched off after an install.**
+Seen repeatedly with `adb install -r` during development; store updates
+normally keep it enabled, but some devices do not. Doorman checks on
+`MY_PACKAGE_REPLACED` and posts a notification if the service is off
+(`UpdateReceiver`); the status card is the fallback. Check both after
+installing the release build over the previous version.
 
 ### 5. Ship
 

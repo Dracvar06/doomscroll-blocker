@@ -242,4 +242,8 @@
     <string name="action_not_now">Not now</string>
     <string name="support_nudge_title">Still finding Doorman useful?</string>
     <string name="support_nudge_body">It stays free. If you would like to help keep it that way, there is a coffee button. This note appears about once a season, only here, and never as a notification.</string>
+    <string name="notify_channel_service">Doorman status</string>
+    <string name="notify_channel_service_help">Only if an update has switched Doorman off.</string>
+    <string name="notify_service_off_title">Doorman is off</string>
+    <string name="notify_service_off_body">The update switched off Doorman\'s accessibility access, so nothing is being held right now. Tap to turn it back on.</string>
 </resources>
