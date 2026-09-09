@@ -99,6 +99,9 @@ class DoormanAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+        // Whatever the post-update check decided a moment ago, the service is
+        // here now, so any "Doorman is off" notice it posted is already wrong.
+        WeeklyReportNotifier.clearServiceOff(this)
         imePackage = currentImePackage()
         overlay = BlockOverlayController(this)
         rules = RuleLoader.load(this)

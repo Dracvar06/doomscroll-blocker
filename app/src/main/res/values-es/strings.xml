@@ -253,4 +253,13 @@
     <string name="report_other_screens">otras</string>
     <string name="report_app_time_caption">Tiempo que Doorman te ha visto en cada aplicación donde retiene algo, y qué pantallas ha podido nombrar. El tiempo mirando un bloqueo no cuenta: eso es una parada.</string>
     <string name="notify_week_top_app">La mayor parte en %1$s: %2$s.</string>
+    <string name="today_title">Hoy, en las aplicaciones que retienes</string>
+    <string name="screen_ig_stories_brief">Historias</string>
+    <string name="screen_ig_single_reel_brief">Un reel concreto</string>
+    <string name="screen_ig_reel_viewer_brief">Reels</string>
+    <string name="screen_ig_explore_brief">Explora</string>
+    <string name="screen_yt_single_short_brief">Un Short concreto</string>
+    <string name="screen_tt_feed_brief">El flujo</string>
+    <string name="screen_tt_shared_video_brief">Un vídeo enviado</string>
+    <string name="screen_sc_stories_brief">Historias</string>
 </resources>

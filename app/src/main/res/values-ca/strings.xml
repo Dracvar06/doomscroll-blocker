@@ -249,4 +249,13 @@
     <string name="report_other_screens">altres</string>
     <string name="report_app_time_caption">Temps que Doorman t\'ha vist a cada aplicació on reté alguna cosa, i quines pantalles ha pogut anomenar. El temps mirant un bloqueig no compta: això és una aturada.</string>
     <string name="notify_week_top_app">La major part a %1$s: %2$s.</string>
+    <string name="today_title">Avui, a les aplicacions que retens</string>
+    <string name="screen_ig_stories_brief">Històries</string>
+    <string name="screen_ig_single_reel_brief">Un reel concret</string>
+    <string name="screen_ig_reel_viewer_brief">Reels</string>
+    <string name="screen_ig_explore_brief">Explora</string>
+    <string name="screen_yt_single_short_brief">Un Short concret</string>
+    <string name="screen_tt_feed_brief">El flux</string>
+    <string name="screen_tt_shared_video_brief">Un vídeo enviat</string>
+    <string name="screen_sc_stories_brief">Històries</string>
 </resources>

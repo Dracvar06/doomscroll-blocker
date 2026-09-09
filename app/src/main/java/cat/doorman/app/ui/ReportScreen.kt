@@ -582,11 +582,42 @@ private fun ThisWeekCard(days: List<DayRecord?>, week: WeekSummary, today: Local
                 )
             }
             Figure(stringResource(R.string.report_stops), week.stops.toString())
-            Figure(
-                stringResource(R.string.report_time),
-                durationLabel((week.spentMillis / 60_000L).toInt()),
-            )
+            // Budgets are optional, and most people never set one. A permanent
+            // "0 minutes" sitting beside real figures reads as something
+            // broken rather than as something unused.
+            if (week.spentMillis > 0L) {
+                Figure(
+                    stringResource(R.string.report_time),
+                    durationLabel((week.spentMillis / 60_000L).toInt()),
+                )
+            }
             Figure(stringResource(R.string.report_loosenings), week.loosenings.toString())
+        }
+    }
+}
+
+/**
+ * Today, at a glance, on the tab people actually open.
+ *
+ * The report is weekly and lives a tab away; the question somebody has while
+ * holding the phone is how today is going. One line per app, no charts -- it
+ * is a glance, and anything more would push the blocks further down the page.
+ */
+@Composable
+fun TodayCard(times: List<AppTime>) {
+    if (times.isEmpty()) return
+    Card {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                stringResource(R.string.today_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            times.forEach { app ->
+                Figure(app.label, durationLabel((app.millis / 60_000L).toInt()))
+            }
         }
     }
 }

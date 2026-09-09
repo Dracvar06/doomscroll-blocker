@@ -253,4 +253,13 @@
     <string name="report_other_screens">other</string>
     <string name="report_app_time_caption">Time Doorman saw you in each app it holds something in, and which screens it could name. Time spent looking at a block is not counted — that is a stop.</string>
     <string name="notify_week_top_app">Most of it in %1$s: %2$s.</string>
+    <string name="today_title">Today, in the apps you hold</string>
+    <string name="screen_ig_stories_brief">Stories</string>
+    <string name="screen_ig_single_reel_brief">A single reel</string>
+    <string name="screen_ig_reel_viewer_brief">Reels</string>
+    <string name="screen_ig_explore_brief">Explore</string>
+    <string name="screen_yt_single_short_brief">A single Short</string>
+    <string name="screen_tt_feed_brief">The feed</string>
+    <string name="screen_tt_shared_video_brief">A shared video</string>
+    <string name="screen_sc_stories_brief">Stories</string>
 </resources>

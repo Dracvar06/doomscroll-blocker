@@ -88,6 +88,9 @@ private enum class Screen { HOME, UNLOCK }
  */
 private enum class Tab { BLOCKS, REPORT, SETTINGS }
 
+/** Under a minute is not worth a line of its own in a report. */
+private const val REPORTABLE_MILLIS = 60_000L
+
 private fun iconFor(tab: Tab) = when (tab) {
     Tab.BLOCKS -> Icons.Default.Lock
     Tab.REPORT -> Icons.Default.DateRange
@@ -307,7 +310,7 @@ class MainActivity : ComponentActivity() {
                                     use = watchedUse,
                                     onAskForUsageAccess = { askForUsageAccess() },
                                     onReviewLimits = { tab = Tab.BLOCKS },
-                                    appTimesFor = { week -> appTimes(week) },
+                                    appTimesFor = { week -> appTimes(week.apps, week.screens) },
                                     coffeeNudge = coffeeNudgeDue(),
                                     onCoffee = { openCoffee() },
                                     onNotNow = { stampCoffeeNudge() },
@@ -419,6 +422,8 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+        TodayCard(todayTimes())
 
         BlockingSettings(
             rules = rules,
@@ -887,19 +892,49 @@ class MainActivity : ComponentActivity() {
      * dropped: a "Reels 0 min" line next to a blocked Reels would read as the
      * block leaking.
      */
-    private fun appTimes(week: cat.doorman.app.limits.WeekSummary): List<AppTime> =
-        week.apps.entries
-            .filter { it.value >= 60_000L }
+    private fun appTimes(apps: Map<String, Long>, screens: Map<String, Long>): List<AppTime> =
+        apps.entries
+            .filter { it.value >= REPORTABLE_MILLIS }
             .sortedByDescending { it.value }
             .map { (pkg, millis) ->
-                val screens = rules.apps[pkg]?.screens.orEmpty()
+                // Several rules can describe one place: Reels in the tab and
+                // Reels opened from anywhere are two rules and one screen to
+                // the person reading this. Equal names are summed rather than
+                // listed twice, and the total is judged after summing so two
+                // half-minutes are not both rounded away.
+                val named = rules.apps[pkg]?.screens.orEmpty()
                     .mapNotNull { screen ->
-                        val ms = week.screens[screen.id] ?: return@mapNotNull null
-                        if (ms < 60_000L) null else labelFor(labelKeyFor(screen.id)) to ms
+                        val ms = screens[screen.id] ?: return@mapNotNull null
+                        briefLabelFor(screen.labelKey) to ms
                     }
+                    .groupBy({ it.first }, { it.second })
+                    .map { (label, times) -> label to times.sum() }
+                    .filter { it.second >= REPORTABLE_MILLIS }
                     .sortedByDescending { it.second }
-                AppTime(label = appLabelFor(pkg), millis = millis, screens = screens)
+                AppTime(label = appLabelFor(pkg), millis = millis, screens = named)
             }
+
+    /** Time in an app today, for the glance on the Blocks tab. */
+    private fun todayTimes(): List<AppTime> {
+        val today = java.time.LocalDate.now().toString()
+        val row = journal.firstOrNull { it.date == today } ?: return emptyList()
+        return appTimes(row.apps, row.screens)
+    }
+
+    /**
+     * A screen's name as a noun, for a report.
+     *
+     * The labels in rules.json are written for a switch -- "Open stories",
+     * "Keep swiping from a reel someone sent" -- which is right beside a
+     * toggle and wrong in a sentence about time. Where a `_brief` string
+     * exists it wins; where none does, the switch label is still better than
+     * nothing.
+     */
+    @SuppressLint("DiscouragedApi")
+    private fun briefLabelFor(labelKey: String): String {
+        val id = resources.getIdentifier(labelKey + "_brief", "string", packageName)
+        return if (id != 0) getString(id) else labelFor(labelKey)
+    }
 
     private fun askForUsageAccess() {
         // No dialog exists for this one; the most an app may do is open the
@@ -921,10 +956,57 @@ class MainActivity : ComponentActivity() {
         refreshUsage()
         serviceEnabled = isAccessibilityServiceEnabled(this)
         lastSeen = DoormanAccessibilityService.instance?.lastSeen()
+        watchServiceState()
         if (screen == Screen.UNLOCK && selectedPackage != null && secondsRemaining > 0) {
             startCountdown()
         }
     }
+
+    override fun onPause() {
+        super.onPause()
+        val manager = getSystemService(AccessibilityManager::class.java) ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            servicesListener?.let { manager.removeAccessibilityServicesStateChangeListener(it) }
+        }
+        stateListener?.let { manager.removeAccessibilityStateChangeListener(it) }
+        servicesListener = null
+        stateListener = null
+    }
+
+    /**
+     * Keeps the status card honest while the app is open.
+     *
+     * Reading once in onResume is a moment too early after an update: the
+     * system drops accessibility services while it replaces the package and
+     * re-binds them a second or two later, so an app already in the
+     * foreground would sit there in alarm red saying Doorman was off when it
+     * was seconds from being on. It also catches somebody switching the
+     * service off from Android's settings on another screen.
+     */
+    private fun watchServiceState() {
+        val manager = getSystemService(AccessibilityManager::class.java) ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && servicesListener == null) {
+            // Fires when the set of enabled services changes, which is the
+            // exact question being asked. Only from Android 13.
+            val listener = AccessibilityManager.AccessibilityServicesStateChangeListener {
+                serviceEnabled = isAccessibilityServiceEnabled(this)
+            }
+            servicesListener = listener
+            manager.addAccessibilityServicesStateChangeListener(listener)
+        }
+        if (stateListener == null) {
+            // Coarser -- it only reports accessibility being switched on or
+            // off as a whole -- but it is all there is before Android 13.
+            val listener = AccessibilityManager.AccessibilityStateChangeListener {
+                serviceEnabled = isAccessibilityServiceEnabled(this)
+            }
+            stateListener = listener
+            manager.addAccessibilityStateChangeListener(listener)
+        }
+    }
+
+    private var servicesListener: AccessibilityManager.AccessibilityServicesStateChangeListener? = null
+    private var stateListener: AccessibilityManager.AccessibilityStateChangeListener? = null
 
     /**
      * Rules name a string resource so screen names translate with the app.

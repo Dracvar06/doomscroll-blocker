@@ -68,6 +68,19 @@ object WeeklyReportNotifier {
         )
     }
 
+    /**
+     * Called the moment the service connects.
+     *
+     * The post-update check has to guess how long the system will take to
+     * re-bind an accessibility service, and it guesses low: a warning that
+     * arrives late is useless. So it is allowed to be wrong, and this takes
+     * the notice back when the service turns up. A false "Doorman is off" is
+     * worse than none -- it is what teaches somebody to ignore the true one.
+     */
+    fun clearServiceOff(context: Context) {
+        NotificationManagerCompat.from(context).cancel(SERVICE_OFF_ID)
+    }
+
     /** Called when the report is switched off, so the alarm stops with it. */
     fun cancel(context: Context) {
         context.getSystemService(AlarmManager::class.java)?.cancel(alarmIntent(context))

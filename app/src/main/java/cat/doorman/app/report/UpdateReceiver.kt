@@ -31,11 +31,12 @@ class UpdateReceiver : BroadcastReceiver() {
             try {
                 if (Prefs(app).weeklyReport.first()) WeeklyReportNotifier.schedule(app)
                 // The system re-binds accessibility services after an update,
-                // and the registry is empty for a moment while it does. Judged
-                // too early, a service that is fine reads as off, and a false
-                // "Doorman is off" is worse than none: it teaches people to
-                // ignore the true one. A few seconds is plenty; goAsync allows
-                // about ten.
+                // and the registry is empty while it does. How long that takes
+                // is the device's business, not ours, and waiting for the
+                // slowest case would delay a real warning past the point of
+                // being useful. So this looks early and is allowed to be
+                // wrong: the service withdraws the notice itself when it
+                // connects. See WeeklyReportNotifier.clearServiceOff.
                 delay(SETTLE_MILLIS)
                 if (!AccessibilityStatus.isEnabled(app)) WeeklyReportNotifier.notifyServiceOff(app)
             } finally {
