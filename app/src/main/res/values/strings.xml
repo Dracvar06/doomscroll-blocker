@@ -87,6 +87,14 @@
     <string name="screen_sc_spotlight" tools:ignore="UnusedResources">Spotlight</string>
     <string name="screen_sc_stories" tools:ignore="UnusedResources">Stories and Discover</string>
     <string name="screen_sc_friends_story_row" tools:ignore="UnusedResources">Friends\' story row</string>
+
+    <string name="app_linkedin" tools:ignore="UnusedResources">LinkedIn</string>
+    <string name="screen_li_feed" tools:ignore="UnusedResources">The feed</string>
+    <string name="app_x" tools:ignore="UnusedResources">X</string>
+    <string name="screen_x_home" tools:ignore="UnusedResources">The home timeline</string>
+    <string name="app_reddit" tools:ignore="UnusedResources">Reddit</string>
+    <string name="screen_rd_home" tools:ignore="UnusedResources">The home feed</string>
+    <string name="screen_rd_media_feed" tools:ignore="UnusedResources">Scrolling on from a post you opened</string>
     <string name="section_language">Language</string>
     <string name="language_system">Phone\'s language</string>
     <string name="language_follows_phone">Doorman follows your phone\'s language. Android 13 and later can also set a language just for Doorman, in Settings.</string>
@@ -134,6 +142,10 @@
     <string name="help_sc_spotlight" tools:ignore="UnusedResources">The Spotlight tab, Snapchat\'s endless video feed. Chats, snaps, the camera and the map are untouched.</string>
     <string name="help_sc_stories" tools:ignore="UnusedResources">The Discover grid of publisher content on the Stories tab. Your friends\' stories along the top stay reachable unless you also block that row.</string>
     <string name="help_sc_friends_story_row" tools:ignore="UnusedResources">Hides the row of friends\' stories at the top of the Stories tab, without blocking stories themselves.</string>
+    <string name="help_li_feed" tools:ignore="UnusedResources">LinkedIn\'s feed: the endless scroll of posts behind the home tab. Messages, notifications, jobs, your network and anything you search for are untouched.</string>
+    <string name="help_x_home_timeline" tools:ignore="UnusedResources">The For You and Following timelines. Messages, notifications, search, profiles and a post you open stay exactly as they are.</string>
+    <string name="help_rd_home_feed" tools:ignore="UnusedResources">Reddit\'s home feed, the one that opens with the app. A community you go to yourself, a post, its comments, search and your inbox are untouched.</string>
+    <string name="help_rd_media_feed" tools:ignore="UnusedResources">Opening a picture or a video on Reddit drops you into a player you can keep swiping through, one post after another. The one you opened stays for two minutes, then the player is covered. Reddit does not tell Doorman when you have swiped, so it is a clock rather than a swipe. The post itself and its comments are never touched.</string>
     <string name="action_close_help">Got it</string>
     <string name="app_not_installed">Not installed</string>
     <string name="blocked_body_schedule">Not at this hour. You set this one aside.</string>
@@ -262,4 +274,8 @@
     <string name="screen_tt_feed_brief">The feed</string>
     <string name="screen_tt_shared_video_brief">A shared video</string>
     <string name="screen_sc_stories_brief">Stories</string>
+    <string name="screen_li_feed_brief">The feed</string>
+    <string name="screen_x_home_brief">The timeline</string>
+    <string name="screen_rd_home_brief">The feed</string>
+    <string name="screen_rd_media_feed_brief">Pictures and videos</string>
 </resources>

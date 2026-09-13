@@ -284,6 +284,88 @@
       "keepVisibleTopViewIds": [
         "hova_header_search_icon"
       ]
+    },
+    "com.linkedin.android": {
+      "labelKey": "app_linkedin",
+      "screens": [
+        {
+          "id": "li_feed",
+          "labelKey": "screen_li_feed",
+          "defaultEnabled": true,
+          "match": {
+            "selectedViewId": [
+              "tab_feed"
+            ]
+          },
+          "helpKey": "help_li_feed",
+          "endless": true
+        }
+      ],
+      "keepVisibleViewIds": [
+        "home_bottom_bar"
+      ],
+      "keepVisibleTopViewIds": [
+        "home_top_bar"
+      ]
+    },
+    "com.twitter.android": {
+      "labelKey": "app_x",
+      "screens": [
+        {
+          "id": "x_home_timeline",
+          "labelKey": "screen_x_home",
+          "defaultEnabled": true,
+          "match": {
+            "visibleViewId": [
+              "scaffold_home_tabbed"
+            ]
+          },
+          "helpKey": "help_x_home_timeline",
+          "endless": true
+        }
+      ],
+      "keepVisibleTopViewIds": [
+        "home_navigation_bar_title"
+      ],
+      "keepVisibleBottomDp": 104
+    },
+    "com.reddit.frontpage": {
+      "labelKey": "app_reddit",
+      "screens": [
+        {
+          "id": "rd_media_feed",
+          "labelKey": "screen_rd_media_feed",
+          "defaultEnabled": true,
+          "verdict": "ALLOW_ONCE",
+          "budget": 1,
+          "allowSeconds": 120,
+          "match": {
+            "visibleViewId": [
+              "fbp_vertical_pager"
+            ]
+          },
+          "helpKey": "help_rd_media_feed",
+          "endless": true
+        },
+        {
+          "id": "rd_home_feed",
+          "labelKey": "screen_rd_home",
+          "defaultEnabled": true,
+          "match": {
+            "visibleViewId": [
+              "home_screen_surface"
+            ]
+          },
+          "helpKey": "help_rd_home_feed",
+          "endless": true
+        }
+      ],
+      "keepVisibleViewIds": [
+        "bottom_nav"
+      ],
+      "keepVisibleTopViewIds": [
+        "home_revamp_m1_app_bar"
+      ]
     }
   }
 }

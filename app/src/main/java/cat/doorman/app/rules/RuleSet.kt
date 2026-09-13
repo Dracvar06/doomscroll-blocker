@@ -96,6 +96,20 @@ data class AppRules(
      * much.
      */
     val keepVisibleBelowViewIds: List<String> = emptyList(),
+    /**
+     * A strip at the bottom of the screen the block must leave alone, in dp,
+     * for apps whose tab bar can be named neither directly nor by the content
+     * above it.
+     *
+     * X is the case: its navigation bar is a Compose row with no test tag, and
+     * the timeline behind it is measured to the full height of the screen, so
+     * there is nothing to anchor to from either side. A measurement in dp is
+     * the weakest of the three and deliberately the last resort -- it assumes a
+     * bar of roughly standard height rather than reading one -- but the
+     * alternative is covering the way to somebody's messages, which is the one
+     * outcome this app must never produce.
+     */
+    val keepVisibleBottomDp: Int = 0,
     val screens: List<ScreenRule> = emptyList(),
 ) {
     /** Every name this app goes by, its key included. */

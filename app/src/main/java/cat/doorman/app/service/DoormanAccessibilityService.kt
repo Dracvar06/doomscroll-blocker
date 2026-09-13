@@ -158,7 +158,12 @@ class DoormanAccessibilityService : AccessibilityService() {
      * in front, which is the only moment its tree is worth reading.
      *
      *   adb shell am broadcast -a cat.doorman.app.DUMP -p cat.doorman.app \
-     *       --es label shorts [--ei delay 5]
+     *       --es label shorts [--ei delay 5] [--ez redact true]
+     *
+     * Text is kept by default -- a developer dumping their own screen. Pass
+     * redact when the screen being read belongs to somebody else, or when the
+     * dump is only wanted for its view ids, which is the usual case when
+     * writing a rule.
      *
      * Gated on BuildConfig.DEBUG so release builds expose no such entry point.
      */
@@ -168,6 +173,7 @@ class DoormanAccessibilityService : AccessibilityService() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 val label = intent?.getStringExtra("label")
                 val delaySeconds = intent?.getIntExtra("delay", 0) ?: 0
+                val redact = intent?.getBooleanExtra("redact", false) ?: false
                 // The adb path keeps text: that is a developer dumping their
                 // own screen deliberately. The in-app path redacts.
                 if (delaySeconds > 0) {
@@ -175,13 +181,13 @@ class DoormanAccessibilityService : AccessibilityService() {
                     Handler(Looper.getMainLooper()).postDelayed(
                         {
                             TreeDumper.dump(
-                                this@DoormanAccessibilityService, label, redact = false,
+                                this@DoormanAccessibilityService, label, redact = redact,
                             )
                         },
                         delaySeconds * 1000L,
                     )
                 } else {
-                    TreeDumper.dump(this@DoormanAccessibilityService, label, redact = false)
+                    TreeDumper.dump(this@DoormanAccessibilityService, label, redact = redact)
                 }
             }
         }
@@ -785,6 +791,9 @@ class DoormanAccessibilityService : AccessibilityService() {
             ),
             keepVisibleViewIds = app?.keepVisibleViewIds.orEmpty(),
             keepVisibleBelowViewIds = app?.keepVisibleBelowViewIds.orEmpty(),
+            keepVisibleBottomPx = ((app?.keepVisibleBottomDp ?: 0) *
+                resources.displayMetrics.density).toInt(),
+            screenHeightPx = resources.displayMetrics.heightPixels,
         )
     }
 

@@ -34,19 +34,47 @@ object SnapshotCapture {
         preferPackage: String? = null,
     ): AccessibilityNodeInfo? {
         val windows = service.windows ?: return service.rootInActiveWindow
-        val applicationWindows = windows.filter {
-            it.type == AccessibilityWindowInfo.TYPE_APPLICATION
+        val roots = windows
+            .filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
+            .mapNotNull { window -> window.root?.let { window to it } }
+        val choices = roots.map { (window, root) ->
+            WindowChoice(root.packageName?.toString(), window.isActive, window.isFocused)
         }
-        if (preferPackage != null) {
-            applicationWindows.asSequence()
-                .mapNotNull { it.root }
-                .firstOrNull { it.packageName?.toString() == preferPackage }
-                ?.let { return it }
+        val chosen = preferredWindowIndex(choices, preferPackage)
+            ?: return service.rootInActiveWindow
+        return roots[chosen].second
+    }
+
+    /** What the choice below actually depends on, with no Android types in it. */
+    data class WindowChoice(
+        val packageName: String?,
+        val active: Boolean,
+        val focused: Boolean,
+    )
+
+    /**
+     * Which of the application windows to judge, or null if there are none.
+     *
+     * The right package beats everything, because during an app's opening
+     * animation systemui owns an application window that is both active and
+     * focused, and a decision made in that instant is made about the launcher
+     * rather than about Instagram.
+     *
+     * But an app can own more than one window at a time, and the extra one is
+     * usually a scrap: Reddit keeps a three-pixel "Pop-Up Window" alive above
+     * its feed. Taking the first window of the right package took that, saw a
+     * tree of three nodes, recognised nothing, and left the feed unblocked.
+     * So among that app's own windows the active and focused one wins.
+     */
+    fun preferredWindowIndex(windows: List<WindowChoice>, preferPackage: String?): Int? {
+        if (windows.isEmpty()) return null
+        return windows.indices.maxByOrNull { index ->
+            val window = windows[index]
+            val rightApp = preferPackage != null && window.packageName == preferPackage
+            (if (rightApp) 4 else 0) +
+                (if (window.active) 2 else 0) +
+                (if (window.focused) 1 else 0)
         }
-        return applicationWindows.asSequence()
-            .sortedByDescending { (if (it.isActive) 2 else 0) + (if (it.isFocused) 1 else 0) }
-            .mapNotNull { it.root }
-            .firstOrNull() ?: service.rootInActiveWindow
     }
 
     fun capture(service: AccessibilityService, preferPackage: String? = null): ScreenSnapshot? {

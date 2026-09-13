@@ -258,4 +258,19 @@
     <string name="screen_tt_feed_brief">El flux</string>
     <string name="screen_tt_shared_video_brief">Un vídeo enviat</string>
     <string name="screen_sc_stories_brief">Històries</string>
+    <string name="screen_li_feed_brief">El feed</string>
+    <string name="screen_x_home_brief">La cronologia</string>
+    <string name="screen_rd_home_brief">El feed</string>
+    <string name="screen_rd_media_feed_brief">Imatges i vídeos</string>
+    <string name="app_linkedin">LinkedIn</string>
+    <string name="screen_li_feed">El feed</string>
+    <string name="app_x">X</string>
+    <string name="screen_x_home">La cronologia d\'inici</string>
+    <string name="app_reddit">Reddit</string>
+    <string name="screen_rd_home">El feed d\'inici</string>
+    <string name="screen_rd_media_feed">Seguir passant des d\'una publicació oberta</string>
+    <string name="help_li_feed">El feed de LinkedIn: el rotllo infinit de publicacions que hi ha darrere la pestanya d\'inici. Els missatges, les notificacions, les feines, la teva xarxa i tot el que cerquis queden intactes.</string>
+    <string name="help_x_home_timeline">Les cronologies «Per a tu» i «Seguint». Els missatges, les notificacions, la cerca, els perfils i qualsevol publicació que obris queden tal com són.</string>
+    <string name="help_rd_home_feed">El feed d\'inici de Reddit, el que s\'obre amb l\'aplicació. Una comunitat on vagis tu, una publicació, els seus comentaris, la cerca i la safata d\'entrada queden intactes.</string>
+    <string name="help_rd_media_feed">Obrir una imatge o un vídeo a Reddit et deixa en un reproductor pel qual pots seguir passant, una publicació darrere l\'altra. El que has obert es queda dos minuts i després el reproductor es tapa. Reddit no diu a Doorman quan has lliscat, així que és un rellotge i no pas un lliscament. La publicació i els seus comentaris no es toquen mai.</string>
 </resources>

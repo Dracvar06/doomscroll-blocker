@@ -17,16 +17,30 @@ subscription, no telemetry.
 
 ## Status
 
-**YouTube and Instagram both work.**
+**Seven apps have rules: YouTube, Instagram, TikTok, Snapchat, LinkedIn, X and
+Reddit.** Everything below is an individual switch; nothing is all-or-nothing.
 
-- YouTube: the Shorts feed and the home feed are blocked. Watch page, search,
-  subscriptions and library are left alone. A Short opened on its own -- from a
-  link someone sent you -- plays, and the swipe to the next one is blocked.
-- Instagram: Reels, the home feed, and the Explore grid are blocked. **Direct
-  messages, your profile, stories and searching for people are left alone.** The
-  block never covers the tab bar, the search bar or the stories tray, so your
-  inbox is one tap away, you can look somebody up, and a story a friend posted
-  still plays. Stories can be blocked too, with their own switch, off by default.
+- **YouTube**: the Shorts player and the home feed are blocked. Watch page,
+  search, subscriptions and library are left alone. A Short someone sends you
+  plays -- the block lands on the swipe past it, and after two minutes in any
+  case, because YouTube only sometimes reports the swipe.
+- **Instagram**: Reels, the home feed and the Explore grid are blocked.
+  **Direct messages, your profile, stories and searching for people are left
+  alone.** The block never covers the tab bar, the search bar or the stories
+  tray. Stories have their own switch, off by default.
+- **TikTok**: the For You feed is blocked; a video someone sent you plays, and
+  the swipe past it is blocked.
+- **Snapchat**: Spotlight and the Discover grid are blocked; the camera, chats
+  and your friends' stories are not.
+- **LinkedIn**: the feed is blocked. Messages, notifications, jobs, My Network
+  and search are untouched.
+- **X**: the home timeline is blocked. Messages, notifications, Explore,
+  profiles and any post you open are untouched.
+- **Reddit**: the home feed is blocked. A community you go to yourself, a post,
+  its comments, search and your inbox are untouched. Opening a picture or video
+  drops you into a player you can keep swiping through; that one is held for two
+  minutes and then covered.
+
 - **Any single reel you open plays, and stops there.** From a conversation, from
   a post in the feed, from someone's story, from a link -- it plays, and the
   swipe to the next one is blocked. Go back and open another reel deliberately
@@ -38,10 +52,12 @@ default) and is cancelled if you leave the app; switching one **on** is
 immediate, because friction belongs on the decision you would regret. To get into a blocked screen you open Doorman, wait out a
 countdown that restarts if you walk away, and take a short timed pass.
 
-Verified on a Pixel 10 (Android 16) against YouTube 21.32.4 and Instagram
-442.0.0.46.79.
+Verified on a Pixel 10 (Android 16) against YouTube 21.32.4, Instagram
+442.0.0.46.79, and the September 2026 builds of LinkedIn, X and Reddit.
 
-Not yet built: TikTok rules.
+Where an app reports a swipe with no distance and no position in it -- X and
+Reddit both do, and YouTube does half the time -- a "keep swiping" allowance
+falls back to a clock. The swipe is still preferred wherever the app reports one.
 
 ## Installing it
 

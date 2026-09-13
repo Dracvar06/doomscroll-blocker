@@ -262,4 +262,19 @@
     <string name="screen_tt_feed_brief">El flujo</string>
     <string name="screen_tt_shared_video_brief">Un vídeo enviado</string>
     <string name="screen_sc_stories_brief">Historias</string>
+    <string name="screen_li_feed_brief">El feed</string>
+    <string name="screen_x_home_brief">La cronología</string>
+    <string name="screen_rd_home_brief">El feed</string>
+    <string name="screen_rd_media_feed_brief">Imágenes y vídeos</string>
+    <string name="app_linkedin">LinkedIn</string>
+    <string name="screen_li_feed">El feed</string>
+    <string name="app_x">X</string>
+    <string name="screen_x_home">La cronología de inicio</string>
+    <string name="app_reddit">Reddit</string>
+    <string name="screen_rd_home">El feed de inicio</string>
+    <string name="screen_rd_media_feed">Seguir pasando desde una publicación abierta</string>
+    <string name="help_li_feed">El feed de LinkedIn: el rollo infinito de publicaciones que hay detrás de la pestaña de inicio. Los mensajes, las notificaciones, los empleos, tu red y todo lo que busques quedan intactos.</string>
+    <string name="help_x_home_timeline">Las cronologías «Para ti» y «Siguiendo». Los mensajes, las notificaciones, la búsqueda, los perfiles y cualquier publicación que abras quedan tal como están.</string>
+    <string name="help_rd_home_feed">El feed de inicio de Reddit, el que se abre con la aplicación. Una comunidad a la que vayas tú, una publicación, sus comentarios, la búsqueda y la bandeja de entrada quedan intactos.</string>
+    <string name="help_rd_media_feed">Abrir una imagen o un vídeo en Reddit te deja en un reproductor por el que puedes seguir pasando, una publicación tras otra. Lo que has abierto se queda dos minutos y después el reproductor se tapa. Reddit no le dice a Doorman cuándo has deslizado, así que es un reloj y no un deslizamiento. La publicación y sus comentarios no se tocan nunca.</string>
 </resources>

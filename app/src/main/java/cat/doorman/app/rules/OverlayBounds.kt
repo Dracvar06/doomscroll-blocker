@@ -55,6 +55,8 @@ object OverlayBounds {
         keepVisibleTopViewIds: List<String>,
         keepVisibleViewIds: List<String>,
         keepVisibleBelowViewIds: List<String> = emptyList(),
+        keepVisibleBottomPx: Int = 0,
+        screenHeightPx: Int = 0,
     ): Band {
         val top = keepVisibleTopViewIds
             .takeIf { it.isNotEmpty() }
@@ -73,6 +75,7 @@ object OverlayBounds {
         val bottom = listOfNotNull(
             topOf(snapshot, keepVisibleViewIds),
             bottomOf(snapshot, keepVisibleBelowViewIds),
+            measuredStrip(keepVisibleBottomPx, screenHeightPx),
         ).minOrNull()
 
         // A band that would be inverted or absurdly thin means the measurements
@@ -109,6 +112,15 @@ object OverlayBounds {
             .mapNotNull { it.bottomPx() }
             .minOrNull()
             ?.takeIf { it > 0 }
+    }
+
+    /**
+     * Where a bar of a stated height would begin. Null unless both numbers are
+     * known: guessing at a screen height would put the edge anywhere.
+     */
+    private fun measuredStrip(keepVisibleBottomPx: Int, screenHeightPx: Int): Int? {
+        if (keepVisibleBottomPx <= 0 || screenHeightPx <= 0) return null
+        return (screenHeightPx - keepVisibleBottomPx).takeIf { it > 0 }
     }
 
     private const val MIN_BAND_PX = 200

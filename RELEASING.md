@@ -52,6 +52,18 @@ In `app/build.gradle.kts`:
 
 ### 2. Rules
 
+Capture screens with the debug dump while the app is in front:
+
+```bash
+adb shell am broadcast -a cat.doorman.app.DUMP -p cat.doorman.app --es label home --ez redact true
+```
+
+`--ez redact true` replaces text and content descriptions with `<redacted>`.
+Rules never match on either, so a redacted dump is enough to write one, and it
+keeps somebody else's messages out of the repository. Leave it off only when
+reading your own screen and you need the text to understand it.
+
+
 Feeds get redesigned, and when they do a rule stops matching. Before each
 release, open each held app on a device with the *current* store version and
 check that the screens in `rules.json` are still recognised. Settings →
@@ -115,7 +127,8 @@ Some changes are not just code:
 |---|---|
 | Doorman records something new | `PRIVACY.md`, the accessibility disclosure string (`accessibility_service_description`, all three languages), the Play Data Safety form |
 | A new permission | `PRIVACY.md`, the manifest comment explaining why, the tutorial if the user will meet it |
-| A new held app | `rules.json`, the README status list, a `*RulesTest` |
+| A new held app | `rules.json`, the README status list, a `*RulesTest` with a captured fixture per screen -- including the screens that must **not** be blocked |
+| A screen whose allowance leans on a clock | Say so in its help text. `allowSeconds` exists because some apps report a swipe with no numbers in it; a user told "the block lands on the swipe" and then blocked by a timer will think it is broken |
 | A new setting | The tutorial only if a newcomer needs it — the tutorial explains the shape of the app, not every switch |
 | The coffee link or its cadence | `Support.kt` (`COFFEE_URL`, `COFFEE_NUDGE_DAYS`) |
 
