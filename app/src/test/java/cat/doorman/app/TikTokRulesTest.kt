@@ -1,6 +1,7 @@
 package cat.doorman.app
 
 import cat.doorman.app.model.ScreenSnapshot
+import cat.doorman.app.model.UiNode
 import cat.doorman.app.rules.Arrival
 import cat.doorman.app.rules.OverlayBounds
 import cat.doorman.app.rules.RuleSet
@@ -166,10 +167,7 @@ class TikTokRulesTest {
             keepVisibleViewIds = app.keepVisibleViewIds,
             keepVisibleBelowViewIds = app.keepVisibleBelowViewIds,
         )
-        val tabBarTop = snapshot.nodes
-            .filter { it.contentDescription == "Inici" }
-            .mapNotNull { it.topPx() }
-            .minOrNull()
+        val tabBarTop = tabBar(snapshot).mapNotNull { it.topPx() }.minOrNull()
         requireNotNull(tabBarTop) { "fixture has no tab bar to stay clear of" }
         val bandBottom = band.heightPx?.let { band.topPx + it }
         requireNotNull(bandBottom) { "band covers everything below its top, tab bar included" }
@@ -195,14 +193,45 @@ class TikTokRulesTest {
             keepVisibleViewIds = app.keepVisibleViewIds,
             keepVisibleBelowViewIds = app.keepVisibleBelowViewIds,
         )
-        val searchBottom = snapshot.nodes
-            .first { it.contentDescription == "Cerca" }
-            .bottomPx()!!
-        assertTrue(
-            "band starts at ${band.topPx}, search ends at $searchBottom",
-            band.topPx >= searchBottom,
-        )
+        val topBar = topBar(snapshot)
+        assertTrue("fixture has no top bar to stay clear of", topBar.size >= 2)
+        topBar.forEach { control ->
+            assertTrue(
+                "band starts at ${band.topPx}, a control ends at ${control.bottomPx()}",
+                band.topPx >= control.bottomPx()!!,
+            )
+        }
     }
+
+    /**
+     * The two rows above are found by where they sit rather than by what they
+     * say. TikTok obfuscates every id in both bars and renames them each
+     * release, and the labels are localised -- these fixtures were captured on
+     * a Catalan phone, so a test written on "Home" would pass by accident
+     * everywhere and fail here. Position is the one thing neither obfuscation
+     * nor translation touches.
+     */
+    private fun tabBar(snapshot: ScreenSnapshot): List<UiNode> {
+        val screenBottom = snapshot.nodes.first().bottomPx()!!
+        return snapshot.nodes.filter {
+            it.visible && it.clickable && (it.topPx() ?: 0) >= screenBottom - TAB_BAR_BAND_PX
+        }
+    }
+
+    private fun topBar(snapshot: ScreenSnapshot): List<UiNode> {
+        // The anchors the rules use are the feed's tab labels; whatever else
+        // shares their line -- the search icon does -- belongs to the same bar.
+        val anchorBottom = snapshot.nodes
+            .filter { node -> node.visible && node.viewIdMatches("text1") }
+            .mapNotNull { it.bottomPx() }
+            .maxOrNull() ?: return emptyList()
+        return snapshot.nodes.filter {
+            it.visible && it.clickable && (it.bottomPx() ?: 0) <= anchorBottom
+        }
+    }
+
+    /** How tall a tab bar can be, generously. */
+    private val TAB_BAR_BAND_PX = 250
 
     /**
      * Nesting matters here: TikTok has three views called `viewpager`, and the
