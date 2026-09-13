@@ -228,11 +228,17 @@ data class ScreenRule(
 @Serializable
 data class Matcher(
     /**
-     * A named view that is currently selected -- Instagram's tab bar gives each
-     * tab its own id, so `clips_tab` being selected means Reels is genuinely in
-     * front. Presence alone is not enough there: Instagram's ViewPager keeps
-     * neighbouring tabs alive, so the DM inbox list, the feed and the explore
-     * grid all sit in the tree at once no matter which tab you are looking at.
+     * A named view that is currently selected *and* on screen -- Instagram's
+     * tab bar gives each tab its own id, so `clips_tab` being selected means
+     * Reels is genuinely in front. Presence alone is not enough there:
+     * Instagram's ViewPager keeps neighbouring tabs alive, so the DM inbox
+     * list, the feed and the explore grid all sit in the tree at once no
+     * matter which tab you are looking at.
+     *
+     * Nor is selection alone. The story camera slides in beside the feed and
+     * leaves the feed tab selected behind it, off the side of the screen; the
+     * tab has to still be somewhere the user can see for its selection to mean
+     * anything.
      */
     val selectedViewId: List<String>? = null,
     /**

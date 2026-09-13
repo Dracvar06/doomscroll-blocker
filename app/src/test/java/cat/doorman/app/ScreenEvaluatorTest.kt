@@ -200,6 +200,26 @@ class ScreenEvaluatorTest {
         assertTrue(cold.nodes.any { it.visible && it.viewIdMatches("row_feed_profile_header") })
     }
 
+    /**
+     * Reported by a user: with the home feed blocked, posting a story was
+     * blocked too. Instagram slides the camera in beside the feed rather than
+     * opening it on top, and leaves the feed tab marked selected the whole time
+     * it is there, so a rule that asked only about selection covered the
+     * composer. Not reading a feed and not posting to one are different wants,
+     * and Doorman was never asked for the second.
+     */
+    @Test
+    fun `the story camera is not blocked while the feed tab stays selected`() {
+        val composer = fixture("instagram-story-composer")
+        assertTrue(
+            "the fixture must be the case it stands for",
+            composer.nodes.any {
+                it.selected && !it.visible && it.viewIdMatches("feed_tab")
+            },
+        )
+        assertFalse(ScreenEvaluator.evaluate(composer, rules(), allScreens).blocked)
+    }
+
     @Test
     fun `nothing is blocked when the user has switched everything off`() {
         for (screen in listOf(
@@ -207,7 +227,7 @@ class ScreenEvaluatorTest {
             "instagram-clips", "instagram-feed", "instagram-search", "instagram-profile",
             "instagram-shared-reel", "instagram-dm-thread", "instagram-reel-from-feed",
             "instagram-search-active", "instagram-explore-idle", "instagram-single-post",
-            "instagram-feed-cold",
+            "instagram-feed-cold", "instagram-story-composer",
             "instagram-story-viewer", "instagram-home-with-stories",
         )) {
             assertFalse(screen, ScreenEvaluator.evaluate(fixture(screen), rules(), emptySet()).blocked)

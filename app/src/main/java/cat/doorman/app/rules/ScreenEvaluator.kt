@@ -99,7 +99,16 @@ object ScreenEvaluator {
             if (wanted != arrivedFromAnotherApp) return false
         }
         matcher.selectedViewId?.let { wanted ->
-            if (snapshot.nodes.none { node -> node.selected && wanted.any(node::viewIdMatches) }) {
+            // Selected *and* on screen. Instagram slides the camera in beside
+            // the feed rather than opening it on top, and leaves the feed tab
+            // marked selected the whole time it is there -- so a check on
+            // selection alone covered the story composer with "the home feed is
+            // blocked", which stopped people posting a story because they had
+            // asked not to read one.
+            if (snapshot.nodes.none { node ->
+                    node.selected && node.visible && wanted.any(node::viewIdMatches)
+                }
+            ) {
                 return false
             }
         }
