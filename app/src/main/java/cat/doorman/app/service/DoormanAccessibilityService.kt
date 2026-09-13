@@ -97,6 +97,9 @@ class DoormanAccessibilityService : AccessibilityService() {
     private val evaluate = Runnable { evaluateCurrentScreen() }
     private val passExpiry = Runnable { evaluateCurrentScreen() }
 
+    /** A single-item allowance running out of time rather than out of swipes. */
+    private val allowanceExpiry = Runnable { evaluateCurrentScreen() }
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         // Whatever the post-update check decided a moment ago, the service is
@@ -198,6 +201,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         serviceScope.cancel()
         handler.removeCallbacks(evaluate)
         handler.removeCallbacks(passExpiry)
+        handler.removeCallbacks(allowanceExpiry)
         if (::overlay.isInitialized) overlay.hide()
         dumpReceiver?.let { runCatching { unregisterReceiver(it) } }
         dumpReceiver = null
@@ -287,6 +291,9 @@ class DoormanAccessibilityService : AccessibilityService() {
             // useful, which is why distance is tracked as well.
             itemIndex = event.toIndex.takeIf { it >= 0 },
             nowMillis = System.currentTimeMillis(),
+            // A page turn is a page of the list, not a screenful: the pager
+            // rarely fills the display.
+            scrolledViewHeightPx = scrolledViewHeight(event),
         )
         if (spent) {
             Log.i(TAG, "shared-reel budget spent; blocking")
@@ -314,6 +321,18 @@ class DoormanAccessibilityService : AccessibilityService() {
      * Leaving the app entirely does not update this, so backgrounding and
      * returning cannot be used to keep scrolling.
      */
+    /**
+     * How tall the view that just scrolled is, when the event names it. Costs a
+     * binder call, which is why it is only asked on the scroll events of a
+     * screen that has a budget running -- a handful per reel, not per frame.
+     */
+    private fun scrolledViewHeight(event: AccessibilityEvent): Int? {
+        val source = event.source ?: return null
+        val bounds = android.graphics.Rect()
+        source.getBoundsInScreen(bounds)
+        return bounds.height().takeIf { it > 0 }
+    }
+
     private var lastEvaluatedScreenId: String? = null
 
     /** What the rules call the current screen, held or not. Null when nothing matches. */
@@ -411,9 +430,16 @@ class DoormanAccessibilityService : AccessibilityService() {
             lastEvaluatedScreenId = verdict.screenId
             val now = System.currentTimeMillis()
             if (arrivedFromElsewhere) scrollBudget.reset()
-            scrollBudget.begin(key, verdict.budget, now)
+            scrollBudget.begin(key, verdict.budget, now, verdict.allowMillis)
+            handler.removeCallbacks(allowanceExpiry)
             if (scrollBudget.hasBudget(key, now)) {
                 if (overlay.isShowing) overlay.hide()
+                // A Short plays in silence -- no scroll, no content change --
+                // so nothing would bring us back here to notice the time was
+                // up. Come back on purpose.
+                scrollBudget.remainingMillis(key, now)?.let { left ->
+                    handler.postDelayed(allowanceExpiry, left + 250)
+                }
             } else {
                 overlay.show(
                     verdict.screenId,
@@ -425,6 +451,7 @@ class DoormanAccessibilityService : AccessibilityService() {
             return
         }
         budgetKey = null
+        handler.removeCallbacks(allowanceExpiry)
         lastEvaluatedScreenId = verdict.screenId
 
         val canonical = rules.canonicalPackage(pkg) ?: pkg

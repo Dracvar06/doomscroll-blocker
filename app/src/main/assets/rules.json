@@ -10,14 +10,13 @@
           "defaultEnabled": true,
           "verdict": "ALLOW_ONCE",
           "budget": 1,
+          "allowSeconds": 120,
           "match": {
             "anyViewId": [
               "reel_recycler",
               "reel_player_page_container"
             ],
-            "noneViewId": [
-              "pivot_bar"
-            ]
+            "arrivedFromAnotherApp": true
           },
           "helpKey": "help_yt_single_short",
           "endless": true

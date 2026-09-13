@@ -128,6 +128,18 @@ data class ScreenRule(
     val verdict: String = "BLOCK",
     val budget: Int = 1,
     /**
+     * How long an "ALLOW_ONCE" screen stays watchable before it is covered
+     * anyway, in seconds. Null leaves the swipe as the only thing that ends it.
+     *
+     * The swipe is the better signal when the app reports one, because it means
+     * "you have moved on" rather than "time is up". YouTube's Shorts pager
+     * reports it only sometimes: the same swipe that visibly changes the video
+     * raises a scroll event on one run and nothing at all on the next. A clock
+     * cannot be dropped. It is set well past the length of an ordinary Short,
+     * so what somebody sent you still plays to the end.
+     */
+    val allowSeconds: Int? = null,
+    /**
      * Views this particular block must stay clear of at the top of the screen,
      * overriding the app-wide list.
      *

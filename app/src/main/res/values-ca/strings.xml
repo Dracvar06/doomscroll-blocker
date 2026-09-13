@@ -109,7 +109,7 @@
     <string name="screen_ig_reel_viewer">Reels, s\'obrin on s\'obrin</string>
     <string name="action_help">Què bloqueja això?</string>
     <string name="help_whole_app">Cobreix tota l\'aplicació, totes les pantalles, missatges inclosos. Fes-ho servir per a una aplicació de la qual Doorman no coneix les pantalles, o quan vulguis tancar-ho tot i no només una part.</string>
-    <string name="help_yt_single_short">Quan algú t\'envia un Short, es reprodueix. El bloqueig arriba al primer lliscament, així el que t\'han enviat es pot veure sense convertir-se en un flux. Si ho desactives, un Short que t\'enviïn queda bloquejat com qualsevol altre.</string>
+    <string name="help_yt_single_short">Quan algú t\'envia un Short, es reprodueix. El bloqueig arriba quan passes al següent i, en tot cas, al cap de dos minuts: YouTube no sempre diu que has lliscat. Així el que t\'han enviat es pot veure sense convertir-se en un flux. Si ho desactives, un Short que t\'enviïn queda bloquejat com qualsevol altre.</string>
     <string name="help_yt_shorts">El reproductor de Shorts, hi arribis com hi arribis: la pestanya, un enllaç, un canal. Els vídeos que cerques i els vídeos normals no es toquen.</string>
     <string name="help_yt_home_feed">Les recomanacions de la pàgina d\'inici de YouTube. La cerca, les subscripcions i qualsevol vídeo que obris continuen funcionant.</string>
     <string name="help_yt_subscriptions_feed">La pestanya de subscripcions, amb els vídeos nous dels canals que segueixes. Desactivat per defecte: per a la majoria de gent aquesta és la part deliberada de YouTube, no la part infinita.</string>

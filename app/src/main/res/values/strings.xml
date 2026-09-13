@@ -118,7 +118,7 @@
     <string name="screen_ig_reel_viewer" tools:ignore="UnusedResources">Reels, wherever they open</string>
     <string name="action_help">What does this block?</string>
     <string name="help_whole_app" tools:ignore="UnusedResources">Covers the entire app, every screen of it, including messages. Use this for an app Doorman has no detailed rules for, or when you want the whole thing shut rather than a part of it.</string>
-    <string name="help_yt_single_short" tools:ignore="UnusedResources">When someone sends you a Short, it plays. The block lands on the first swipe past it, so a link stays watchable without turning into a feed. Switch this off and a Short someone sent is blocked like any other.</string>
+    <string name="help_yt_single_short" tools:ignore="UnusedResources">When someone sends you a Short, it plays. The block lands when you swipe past it, and after two minutes in any case: YouTube does not always say when you have swiped. So a link stays watchable without turning into a feed. Switch this off and a Short someone sent is blocked like any other.</string>
     <string name="help_yt_shorts" tools:ignore="UnusedResources">The Shorts player itself, wherever you reach it from: the Shorts tab, a link, a channel. Videos you search for and ordinary videos are untouched.</string>
     <string name="help_yt_home_feed" tools:ignore="UnusedResources">The recommendations on the YouTube home tab. Search, subscriptions and any video you open still work.</string>
     <string name="help_yt_subscriptions_feed" tools:ignore="UnusedResources">The Subscriptions tab, which lists new videos from channels you follow. Off by default: for most people this is the deliberate part of YouTube rather than the endless part.</string>

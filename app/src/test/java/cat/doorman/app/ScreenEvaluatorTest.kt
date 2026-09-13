@@ -65,6 +65,58 @@ class ScreenEvaluatorTest {
         assertEquals("yt_shorts", verdict.screenId)
     }
 
+    /**
+     * A Short someone sends you plays; the swipe past it is what gets blocked.
+     *
+     * This used to be told apart by the bottom navigation bar being absent, on
+     * the assumption that a link opened the player on its own. YouTube 21.32.4
+     * does not: a Shorts link opens inside the main activity, with the pivot
+     * bar visible and the Shorts tab already selected. The two trees are
+     * indistinguishable -- so where the user came from is the only signal left,
+     * exactly as on TikTok.
+     */
+    @Test
+    fun `a short opened from another app is allowed once`() {
+        val verdict = ScreenEvaluator.evaluate(
+            fixture("youtube-short-from-link"), rules(), defaults,
+            arrivedFromAnotherApp = true,
+        )
+        assertEquals(ScreenEvaluator.Outcome.ALLOW_ONCE, verdict.outcome)
+        assertEquals("yt_single_short", verdict.screenId)
+    }
+
+    /** The evidence for the rule above: the discriminator it replaced is gone. */
+    @Test
+    fun `a short opened from a link still shows the bottom navigation bar`() {
+        val fromLink = fixture("youtube-short-from-link")
+        assertTrue(fromLink.nodes.any { it.visible && it.viewIdMatches("pivot_bar") })
+    }
+
+    @Test
+    fun `the same short reached inside the app is blocked outright`() {
+        val verdict = ScreenEvaluator.evaluate(
+            fixture("youtube-short-from-link"), rules(), defaults,
+            arrivedFromAnotherApp = false,
+        )
+        assertEquals(ScreenEvaluator.Outcome.BLOCK, verdict.outcome)
+        assertEquals("yt_shorts", verdict.screenId)
+    }
+
+    /**
+     * Switching the single-Short allowance off means a Short someone sent is
+     * blocked like any other, which is what its help text promises.
+     */
+    @Test
+    fun `without the single-short allowance a shared short is blocked`() {
+        val verdict = ScreenEvaluator.evaluate(
+            fixture("youtube-short-from-link"), rules(),
+            defaults - "yt_single_short",
+            arrivedFromAnotherApp = true,
+        )
+        assertEquals(ScreenEvaluator.Outcome.BLOCK, verdict.outcome)
+        assertEquals("yt_shorts", verdict.screenId)
+    }
+
     @Test
     fun `home feed is blocked`() {
         val verdict = ScreenEvaluator.evaluate(fixture("youtube-home"), rules(), defaults)

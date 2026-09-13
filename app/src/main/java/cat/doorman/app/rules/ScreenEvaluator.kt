@@ -30,6 +30,8 @@ object ScreenEvaluator {
         val screenId: String? = null,
         val labelKey: String? = null,
         val budget: Int = 1,
+        /** See [cat.doorman.app.rules.ScreenRule.allowSeconds]. */
+        val allowMillis: Long? = null,
     ) {
         val blocked: Boolean get() = outcome == Outcome.BLOCK
 
@@ -85,6 +87,7 @@ object ScreenEvaluator {
             screenId = rule.id,
             labelKey = rule.labelKey,
             budget = rule.budget,
+            allowMillis = rule.allowSeconds?.let { it * 1000L },
         )
     }
 

@@ -4,6 +4,7 @@ import cat.doorman.app.service.NavigationTracker
 import cat.doorman.app.service.ScrollBudget
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -61,6 +62,71 @@ class ScrollBudgetTest {
         assertFalse(b.onScroll(key, 0, 200, null, 10))
         val spent = b.onScroll(key, 0, viewport, null, 20)
         assertTrue(spent)
+    }
+
+    /**
+     * The numbers are the ones YouTube actually reports on a Pixel 10: a Shorts
+     * page turn is 1031px on a recycler 2062px tall, inside a 2424px screen.
+     * Judged against the screen that is not even half a swipe, so the first
+     * swipe past a Short someone sent counted for nothing and a second Short
+     * played free -- which is what a user reported.
+     */
+    @Test
+    fun `a page turn on a pager shorter than the screen spends it`() {
+        val b = budget()
+        b.begin(key, budget = 1, nowMillis = 0)
+        val spent = b.onScroll(
+            key, deltaX = 0, deltaY = 1031, itemIndex = null, nowMillis = 10,
+            scrolledViewHeightPx = 2062,
+        )
+        assertTrue("one swipe is one Short", spent)
+    }
+
+    /** A nudge is still a nudge, whichever view reported it. */
+    @Test
+    fun `a small drag inside a short pager does not spend it`() {
+        val b = budget()
+        b.begin(key, budget = 1, nowMillis = 0)
+        assertFalse(
+            b.onScroll(
+                key, deltaX = 0, deltaY = 180, itemIndex = null, nowMillis = 10,
+                scrolledViewHeightPx = 2062,
+            ),
+        )
+        assertTrue(b.hasBudget(key, 20))
+    }
+
+    /**
+     * The swipe is the better signal, but YouTube drops it often enough that a
+     * Short someone sent would otherwise roll into the next one for as long as
+     * the user let it. The clock is the floor under that.
+     */
+    @Test
+    fun `an allowance with a ceiling runs out on its own`() {
+        val b = budget()
+        b.begin(key, budget = 1, nowMillis = 0, allowMillis = 120_000)
+        assertTrue(b.hasBudget(key, 119_000))
+        assertEquals(1_000L, b.remainingMillis(key, 119_000))
+        assertFalse(b.hasBudget(key, 121_000))
+    }
+
+    /** Stepping out of the app must not wind the clock back. */
+    @Test
+    fun `the ceiling counts from the first arrival, not the latest`() {
+        val b = budget()
+        b.begin(key, budget = 1, nowMillis = 0, allowMillis = 120_000)
+        // Back within the session gap: the same allowance, older by a minute.
+        b.begin(key, budget = 1, nowMillis = 60_000, allowMillis = 120_000)
+        assertFalse(b.hasBudget(key, 121_000))
+    }
+
+    /** Without a ceiling, nothing changes: the swipe alone ends it. */
+    @Test
+    fun `an allowance with no ceiling never expires by itself`() {
+        val b = budget()
+        b.begin(key, budget = 1, nowMillis = 0)
+        assertTrue(b.hasBudget(key, 10 * 60 * 1000))
+        assertNull(b.remainingMillis(key, 10 * 60 * 1000))
     }
 
     @Test
