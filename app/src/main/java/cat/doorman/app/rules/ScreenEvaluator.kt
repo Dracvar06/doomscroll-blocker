@@ -62,8 +62,7 @@ object ScreenEvaluator {
     ): String? {
         val app = rules.appFor(snapshot.packageName) ?: return null
         return app.screens.firstOrNull { rule ->
-            val matcher = rule.match ?: return@firstOrNull false
-            matches(snapshot, matcher, arrivedFromAnotherApp)
+            rule.matchers.any { matches(snapshot, it, arrivedFromAnotherApp) }
         }?.id
     }
 
@@ -75,10 +74,10 @@ object ScreenEvaluator {
     ): Verdict {
         val app = rules.appFor(snapshot.packageName) ?: return Verdict.ALLOW
         val rule = app.screens.firstOrNull { rule ->
-            // A rule with no matcher is a switch that modifies another block,
-            // not a screen; it must never block anything on its own.
-            val matcher = rule.match ?: return@firstOrNull false
-            rule.id in enabledScreenIds && matches(snapshot, matcher, arrivedFromAnotherApp)
+            // A rule with no matcher at all is a switch that modifies another
+            // block, not a screen; it must never block anything on its own.
+            rule.id in enabledScreenIds &&
+                rule.matchers.any { matches(snapshot, it, arrivedFromAnotherApp) }
         } ?: return Verdict.ALLOW
         val outcome =
             if (rule.verdict == "ALLOW_ONCE") Outcome.ALLOW_ONCE else Outcome.BLOCK

@@ -140,6 +140,14 @@
               "feed_tab"
             ]
           },
+          "matchAlso": [
+            {
+              "visibleViewId": [
+                "feed_tab",
+                "row_feed_profile_header"
+              ]
+            }
+          ],
           "keepVisibleTopViewIds": [
             "outer_container"
           ],

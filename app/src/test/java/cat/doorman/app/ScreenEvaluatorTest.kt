@@ -153,13 +153,61 @@ class ScreenEvaluatorTest {
         assertEquals("yt_subscriptions_feed", on.screenId)
     }
 
+    /**
+     * Instagram marks no tab selected at all until you touch one, so on every
+     * cold start the home feed sat there unblocked -- the moment the block is
+     * most wanted. Selection is still the first thing asked; this is the second.
+     */
+    @Test
+    fun `the home feed is blocked on a cold start, before any tab is selected`() {
+        val cold = fixture("instagram-feed-cold")
+        assertTrue(
+            "the fixture must be the case it stands for",
+            cold.nodes.none { it.selected },
+        )
+        val verdict = ScreenEvaluator.evaluate(cold, rules(), defaults)
+        assertTrue(verdict.blocked)
+        assertEquals("ig_feed", verdict.screenId)
+    }
+
+    /**
+     * And the reason that rule is written on the tab bar as well as on the
+     * posts: one post opened from a profile is the same feed row, without the
+     * tab bar. Blocking it would be blocking somebody's own photo.
+     */
+    @Test
+    fun `a single post opened from a profile is not blocked`() {
+        val post = fixture("instagram-single-post")
+        assertTrue(
+            "the fixture must contain what could wrongly match",
+            post.nodes.any { it.visible && it.viewIdMatches("row_feed_profile_header") },
+        )
+        assertFalse(ScreenEvaluator.evaluate(post, rules(), allScreens).blocked)
+    }
+
+    /**
+     * The first post being a tall carousel pushes its like row off the bottom
+     * of the screen, so the rule is written on the post's author row, which is
+     * at the top of the post and always on screen when the feed is.
+     */
+    @Test
+    fun `the home feed is still recognised when the first post fills the screen`() {
+        val cold = fixture("instagram-feed-cold")
+        val verdict = ScreenEvaluator.evaluate(
+            fixture("instagram-home-with-stories"), rules(), defaults,
+        )
+        assertEquals("ig_feed", verdict.screenId)
+        assertTrue(cold.nodes.any { it.visible && it.viewIdMatches("row_feed_profile_header") })
+    }
+
     @Test
     fun `nothing is blocked when the user has switched everything off`() {
         for (screen in listOf(
             "youtube-shorts", "youtube-home", "youtube-subs", "youtube-you", "youtube-watch",
             "instagram-clips", "instagram-feed", "instagram-search", "instagram-profile",
             "instagram-shared-reel", "instagram-dm-thread", "instagram-reel-from-feed",
-            "instagram-search-active", "instagram-explore-idle",
+            "instagram-search-active", "instagram-explore-idle", "instagram-single-post",
+            "instagram-feed-cold",
             "instagram-story-viewer", "instagram-home-with-stories",
         )) {
             assertFalse(screen, ScreenEvaluator.evaluate(fixture(screen), rules(), emptySet()).blocked)

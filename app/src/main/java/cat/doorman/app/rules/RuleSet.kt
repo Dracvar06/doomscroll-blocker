@@ -179,6 +179,20 @@ data class ScreenRule(
      */
     val match: Matcher? = null,
     /**
+     * Other ways the same screen can look. Any one of them is enough.
+     *
+     * Conditions inside a matcher are joined with "and", which is what makes
+     * them safe to write: every extra line narrows the match. But one screen
+     * can genuinely present itself two ways, and Instagram's home feed does.
+     * Which tab is selected is the honest signal for it -- except on a cold
+     * start, when Instagram marks no tab selected at all until you touch one,
+     * and the feed sat there unblocked every time the app was opened fresh.
+     *
+     * Alternatives, not a loosening: each one is written as tightly as the
+     * first, and a screen is this screen if any of them holds.
+     */
+    val matchAlso: List<Matcher> = emptyList(),
+    /**
      * A string naming what this block actually covers, shown behind an info
      * button next to it.
      *
@@ -199,6 +213,10 @@ data class ScreenRule(
      */
     val supportsAllowance: Boolean
         get() = match != null && verdict == "BLOCK"
+
+    /** Every shape this screen can take, in the order they are tried. */
+    val matchers: List<Matcher>
+        get() = listOfNotNull(match) + matchAlso
 }
 
 /**

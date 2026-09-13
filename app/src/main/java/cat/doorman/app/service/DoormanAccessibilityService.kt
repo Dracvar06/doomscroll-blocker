@@ -214,6 +214,20 @@ class DoormanAccessibilityService : AccessibilityService() {
         return super.onUnbind(intent)
     }
 
+    /**
+     * Whether this event came from the window the user is actually in.
+     *
+     * Unknown windows count as active: the list is a snapshot and a window can
+     * be too new to be in it, and missing a real app switch is worse than
+     * noticing a stale one -- it is what tells a video someone sent from a feed
+     * somebody opened.
+     */
+    private fun isActiveWindow(event: AccessibilityEvent): Boolean {
+        val id = event.windowId
+        val window = windows?.firstOrNull { it.id == id } ?: return true
+        return window.isActive
+    }
+
     private fun currentImePackage(): String? =
         Settings.Secure.getString(contentResolver, Settings.Secure.DEFAULT_INPUT_METHOD)
             ?.let { ComponentName.unflattenFromString(it)?.packageName }
@@ -233,6 +247,14 @@ class DoormanAccessibilityService : AccessibilityService() {
             // A new screen: decide at once, so the block lands before the feed
             // has a chance to be read.
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
+                // An app being left raises one of these *after* the app being
+                // opened does, and taking it at face value made the app the
+                // user had just left the "current" one. Everything after that
+                // was judged against the wrong package: content changes from
+                // the app actually in front were dropped as coming from
+                // somewhere else, so the screen was never looked at again and
+                // whatever block was up stayed up over the wrong screen.
+                if (!isActiveWindow(event)) return
                 logTransition(pkg, event)
                 handler.removeCallbacks(evaluate)
                 // A short settle: the event arrives while the opening app's
