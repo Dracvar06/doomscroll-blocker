@@ -44,7 +44,14 @@ Reddit.** Everything below is an individual switch; nothing is all-or-nothing.
 - **Any single reel you open plays, and stops there.** From a conversation, from
   a post in the feed, from someone's story, from a link -- it plays, and the
   swipe to the next one is blocked. Go back and open another reel deliberately
-  and that one plays too.
+  and that one plays too. Opening the comments, the share sheet or the author's
+  page over it does not give you a fresh one.
+
+- **A block holds until you really leave.** A swipe up from the bottom that you
+  let go of halfway does not switch Doorman off, and a blocked video that
+  shrinks into its small floating window is covered there and stopped. A video
+  with time left on its limit keeps being timed in the floating window. When a
+  block lands, whatever was playing is stopped -- music in another app included.
 
 Every screen is an individual switch in the app, with Strict / Balanced /
 Nothing presets. Switching a block **off** waits a configurable delay (30 s by

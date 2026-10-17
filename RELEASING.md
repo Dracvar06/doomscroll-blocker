@@ -64,6 +64,16 @@ keeps somebody else's messages out of the repository. Leave it off only when
 reading your own screen and you need the text to understand it.
 
 
+To read a screen a block would otherwise cover -- or to open a comments sheet
+over a blocked feed -- stop the block being *drawn* while it is still decided
+and logged (debug builds only; it resets when the service restarts):
+
+```bash
+adb shell am broadcast -a cat.doorman.app.NOBLOCK -p cat.doorman.app --ez on true
+# ...drive the screen, take dumps...
+adb shell am broadcast -a cat.doorman.app.NOBLOCK -p cat.doorman.app --ez on false
+```
+
 Feeds get redesigned, and when they do a rule stops matching. Before each
 release, open each held app on a device with the *current* store version and
 check that the screens in `rules.json` are still recognised. Settings →
@@ -129,6 +139,8 @@ Some changes are not just code:
 | A new permission | `PRIVACY.md`, the manifest comment explaining why, the tutorial if the user will meet it |
 | A new held app | `rules.json`, the README status list, a `*RulesTest` with a captured fixture per screen -- including the screens that must **not** be blocked |
 | A screen whose allowance leans on a clock | Say so in its help text. `allowSeconds` exists because some apps report a swipe with no numbers in it; a user told "the block lands on the swipe" and then blocked by a timer will think it is broken |
+| An `ALLOW_ONCE` screen (a single item someone sent) | Capture it with its comments sheet open, because the sheet hides everything under it from the tree and so is a screen the rules cannot name. That is deliberate: a screen the rules cannot name does **not** end the session, which is what stops "swipe, open comments, close" handing back a fresh free item. Only a named screen ends it, or an id in `sessionEndViewIds` -- the place the next item *comes from* (Instagram's conversation, Reddit's `bottom_nav`). Without a marker, legitimately going back to the conversation for the next reel would not count as leaving. `ScrollSessionTest` replays the trick against real fixtures |
+| An app that can shrink into a floating window | Test it: swipe a blocked screen home and check the window is covered and silent. The window list carries `pip=true` and its bounds; `Foreground` and `PipPolicy` decide what to do with it |
 | A new setting | The tutorial only if a newcomer needs it — the tutorial explains the shape of the app, not every switch |
 | The coffee link or its cadence | `Support.kt` (`COFFEE_URL`, `COFFEE_NUDGE_DAYS`) |
 
