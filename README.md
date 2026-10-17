@@ -47,6 +47,11 @@ Reddit.** Everything below is an individual switch; nothing is all-or-nothing.
   and that one plays too. Opening the comments, the share sheet or the author's
   page over it does not give you a fresh one.
 
+- **Opening the comments does not lift a block.** On a blocked reel or Short the
+  comments sheet used to hide the screen from Doorman and let the video play
+  above it with sound. The block now stays over the sheet; your messages, your
+  profile and everything else are untouched.
+
 - **A block holds until you really leave.** A swipe up from the bottom that you
   let go of halfway does not switch Doorman off, and a blocked video that
   shrinks into its small floating window is covered there and stopped. A video

@@ -223,6 +223,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         handler.removeCallbacks(presenceTick)
         scrollBudget.reset()
         session = null
+        held = null
         serviceScope.cancel()
         handler.removeCallbacks(evaluate)
         handler.removeCallbacks(passExpiry)
@@ -678,6 +679,9 @@ class DoormanAccessibilityService : AccessibilityService() {
 
     private var session: ScrollSession.Session? = null
 
+    /** The blocked screen last seen, which a comments sheet may now be covering. */
+    private var held: CoverMemory.Held? = null
+
     /** What the rules call the current screen, held or not. Null when nothing matches. */
     private var lastRecognisedScreenId: String? = null
 
@@ -745,7 +749,7 @@ class DoormanAccessibilityService : AccessibilityService() {
             launcherPackages = launcherPackages,
             self = packageName,
         )
-        val verdict = if (snapshot != null && rules.appFor(pkg) != null) {
+        val ruleVerdict = if (snapshot != null && rules.appFor(pkg) != null) {
             ScreenEvaluator.evaluate(snapshot, rules, enabledScreenIds, arrivedFromAnotherApp)
         } else {
             ScreenEvaluator.Verdict.ALLOW
@@ -755,6 +759,20 @@ class DoormanAccessibilityService : AccessibilityService() {
         lastRecognisedScreenId = snapshot?.let {
             ScreenEvaluator.recognise(it, rules, arrivedFromAnotherApp)
         }
+        // A comments sheet hides the screen under it from the tree. If a blocked
+        // screen was the last one seen and a known sheet is over it, the sheet
+        // is that screen: same block, same limits, same clock.
+        val cover = CoverMemory.step(
+            held = held,
+            packageName = pkg,
+            verdict = ruleVerdict,
+            recognisedScreenId = lastRecognisedScreenId,
+            snapshot = snapshot,
+            coverViewIds = rules.appFor(pkg)?.coverViewIds.orEmpty(),
+        )
+        held = cover.held
+        val verdict = cover.verdict
+        if (verdict !== ruleVerdict) lastRecognisedScreenId = verdict.screenId
         Log.i(
             TAG,
             "evaluate: pkg=$pkg nodes=${snapshot?.nodes?.size} " +

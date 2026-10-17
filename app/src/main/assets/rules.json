@@ -69,6 +69,9 @@
           "helpKey": "help_yt_subscriptions_feed"
         }
       ],
+      "coverViewIds": [
+        "app_engagement_panel"
+      ],
       "keepVisibleViewIds": [
         "pivot_bar"
       ],
@@ -179,6 +182,10 @@
           "helpKey": "help_ig_explore",
           "endless": true
         }
+      ],
+      "coverViewIds": [
+        "layout_comment_thread_edittext_multiline",
+        "comment_composer_media_picker_button"
       ],
       "keepVisibleViewIds": [
         "feed_tab",

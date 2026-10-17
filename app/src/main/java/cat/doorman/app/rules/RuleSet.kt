@@ -110,6 +110,17 @@ data class AppRules(
      * outcome this app must never produce.
      */
     val keepVisibleBottomDp: Int = 0,
+    /**
+     * Views that only a comments sheet has, for apps whose sheet opens over a
+     * blocked screen and hides it from the tree.
+     *
+     * With one of these in the tree, and a blocked screen the last one seen, the
+     * sheet is treated as that screen -- otherwise a reel stays watchable, with
+     * sound, above the comments. Pick ids that appear nowhere else in the app: a
+     * marker that also shows up on a screen that must stay open would block it.
+     * Apps whose comments are a page of their own, not a sheet, need none.
+     */
+    val coverViewIds: List<String> = emptyList(),
     val screens: List<ScreenRule> = emptyList(),
 ) {
     /** Every name this app goes by, its key included. */
