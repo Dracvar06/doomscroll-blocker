@@ -89,7 +89,11 @@ class DoormanAccessibilityService : AccessibilityService() {
      * an allowance is for.
      */
     private val allowanceClock = AllowanceClock { System.currentTimeMillis() }
-    private val clockTick = Runnable { onClockTick() }
+    private val clockTick = Runnable {
+        tickScheduled = false
+        onClockTick()
+    }
+    private var tickScheduled = false
     private var clockRunning = false
     private var activePass: Prefs.Pass? = null
 
@@ -463,7 +467,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         val appOutcome = if (appLimit.isOff) {
             null
         } else {
-            Allowances.decide(listOf(Allowances.Target(canonical, appLimit, ledger)), LocalDateTime.now())
+            Allowances.decide(listOf(Allowances.Target(canonical, appLimit, ledgerNow())), LocalDateTime.now())
         }
         when (val action = PipPolicy.decide(blockedWhenLeft == canonical, appOutcome)) {
             PipPolicy.Action.Cover -> {
@@ -941,12 +945,13 @@ class DoormanAccessibilityService : AccessibilityService() {
 
         val canonical = rules.canonicalPackage(pkg) ?: pkg
         val appLimit = appLimits[canonical] ?: Limits.OFF
+        val spent = ledgerNow()
         val targets = buildList {
-            if (!appLimit.isOff) add(Allowances.Target(canonical, appLimit, ledger))
+            if (!appLimit.isOff) add(Allowances.Target(canonical, appLimit, spent))
             val screenId = verdict.screenId
             if (screenId != null && verdict.blocked) {
                 val limit = screenLimits[screenId] ?: Limits.BLOCKED
-                if (!limit.isOff) add(Allowances.Target(screenId, limit, ledger))
+                if (!limit.isOff) add(Allowances.Target(screenId, limit, spent))
             }
         }
 
@@ -1052,14 +1057,21 @@ class DoormanAccessibilityService : AccessibilityService() {
      */
     private fun startClock(outcome: Allowances.Outcome.OnTheClock) {
         allowanceClock.tick(outcome.charge)
-        handler.removeCallbacks(clockTick)
-        handler.postDelayed(clockTick, CLOCK_TICK_MS)
         clockRunning = true
+        // Never pushed back. A playing video changes the screen several times
+        // a second, every change is an evaluation, and every evaluation used to
+        // restart this tick -- so it never fired, nothing was ever added up,
+        // and a ten-minute limit on a video let it run for as long as it ran.
+        if (!tickScheduled) {
+            tickScheduled = true
+            handler.postDelayed(clockTick, CLOCK_TICK_MS)
+        }
     }
 
     private fun stopClock() {
         if (!clockRunning && allowanceClock.pendingMillis() == 0L) return
         handler.removeCallbacks(clockTick)
+        tickScheduled = false
         clockRunning = false
         allowanceClock.stop()
         flushClock()
@@ -1096,19 +1108,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         val pending = allowanceClock.drain()
         if (pending.isEmpty()) return
         lastFlushAt = now
-        val at = LocalDateTime.now()
-        // Pending is keyed by "target|PERIOD", because a screen can be on an
-        // hourly and a daily budget at once and those are separate counters.
-        val charges = pending.mapNotNull { (key, millis) ->
-            val period = runCatching { Period.valueOf(key.substringAfterLast('|')) }
-                .getOrNull() ?: return@mapNotNull null
-            key to Allowances.charge(
-                ledger[key] ?: Allowances.Spent.NOTHING,
-                period,
-                millis,
-                at,
-            )
-        }.toMap()
+        val charges = chargesFor(pending)
         if (charges.isEmpty()) return
         ledger = ledger + charges
         // The largest of the charges, not their sum: one stretch of watching is
@@ -1124,6 +1124,33 @@ class DoormanAccessibilityService : AccessibilityService() {
     }
 
     private var lastFlushAt = 0L
+
+    /** [pending] time as it would stand in the ledger once written. */
+    private fun chargesFor(pending: Map<String, Long>): Map<String, Allowances.Spent> {
+        val at = LocalDateTime.now()
+        // Pending is keyed by "target|PERIOD", because a screen can be on an
+        // hourly and a daily budget at once and those are separate counters.
+        return pending.mapNotNull { (key, millis) ->
+            val period = runCatching { Period.valueOf(key.substringAfterLast('|')) }
+                .getOrNull() ?: return@mapNotNull null
+            key to Allowances.charge(
+                ledger[key] ?: Allowances.Spent.NOTHING,
+                period,
+                millis,
+                at,
+            )
+        }.toMap()
+    }
+
+    /**
+     * The ledger with the time not yet written counted in. Writing happens
+     * every ten seconds; deciding on the written ledger alone let a limit run
+     * up to ten seconds over.
+     */
+    private fun ledgerNow(): Map<String, Allowances.Spent> {
+        val pending = allowanceClock.peek()
+        return if (pending.isEmpty()) ledger else ledger + chargesFor(pending)
+    }
 
     // ------------------------------------------------------------ presence
 

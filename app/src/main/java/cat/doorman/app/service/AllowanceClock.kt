@@ -54,4 +54,7 @@ class AllowanceClock(private val nowMillis: () -> Long) {
     }
 
     fun pendingMillis(): Long = pending.values.sum()
+
+    /** The accumulated time, left where it is. */
+    fun peek(): Map<String, Long> = pending.toMap()
 }
