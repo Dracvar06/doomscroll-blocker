@@ -131,6 +131,26 @@ object Allowances {
         )
     }
 
+    /**
+     * [ledger] with [pending] time counted in, as it will stand once written.
+     * Pending is keyed by "target|PERIOD", because a screen can be on an hourly
+     * and a daily budget at once and those are separate counters. Deciding on
+     * the written ledger alone let a limit run over by however long the time
+     * waited to be written.
+     */
+    fun withPending(
+        ledger: Map<String, Spent>,
+        pending: Map<String, Long>,
+        now: LocalDateTime,
+    ): Map<String, Spent> {
+        if (pending.isEmpty()) return ledger
+        return ledger + pending.mapNotNull { (key, millis) ->
+            val period = runCatching { Period.valueOf(key.substringAfterLast('|')) }
+                .getOrNull() ?: return@mapNotNull null
+            key to charge(ledger[key] ?: Spent.NOTHING, period, millis, now)
+        }
+    }
+
     /** Adds [elapsedMillis] to a record, rolling it over if the period turned. */
     fun charge(
         spent: Spent,

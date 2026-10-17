@@ -27,7 +27,6 @@ import cat.doorman.app.rules.OverlayBounds
 import cat.doorman.app.data.ScreenPreferences
 import cat.doorman.app.limits.Allowances
 import cat.doorman.app.limits.Limits
-import cat.doorman.app.limits.Period
 import java.time.LocalDateTime
 import cat.doorman.app.R
 import kotlinx.coroutines.CoroutineScope
@@ -89,11 +88,11 @@ class DoormanAccessibilityService : AccessibilityService() {
      * an allowance is for.
      */
     private val allowanceClock = AllowanceClock { System.currentTimeMillis() }
-    private val clockTick = Runnable {
-        tickScheduled = false
-        onClockTick()
-    }
-    private var tickScheduled = false
+    private val clockTicker = ClockTicker(
+        periodMillis = CLOCK_TICK_MS,
+        post = { r, delay -> handler.postDelayed(r, delay) },
+        remove = { r -> handler.removeCallbacks(r) },
+    ) { onClockTick() }
     private var clockRunning = false
     private var activePass: Prefs.Pass? = null
 
@@ -1058,20 +1057,12 @@ class DoormanAccessibilityService : AccessibilityService() {
     private fun startClock(outcome: Allowances.Outcome.OnTheClock) {
         allowanceClock.tick(outcome.charge)
         clockRunning = true
-        // Never pushed back. A playing video changes the screen several times
-        // a second, every change is an evaluation, and every evaluation used to
-        // restart this tick -- so it never fired, nothing was ever added up,
-        // and a ten-minute limit on a video let it run for as long as it ran.
-        if (!tickScheduled) {
-            tickScheduled = true
-            handler.postDelayed(clockTick, CLOCK_TICK_MS)
-        }
+        clockTicker.ensure()
     }
 
     private fun stopClock() {
         if (!clockRunning && allowanceClock.pendingMillis() == 0L) return
-        handler.removeCallbacks(clockTick)
-        tickScheduled = false
+        clockTicker.cancel()
         clockRunning = false
         allowanceClock.stop()
         flushClock()
@@ -1108,7 +1099,9 @@ class DoormanAccessibilityService : AccessibilityService() {
         val pending = allowanceClock.drain()
         if (pending.isEmpty()) return
         lastFlushAt = now
-        val charges = chargesFor(pending)
+        // Only the entries that changed, so the write is a merge, not the ledger.
+        val charges = Allowances.withPending(ledger, pending, LocalDateTime.now())
+            .filterKeys { it in pending }
         if (charges.isEmpty()) return
         ledger = ledger + charges
         // The largest of the charges, not their sum: one stretch of watching is
@@ -1125,32 +1118,13 @@ class DoormanAccessibilityService : AccessibilityService() {
 
     private var lastFlushAt = 0L
 
-    /** [pending] time as it would stand in the ledger once written. */
-    private fun chargesFor(pending: Map<String, Long>): Map<String, Allowances.Spent> {
-        val at = LocalDateTime.now()
-        // Pending is keyed by "target|PERIOD", because a screen can be on an
-        // hourly and a daily budget at once and those are separate counters.
-        return pending.mapNotNull { (key, millis) ->
-            val period = runCatching { Period.valueOf(key.substringAfterLast('|')) }
-                .getOrNull() ?: return@mapNotNull null
-            key to Allowances.charge(
-                ledger[key] ?: Allowances.Spent.NOTHING,
-                period,
-                millis,
-                at,
-            )
-        }.toMap()
-    }
-
     /**
      * The ledger with the time not yet written counted in. Writing happens
      * every ten seconds; deciding on the written ledger alone let a limit run
      * up to ten seconds over.
      */
-    private fun ledgerNow(): Map<String, Allowances.Spent> {
-        val pending = allowanceClock.peek()
-        return if (pending.isEmpty()) ledger else ledger + chargesFor(pending)
-    }
+    private fun ledgerNow(): Map<String, Allowances.Spent> =
+        Allowances.withPending(ledger, allowanceClock.peek(), LocalDateTime.now())
 
     // ------------------------------------------------------------ presence
 
