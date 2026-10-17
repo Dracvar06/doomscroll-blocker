@@ -56,7 +56,9 @@ Reddit.** Everything below is an individual switch; nothing is all-or-nothing.
   let go of halfway does not switch Doorman off, and a blocked video that
   shrinks into its small floating window is covered there and stopped. A video
   with time left on its limit keeps being timed in the floating window. When a
-  block lands, whatever was playing is stopped -- music in another app included.
+  block lands, whatever was playing is stopped -- music in another app included
+  -- and kept stopped while the block is on screen: the volume key no longer
+  brings a blocked reel's sound back.
 
 Every screen is an individual switch in the app, with Strict / Balanced /
 Nothing presets. Switching a block **off** waits a configurable delay (30 s by

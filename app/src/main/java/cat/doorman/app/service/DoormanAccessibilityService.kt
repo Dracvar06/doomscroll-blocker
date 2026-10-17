@@ -72,7 +72,7 @@ class DoormanAccessibilityService : AccessibilityService() {
 
 
     private lateinit var overlay: BlockOverlayController
-    private val mediaPauser by lazy { MediaPauser(this) }
+    private val mediaPauser: MediaPauser by lazy { MediaPauser(this) { handler.post(retakeSilence) } }
     private var rules: RuleSet = RuleSet()
     private var enabledScreenIds: Set<String> = emptySet()
     private var screenLimits: Map<String, Limits> = emptyMap()
@@ -234,6 +234,8 @@ class DoormanAccessibilityService : AccessibilityService() {
         handler.removeCallbacks(closeStep)
         handler.removeCallbacks(holdCheck)
         handler.removeCallbacks(silence)
+        handler.removeCallbacks(retakeSilence)
+        retakes.clear()
         holdSince = 0L
         silenceTicking = false
         closingPackage = null
@@ -337,30 +339,53 @@ class DoormanAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * What is playing is kept silent for a while after a block lands, and while
+     * What is playing is kept silent for as long as a block stands, and while
      * one is being held. Instagram does not pause when it loses audio focus, it
      * mutes, and the volume-up key unmutes it -- so one press brought the sound
-     * of a blocked reel back. Asking again costs a moment of sound at most.
-     * Nothing can stop an app playing to the speaker if the user is determined;
-     * this is as far as Android lets a blocker go.
+     * of a blocked reel back. When the app takes focus back Doorman hears of it
+     * and takes it again at once ([retakeSilence]), so the press is worth a
+     * fraction of a second of sound; the tick is the backstop for an app that
+     * plays without asking. Nothing can stop an app playing to the speaker if
+     * the user is determined; this is as far as Android lets a blocker go.
+     *
+     * Music in another app is stopped too while the block is on screen, which
+     * is the price chosen in [MediaPauser]; it is free again once the user has
+     * walked away from the block.
      */
-    private var silenceUntil = 0L
     private var silenceTicking = false
     private val silence = object : Runnable {
         override fun run() {
             silenceTicking = false
-            val blocked = (::overlay.isInitialized && overlay.isShowing) || holdSince != 0L
-            if (!blocked || SystemClock.uptimeMillis() > silenceUntil) return
-            mediaPauser.pauseIfPlaying()
+            if (!blockStanding()) return
+            if (!mediaPauser.holdsFocus) mediaPauser.pauseIfPlaying()
             armSilence()
         }
     }
 
+    private fun blockStanding(): Boolean =
+        (::overlay.isInitialized && (overlay.isShowing || overlay.isCoverShowing)) || holdSince != 0L
+
     private fun armSilence() {
-        silenceUntil = maxOf(silenceUntil, SystemClock.uptimeMillis() + SILENCE_WINDOW_MS)
         if (silenceTicking) return
         silenceTicking = true
         handler.postDelayed(silence, SILENCE_TICK_MS)
+    }
+
+    /**
+     * Focus was taken back while a block stands: take it again now. Capped, so
+     * an app built to fight for focus meets the tick instead of a tug of war.
+     */
+    private val retakes = ArrayDeque<Long>()
+    private val retakeSilence: Runnable = Runnable {
+        if (!blockStanding()) return@Runnable
+        val now = SystemClock.uptimeMillis()
+        while (retakes.isNotEmpty() && now - retakes.first() > RETAKE_WINDOW_MS) retakes.removeFirst()
+        if (retakes.size >= RETAKE_MAX) return@Runnable
+        if (mediaPauser.pauseIfPlaying(quick = true)) {
+            retakes.addLast(now)
+            Log.i(TAG, "media pause: focus taken back, silenced again")
+        }
+        armSilence()
     }
 
     /** A block has just landed: stop what was playing, and keep it stopped. */
@@ -1306,10 +1331,13 @@ class DoormanAccessibilityService : AccessibilityService() {
         private const val SAFETY_NET_MS = 2_000L
         private const val SAFETY_NET_WINDOW_MS = 30_000L
 
-        /** How often a held block is looked at again, and how long sound is kept down. */
+        /** How often a held block is looked at again, and how often sound is checked. */
         private const val HOLD_CHECK_MS = 200L
         private const val SILENCE_TICK_MS = 1_000L
-        private const val SILENCE_WINDOW_MS = 15_000L
+
+        /** At most this many immediate retakes of audio focus in this long. */
+        private const val RETAKE_MAX = 5
+        private const val RETAKE_WINDOW_MS = 10_000L
 
         /** Closing a floating video: how often to look, and how long to wait for the app. */
         private const val CLOSE_STEP_MS = 250L

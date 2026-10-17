@@ -24,22 +24,42 @@ import android.util.Log
  * It is a blunt instrument: music playing in another app stops too. That is
  * the price, and it was chosen.
  */
-class MediaPauser(context: Context) {
+class MediaPauser(
+    context: Context,
+    /**
+     * Something took focus back. Instagram does, the moment the volume key
+     * unmutes a reel it had muted on losing focus; being told is what lets the
+     * reel be silenced again in a fraction of a second rather than on the next
+     * look.
+     */
+    private val onLost: () -> Unit = {},
+) {
 
     private val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private var request: AudioFocusRequest? = null
     private var lastAt = 0L
+    private var lost = false
 
-    /** True if something was playing and focus was taken from it. */
-    fun pauseIfPlaying(): Boolean {
+    /** Focus is Doorman's and nobody has taken it since: asking again changes nothing. */
+    val holdsFocus: Boolean get() = request != null && !lost
+
+    /**
+     * True if something was playing and focus was taken from it. [quick] is
+     * for answering [onLost]: the app has just shown it is playing again, so
+     * there is no waiting between attempts (the caller caps how often).
+     */
+    fun pauseIfPlaying(quick: Boolean = false): Boolean {
         if (!audio.isMusicActive) return false
         // Audio takes a moment to stop after focus is taken, and the callers
         // look again on every window change. Once is enough; if something
         // starts again later, the next look deals with it.
         val now = SystemClock.uptimeMillis()
-        if (now - lastAt < RETRY_AFTER_MS) return false
+        if (!quick && now - lastAt < RETRY_AFTER_MS) return false
         lastAt = now
         release()
+        // The listener is built before the request it belongs to exists; a
+        // loss reported to a request already given up is nobody's business.
+        val focusRef = arrayOfNulls<AudioFocusRequest>(1)
         val focus = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
             .setAudioAttributes(
                 AudioAttributes.Builder()
@@ -47,10 +67,19 @@ class MediaPauser(context: Context) {
                     .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                     .build(),
             )
-            .setOnAudioFocusChangeListener { }
+            .setOnAudioFocusChangeListener { change ->
+                if (change < 0 && request === focusRef[0]) {
+                    lost = true
+                    onLost()
+                }
+            }
             .build()
+        focusRef[0] = focus
         val granted = audio.requestAudioFocus(focus) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
-        if (granted) request = focus
+        if (granted) {
+            request = focus
+            lost = false
+        }
         Log.i("Doorman", "media pause: focus granted=$granted")
         return granted
     }
