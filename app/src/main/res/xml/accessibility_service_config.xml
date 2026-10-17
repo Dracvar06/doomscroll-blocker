@@ -10,6 +10,12 @@
   sent you apart from the feed it sits in: the screen is allowed until a swipe
   moves past it.
 
+  typeWindowsChanged is what keeps the foreground honest. Window-state events
+  say which app announced itself, not which one is in front: a swipe home that
+  is let go of halfway raises one for the launcher and then returns the app
+  without a word, and an app shrunk into its floating window leaves the
+  launcher active. The window list is read whenever it changes.
+
   accessibilityFlags: flagReportViewIds is mandatory. Without it
   getViewIdResourceName() returns null on every node and the whole detection
   scheme is blind.
@@ -27,7 +33,7 @@
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:description="@string/accessibility_service_description"
-    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewScrolled"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewScrolled|typeWindowsChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagReportViewIds|flagRetrieveInteractiveWindows"
     android:canRetrieveWindowContent="true"

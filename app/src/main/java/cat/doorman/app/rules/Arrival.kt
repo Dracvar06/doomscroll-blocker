@@ -37,4 +37,32 @@ object Arrival {
         if (previous in launcherPackages) return false
         return true
     }
+
+    /**
+     * Where the user is said to have come from when they land back in an app.
+     *
+     * A swipe up from the bottom that is not finished shows the home screen for
+     * a moment and then hands the app back. That is not an arrival from
+     * anywhere: counting the launcher as the place they came from would make a
+     * video a friend sent look like something they opened themselves, and the
+     * one free video would vanish under them. So returning to the app that was
+     * just left, within [PEEK_RETURN_MS], keeps what was known before.
+     */
+    fun arrivalAfterReturn(
+        previous: String?,
+        current: String,
+        leftApp: String?,
+        arrivalBeforeLeaving: String?,
+        sinceLeftMillis: Long,
+        launcherPackages: Set<String>,
+    ): String? =
+        if (previous != null && previous in launcherPackages && current == leftApp &&
+            sinceLeftMillis in 0..PEEK_RETURN_MS
+        ) {
+            arrivalBeforeLeaving
+        } else {
+            previous
+        }
+
+    const val PEEK_RETURN_MS = 5_000L
 }

@@ -208,6 +208,9 @@ class DoormanAccessibilityService : AccessibilityService() {
         handler.removeCallbacks(evaluate)
         handler.removeCallbacks(passExpiry)
         handler.removeCallbacks(allowanceExpiry)
+        handler.removeCallbacks(reconcile)
+        handler.removeCallbacks(safetyNet)
+        reconcilePending = false
         if (::overlay.isInitialized) overlay.hide()
         dumpReceiver?.let { runCatching { unregisterReceiver(it) } }
         dumpReceiver = null
@@ -228,12 +231,118 @@ class DoormanAccessibilityService : AccessibilityService() {
         return window.isActive
     }
 
+    /** Packages that appear over an app without the user having gone anywhere. */
+    private fun ignoredPackages(): Set<String> =
+        TRANSIENT_PACKAGES + setOfNotNull(imePackage, packageName)
+
+    /** The window list as plain facts, or null when the system will not give one. */
+    private fun windowFacts(): List<WindowFact>? {
+        val list = windows ?: return null
+        val bounds = android.graphics.Rect()
+        return list.map { w ->
+            w.getBoundsInScreen(bounds)
+            WindowFact(
+                packageName = w.root?.packageName?.toString(),
+                isApplication = w.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION,
+                active = w.isActive,
+                focused = w.isFocused,
+                pip = w.isInPictureInPictureMode,
+                left = bounds.left, top = bounds.top, right = bounds.right, bottom = bounds.bottom,
+            )
+        }
+    }
+
+    private fun foregroundNow(): Foreground.Result? =
+        windowFacts()?.let { Foreground.resolve(it, ignoredPackages()) }
+
+    /**
+     * Brings [lastPackage] into line with the window list.
+     *
+     * Events say what changed; the list says what is true. Whenever they
+     * disagree the list wins, which is what un-sticks Doorman after a swipe
+     * home that was cancelled: the launcher raised its event, the app came
+     * back without raising one of its own, and the app was never looked at
+     * again.
+     */
+    private fun reconcileForeground() {
+        val pkg = foregroundNow()?.appPackage ?: return
+        if (pkg == lastPackage) return
+        logTransition(pkg, "window list")
+        handler.removeCallbacks(evaluate)
+        handler.postDelayed(evaluate, WINDOW_SETTLE_MS)
+    }
+
+    /** Window-list events come in bursts, one per frame of an animation. */
+    private fun scheduleReconcile() {
+        if (reconcilePending) return
+        reconcilePending = true
+        handler.postDelayed(reconcile, RECONCILE_DELAY_MS)
+    }
+
+    private var reconcilePending = false
+    private val reconcile = Runnable {
+        reconcilePending = false
+        reconcileForeground()
+    }
+
+    /**
+     * For a while after the foreground changes, look again every couple of
+     * seconds. No event is guaranteed to arrive when an app comes back, and a
+     * block that stays hidden over an app that is in front is the failure that
+     * matters; this bounds how long one can last.
+     */
+    private var safetyNetUntil = 0L
+    private val safetyNet = object : Runnable {
+        override fun run() {
+            reconcileForeground()
+            if (SystemClock.uptimeMillis() < safetyNetUntil) {
+                handler.postDelayed(this, SAFETY_NET_MS)
+            }
+        }
+    }
+
+    private fun armSafetyNet() {
+        safetyNetUntil = SystemClock.uptimeMillis() + SAFETY_NET_WINDOW_MS
+        handler.removeCallbacks(safetyNet)
+        handler.postDelayed(safetyNet, SAFETY_NET_MS)
+    }
+
+    /** The app left for the launcher, and how it had been reached, for the swipe-and-return case. */
+    private var leftApp: String? = null
+    private var arrivalBeforeLeaving: String? = null
+    private var leftAt = 0L
+
+    /**
+     * Debug builds only: one line per window, so a gesture or a floating window
+     * can be read off the log instead of guessed at.
+     */
+    private fun logWindows(reason: String) {
+        if (!BuildConfig.DEBUG) return
+        val list = windows ?: return
+        val bounds = android.graphics.Rect()
+        val lines = list.joinToString(" | ") { w ->
+            w.getBoundsInScreen(bounds)
+            val pkg = w.root?.packageName
+            "id=${w.id} type=${w.type} pkg=$pkg active=${w.isActive} focused=${w.isFocused} " +
+                "pip=${if (android.os.Build.VERSION.SDK_INT >= 26) w.isInPictureInPictureMode else "?"} " +
+                "layer=${w.layer} b=${bounds.flattenToString()}"
+        }
+        Log.i(TAG, "windows[$reason]: $lines")
+    }
+
     private fun currentImePackage(): String? =
         Settings.Secure.getString(contentResolver, Settings.Secure.DEFAULT_INPUT_METHOD)
             ?.let { ComponentName.unflattenFromString(it)?.packageName }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
+        // Window-list changes usually carry no package, so they are looked at
+        // before the package check below.
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
+            logWindows("windows-changed type=${event.windowChanges}")
+            scheduleReconcile()
+            return
+        }
         val pkg = event.packageName?.toString() ?: return
         // Doorman's own windows belong in the same category as the notification
         // shade and the keyboard: they appear over an app without the user
@@ -254,8 +363,23 @@ class DoormanAccessibilityService : AccessibilityService() {
                 // the app actually in front were dropped as coming from
                 // somewhere else, so the screen was never looked at again and
                 // whatever block was up stayed up over the wrong screen.
-                if (!isActiveWindow(event)) return
-                logTransition(pkg, event)
+                logWindows("state-changed pkg=$pkg")
+                // The window list decides. A stale event -- the launcher
+                // reporting itself after an app has already come back -- names
+                // a package that is not the active one and is dropped; if the
+                // list is wrong the other way, its own change event follows
+                // and reconciles. Only when the list cannot say is the event
+                // judged by its own window, as before.
+                val foreground = foregroundNow()?.appPackage
+                if (foreground != null) {
+                    if (foreground != pkg) {
+                        scheduleReconcile()
+                        return
+                    }
+                } else if (!isActiveWindow(event)) {
+                    return
+                }
+                logTransition(pkg, event.className)
                 handler.removeCallbacks(evaluate)
                 // A short settle: the event arrives while the opening app's
                 // window is still being built, and reading it too early sees the
@@ -278,7 +402,12 @@ class DoormanAccessibilityService : AccessibilityService() {
                 // how it was reached, which showed up as a block flashing over
                 // a video a friend had sent before it was allowed. The
                 // window-state event is moments away; wait for it.
-                if (pkg != lastPackage) return
+                if (pkg != lastPackage) {
+                    // Possibly an app that came back without announcing itself.
+                    // Cheap to ask; the list will say if it is really in front.
+                    scheduleReconcile()
+                    return
+                }
                 val sinceLast = SystemClock.uptimeMillis() - lastEvaluationAt
                 handler.removeCallbacks(evaluate)
                 if (sinceLast >= MAX_EVALUATION_INTERVAL_MS) {
@@ -768,7 +897,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         return if (id != 0) getString(id) else labelKey
     }
 
-    private fun logTransition(pkg: String, event: AccessibilityEvent) {
+    private fun logTransition(pkg: String, detail: CharSequence?) {
 
         // Transient system windows (notification shade, IME, volume panel) raise
         // window-state events without the user having left the app. Phase 5 needs
@@ -778,7 +907,21 @@ class DoormanAccessibilityService : AccessibilityService() {
         val previous = lastPackage
         // Where the user was immediately before this app. On TikTok this is the
         // only thing separating "a friend sent me this" from "I opened the feed".
-        if (pkg != lastPackage) arrivedFromPackage = previous
+        val now = SystemClock.uptimeMillis()
+        val arrivalBefore = arrivedFromPackage
+        arrivedFromPackage = cat.doorman.app.rules.Arrival.arrivalAfterReturn(
+            previous = previous,
+            current = pkg,
+            leftApp = leftApp,
+            arrivalBeforeLeaving = arrivalBeforeLeaving,
+            sinceLeftMillis = now - leftAt,
+            launcherPackages = launcherPackages,
+        )
+        if (pkg in launcherPackages && previous != null && previous !in launcherPackages) {
+            leftApp = previous
+            arrivalBeforeLeaving = arrivalBefore
+            leftAt = now
+        }
         // Leaving the app ends whatever was on the clock, and the time belongs
         // to the app being left rather than the one being entered.
         stopClock()
@@ -786,7 +929,8 @@ class DoormanAccessibilityService : AccessibilityService() {
         lastRecognisedScreenId = null
         notePresence()
         val relevance = if (pkg in rules.supportedPackages) "SUPPORTED" else "ignored"
-        Log.i(TAG, "foreground: ${previous ?: "(none)"} -> $pkg [$relevance] window=${event.className}")
+        Log.i(TAG, "foreground: ${previous ?: "(none)"} -> $pkg [$relevance] via=$detail")
+        armSafetyNet()
     }
 
     override fun onInterrupt() {
@@ -857,6 +1001,13 @@ class DoormanAccessibilityService : AccessibilityService() {
          * display before the overlay lands.
          */
         private const val MAX_EVALUATION_INTERVAL_MS = 500L
+
+        /** Window-list events are coalesced for this long before the list is read. */
+        private const val RECONCILE_DELAY_MS = 60L
+
+        /** How often, and for how long, the foreground is re-read after it changes. */
+        private const val SAFETY_NET_MS = 2_000L
+        private const val SAFETY_NET_WINDOW_MS = 30_000L
 
         /** How often a running allowance is advanced. */
         private const val CLOCK_TICK_MS = 1_000L
