@@ -224,6 +224,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         scrollBudget.reset()
         session = null
         held = null
+        budgetBlock = null
         serviceScope.cancel()
         handler.removeCallbacks(evaluate)
         handler.removeCallbacks(passExpiry)
@@ -560,7 +561,7 @@ class DoormanAccessibilityService : AccessibilityService() {
             w.getBoundsInScreen(bounds)
             val pkg = w.root?.packageName
             "id=${w.id} type=${w.type} pkg=$pkg active=${w.isActive} focused=${w.isFocused} " +
-                "pip=${if (android.os.Build.VERSION.SDK_INT >= 26) w.isInPictureInPictureMode else "?"} " +
+                "pip=${w.isInPictureInPictureMode} " +
                 "layer=${w.layer} b=${bounds.flattenToString()}"
         }
         Log.i(TAG, "windows[$reason]: $lines")
@@ -716,12 +717,25 @@ class DoormanAccessibilityService : AccessibilityService() {
         )
         if (spent) {
             Log.i(TAG, "shared-reel budget spent; blocking")
+            // From what the last look already knew, not a fresh one. Reading the
+            // tree while the app animates the swipe waits on the app's own
+            // thread -- over a second, measured -- and that second was the next
+            // reel playing. The evaluation that follows confirms it.
+            budgetBlock?.takeIf { it.key == key }?.let { b ->
+                if (overlay.show(b.screenId, b.label, band = b.band, bodyRes = R.string.blocked_body_budget_spent)) {
+                    blockLanded()
+                }
+            }
             handler.removeCallbacks(evaluate)
             handler.post(evaluate)
         }
     }
 
     private var lastEvaluationAt = 0L
+
+    /** The block a spent single item gets, ready before the swipe that spends it. */
+    private class BudgetBlock(val key: String, val screenId: String, val label: String, val band: OverlayBounds.Band)
+    private var budgetBlock: BudgetBlock? = null
 
     /**
      * Lets a reel someone sent you play, and blocks the moment you swipe past
@@ -829,6 +843,9 @@ class DoormanAccessibilityService : AccessibilityService() {
             pass.isActiveAt(System.currentTimeMillis())
         ) {
             stopClock()
+            // Nothing is being counted under a pass, so no swipe can spend it.
+            budgetKey = null
+            budgetBlock = null
             if (overlay.isShowing) overlay.hide()
             return
         }
@@ -880,6 +897,8 @@ class DoormanAccessibilityService : AccessibilityService() {
                 session, snapshot.packageName ?: pkg, verdict.screenId,
             )
             budgetKey = key
+            val band = bandFor(snapshot, verdict.screenId)
+            budgetBlock = BudgetBlock(key, verdict.screenId, labelFor(verdict.labelKey), band)
             session = ScrollSession.Session(snapshot.packageName ?: pkg, verdict.screenId, key)
             val now = System.currentTimeMillis()
             if (arrivedFromElsewhere) scrollBudget.reset()
@@ -898,7 +917,7 @@ class DoormanAccessibilityService : AccessibilityService() {
                 val shown = overlay.show(
                     verdict.screenId,
                     labelFor(verdict.labelKey),
-                    band = bandFor(snapshot, verdict.screenId),
+                    band = band,
                     bodyRes = R.string.blocked_body_budget_spent,
                 )
                 if (shown) blockLanded()
@@ -911,6 +930,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         // author's page -- is not the item being left, and coming back must not
         // look like a new one.
         budgetKey = null
+        budgetBlock = null
         handler.removeCallbacks(allowanceExpiry)
         val ending = session?.let { open ->
             rules.appFor(pkg)?.screens?.firstOrNull { it.id == open.screenId }?.sessionEndViewIds
