@@ -110,6 +110,13 @@ expected). Then install the **release** build on a real device and check:
 - [ ] A change delay actually delays; a pass actually opens.
 - [ ] The weekly report tab renders; the notification channel exists.
 - [ ] Turning the language chip recreates the app in that language.
+- [ ] On a **debug** build, `./tools/check-comments-origin.sh` passes, on the
+      Pixel and on at least one phone of another make (Samsung first). It
+      replays opening the comments on the blocked Reels tab straight after
+      coming back through the home screen and through recents, and says which
+      app draws recents there: phones disagree, and Doorman only carries a
+      block over a trip through a launcher. It reads every tap position from a
+      redacted dump and refuses one near the like button.
 
 **The accessibility service can come back switched off after an install.**
 Seen repeatedly with `adb install -r` during development; store updates
