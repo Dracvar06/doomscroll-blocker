@@ -50,7 +50,8 @@ Reddit.** Everything below is an individual switch; nothing is all-or-nothing.
 - **Opening the comments does not lift a block.** On a blocked reel or Short the
   comments sheet used to hide the screen from Doorman and let the video play
   above it with sound. The block now stays over the sheet; your messages, your
-  profile and everything else are untouched.
+  profile and everything else are untouched. A reel's comments open only if you
+  reached the reel from somewhere allowed: a conversation, a profile, a link.
 
 - **A block holds until you really leave.** A swipe up from the bottom that you
   let go of halfway does not switch Doorman off, and a blocked video that

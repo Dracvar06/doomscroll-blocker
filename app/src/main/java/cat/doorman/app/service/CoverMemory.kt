@@ -6,7 +6,7 @@ import cat.doorman.app.rules.ScreenEvaluator.Verdict
 
 /**
  * Remembers which blocked screen -- or spent single item -- a comments sheet is
- * open over.
+ * open over, and where a single item was reached from.
  *
  * Opening the comments on a reel hides the whole reel from the accessibility
  * tree -- the sheet leaves a handful of its own views and nothing else -- so
@@ -46,6 +46,17 @@ object CoverMemory {
      */
     const val TRANSITION_GRACE_MS = 1_500L
 
+    /**
+     * Back in [packageName] after a trip away -- the home screen, a glance at
+     * something else. Time spent away is not time in between: the first frame
+     * back is often neither the screen nor its sheet, and if the moment for
+     * such frames had run out while the app was not even in front, the blocked
+     * Reels tab was forgotten the instant it came back, and comments tapped in
+     * the moment before the block was drawn again stayed open.
+     */
+    fun returned(held: Held?, packageName: String, nowMillis: Long): Held? =
+        if (held != null && held.packageName == packageName) held.copy(seenAt = nowMillis) else held
+
     fun step(
         held: Held?,
         packageName: String,
@@ -54,7 +65,27 @@ object CoverMemory {
         snapshot: ScreenSnapshot?,
         coverViewIds: List<String>,
         nowMillis: Long = 0L,
+        justArrivedFromAnotherApp: Boolean = false,
     ): Step {
+        // A single item straight after a blocked screen in the same app, with
+        // nothing in between, is that blocked screen showing itself another
+        // way. Tapping the comments on the Reels tab hides the tab bar for a
+        // frame before the sheet comes up, and a reel with no tab bar is
+        // exactly what a single reel looks like: it got a fresh allowance and
+        // its comments stayed open, with the Reels tab playing above them. A
+        // single item is only the one someone sent if it was reached from
+        // somewhere allowed -- a conversation, a profile, a link -- and any of
+        // those, seen for longer than a moment, has already ended the memory.
+        //
+        // A link from another app is the exception: the app may show where it
+        // was left for a frame before it gets to the reel the link points at,
+        // and that reel was sent to you.
+        if (held != null && held.packageName == packageName && held.verdict.blocked &&
+            verdict.outcome == Outcome.ALLOW_ONCE && verdict.screenId != null &&
+            !justArrivedFromAnotherApp
+        ) {
+            return Step(held.copy(seenAt = nowMillis), held.verdict)
+        }
         // A blocked screen, or a single item allowed once: remember it, and act
         // on it as it is. The single item belongs here too. Once its one
         // allowance is spent it is blocked in all but name, and comments

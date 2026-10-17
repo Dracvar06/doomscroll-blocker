@@ -774,6 +774,9 @@ class DoormanAccessibilityService : AccessibilityService() {
     /** The blocked screen last seen, which a comments sheet may now be covering. */
     private var held: CoverMemory.Held? = null
 
+    /** When the app in front was last arrived at from another app. */
+    private var arrivedAt = 0L
+
     /** What the rules call the current screen, held or not. Null when nothing matches. */
     private var lastRecognisedScreenId: String? = null
 
@@ -847,6 +850,8 @@ class DoormanAccessibilityService : AccessibilityService() {
         ) {
             stopClock()
             // Nothing is being counted under a pass, so no swipe can spend it.
+            // Nor is anything blocked, so nothing seen before it may carry over.
+            held = null
             budgetKey = null
             budgetBlock = null
             if (overlay.isShowing) overlay.hide()
@@ -880,6 +885,8 @@ class DoormanAccessibilityService : AccessibilityService() {
             snapshot = snapshot,
             coverViewIds = rules.appFor(pkg)?.coverViewIds.orEmpty(),
             nowMillis = SystemClock.uptimeMillis(),
+            justArrivedFromAnotherApp = arrivedFromAnotherApp &&
+                SystemClock.uptimeMillis() - arrivedAt <= LINK_SETTLE_MS,
         )
         held = cover.held
         val verdict = cover.verdict
@@ -889,8 +896,10 @@ class DoormanAccessibilityService : AccessibilityService() {
             TAG,
             "evaluate: pkg=$pkg nodes=${snapshot?.nodes?.size} " +
                 "outcome=${verdict.outcome} screen=${verdict.screenId}" +
-                (if (underSheet) " (under a sheet)" else "") +
-                " held=${held?.verdict?.screenId} enabled=$enabledScreenIds",
+                (if (underSheet) " (kept from before, looked like ${ruleVerdict.screenId})" else "") +
+                " held=${held?.verdict?.screenId}" +
+                (if (arrivedFromAnotherApp) " fromApp=$arrivedFromPackage" else "") +
+                " enabled=$enabledScreenIds",
         )
         currentStatus = "$pkg -> ${verdict.screenId ?: "not recognised"}"
 
@@ -1286,6 +1295,17 @@ class DoormanAccessibilityService : AccessibilityService() {
             sinceLeftMillis = now - leftAt,
             launcherPackages = launcherPackages,
         )
+        // Coming from another app -- a link -- is a fresh start: whatever was
+        // blocked when this app was last in front says nothing about where the
+        // link leads.
+        if (pkg in rules.supportedPackages &&
+            cat.doorman.app.rules.Arrival.isFromAnotherApp(previous, pkg, launcherPackages, packageName)
+        ) {
+            held = null
+            arrivedAt = now
+        } else {
+            held = CoverMemory.returned(held, pkg, now)
+        }
         if (pkg in launcherPackages && previous != null && previous !in launcherPackages) {
             leftApp = previous
             arrivalBeforeLeaving = arrivalBefore
@@ -1382,6 +1402,13 @@ class DoormanAccessibilityService : AccessibilityService() {
 
         /** How often a held block is looked at again, and how often sound is checked. */
         private const val HOLD_CHECK_MS = 200L
+
+        /**
+         * How long after arriving from another app the screen it opened on may
+         * still be on its way. A link shows the app as it was left for a frame
+         * or two before the reel it points at.
+         */
+        private const val LINK_SETTLE_MS = 10_000L
         private const val SILENCE_TICK_MS = 1_000L
 
         /** At most this many immediate retakes of audio focus in this long. */

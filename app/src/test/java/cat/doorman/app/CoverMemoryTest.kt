@@ -57,6 +57,7 @@ class CoverMemoryTest {
             val recognised = ScreenEvaluator.recognise(snapshot, rules, fromApp)
             val step = CoverMemory.step(
                 held, pkg, verdict, recognised, snapshot, rules.appFor(pkg)?.coverViewIds.orEmpty(), now,
+                justArrivedFromAnotherApp = fromApp,
             )
             held = step.held
             return step.verdict
@@ -197,6 +198,86 @@ class CoverMemoryTest {
         repeat(10) { assertTrue(r.see("instagram-reel-comments", after = 1_000).blocked) }
         r.see(sheetSlidingUp, after = 500)
         assertTrue(r.see("instagram-reel-comments", after = 500).blocked)
+    }
+
+    @Test
+    fun `the reels tab with its tab bar hidden is still the reels tab`() {
+        // His report: on the blocked Reels tab, tapping the comments hides the
+        // tab bar for a frame before the sheet, and a reel with no tab bar is
+        // what a single reel looks like. It got a fresh allowance and the
+        // comments stayed open with the Reels tab playing above them.
+        val r = replay()
+        r.see("instagram-clips")
+        val noTabBar = r.see("instagram-reel-from-feed", after = 200)
+        assertTrue(noTabBar.blocked)
+        assertEquals("ig_reels", noTabBar.screenId)
+        r.see(sheetSlidingUp, after = 80)
+        val sheet = r.see("instagram-reel-comments", after = 150)
+        assertTrue(sheet.blocked)
+        assertEquals("ig_reels", sheet.screenId)
+    }
+
+    @Test
+    fun `and so it is after a trip to the home screen`() {
+        // Where he did it: home, back into Instagram, and the comments tapped
+        // in the moment before the block was drawn again.
+        val r = replay()
+        r.see("instagram-clips")
+        assertTrue(r.see("instagram-reel-from-feed", after = 4_000).blocked)
+    }
+
+    @Test
+    fun `a reel opened from a profile after the reels tab is the one you chose`() {
+        val r = replay()
+        r.see("instagram-clips")
+        assertFalse(r.see("instagram-profile").blocked)
+        val reel = r.see("instagram-reel-from-feed")
+        assertEquals(ScreenEvaluator.Outcome.ALLOW_ONCE, reel.outcome)
+        assertEquals("ig_single_reel", reel.screenId)
+    }
+
+    @Test
+    fun `so is one opened from a conversation`() {
+        val r = replay()
+        r.see("instagram-clips")
+        assertFalse(r.see("instagram-dm-thread").blocked)
+        assertEquals(ScreenEvaluator.Outcome.ALLOW_ONCE, r.see("instagram-shared-reel").outcome)
+    }
+
+    @Test
+    fun `a link from another app opens its reel even right after the reels tab`() {
+        val r = replay()
+        r.see("instagram-clips")
+        assertEquals(ScreenEvaluator.Outcome.ALLOW_ONCE, r.see("instagram-shared-reel", fromApp = true).outcome)
+    }
+
+    @Test
+    fun `a single reel after a screen that is not blocked is the single reel`() {
+        val r = replay(enabled = all - "ig_reels" - "ig_reel_viewer")
+        r.see("instagram-clips")
+        assertEquals(ScreenEvaluator.Outcome.ALLOW_ONCE, r.see("instagram-reel-from-feed", after = 200).outcome)
+    }
+
+    @Test
+    fun `time away from the app is not time in between`() {
+        // On his phone: the blocked Reels tab, home for a few seconds, back,
+        // and the comments tapped at once. The first frame back is neither the
+        // tab nor the sheet, and it used to end the memory because the moment
+        // for such frames had run out while he was on the home screen.
+        val r = replay()
+        r.see("instagram-clips")
+        r.now += 4_000
+        r.held = CoverMemory.returned(r.held, "com.instagram.android", r.now)
+        r.see(sheetSlidingUp, after = 370)
+        assertTrue(r.see("instagram-reel-comments", after = 490).blocked)
+    }
+
+    @Test
+    fun `coming back to another app leaves the memory as it was`() {
+        val r = replay()
+        r.see("instagram-clips")
+        val back = CoverMemory.returned(r.held, "com.google.android.youtube", r.now + 4_000)
+        assertEquals(r.held, back)
     }
 
     private companion object {
