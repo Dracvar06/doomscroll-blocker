@@ -36,6 +36,13 @@ object Foreground {
         val appPackage: String?,
         /** Apps shrunk into a floating window. Still playing, and still theirs to answer for. */
         val pip: List<WindowFact>,
+        /**
+         * Every app with an ordinary window still in the list, active or not.
+         * A swipe home that is held halfway leaves the app's window listed while
+         * the launcher is active; a real Home removes it within a third of a
+         * second. That difference is what tells the two apart.
+         */
+        val present: Set<String> = emptySet(),
     )
 
     /**
@@ -53,6 +60,7 @@ object Foreground {
         }
         val pip = apps.filter { it.pip }
         val app = apps.firstOrNull { !it.pip && it.active }?.packageName
-        return Result(app, pip)
+        val present = apps.filter { !it.pip }.mapNotNull { it.packageName }.toSet()
+        return Result(app, pip, present)
     }
 }

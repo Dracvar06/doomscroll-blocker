@@ -232,6 +232,10 @@ class DoormanAccessibilityService : AccessibilityService() {
         handler.removeCallbacks(safetyNet)
         handler.removeCallbacks(pipWatch)
         handler.removeCallbacks(closeStep)
+        handler.removeCallbacks(holdCheck)
+        handler.removeCallbacks(silence)
+        holdSince = 0L
+        silenceTicking = false
         closingPackage = null
         reconcilePending = false
         pipWatching = false
@@ -317,6 +321,52 @@ class DoormanAccessibilityService : AccessibilityService() {
             pipWatching = false
             reconcileForeground()
         }
+    }
+
+    private var holdSince = 0L
+    private val holdCheck = Runnable { evaluateCurrentScreen() }
+
+    private fun shouldHoldBlock(): Boolean {
+        val blocked = blockedWhenLeft ?: return false
+        val now = SystemClock.uptimeMillis()
+        if (holdSince == 0L) holdSince = now
+        val present = foregroundNow()?.present.orEmpty()
+            .map { rules.canonicalPackage(it) ?: it }.toSet()
+        val interactive = getSystemService(android.os.PowerManager::class.java)?.isInteractive != false
+        return HoldPolicy.keepBlock(blocked, present, interactive, now - holdSince)
+    }
+
+    /**
+     * What is playing is kept silent for a while after a block lands, and while
+     * one is being held. Instagram does not pause when it loses audio focus, it
+     * mutes, and the volume-up key unmutes it -- so one press brought the sound
+     * of a blocked reel back. Asking again costs a moment of sound at most.
+     * Nothing can stop an app playing to the speaker if the user is determined;
+     * this is as far as Android lets a blocker go.
+     */
+    private var silenceUntil = 0L
+    private var silenceTicking = false
+    private val silence = object : Runnable {
+        override fun run() {
+            silenceTicking = false
+            val blocked = (::overlay.isInitialized && overlay.isShowing) || holdSince != 0L
+            if (!blocked || SystemClock.uptimeMillis() > silenceUntil) return
+            mediaPauser.pauseIfPlaying()
+            armSilence()
+        }
+    }
+
+    private fun armSilence() {
+        silenceUntil = maxOf(silenceUntil, SystemClock.uptimeMillis() + SILENCE_WINDOW_MS)
+        if (silenceTicking) return
+        silenceTicking = true
+        handler.postDelayed(silence, SILENCE_TICK_MS)
+    }
+
+    /** A block has just landed: stop what was playing, and keep it stopped. */
+    private fun blockLanded() {
+        mediaPauser.pauseIfPlaying()
+        armSilence()
     }
 
     /**
@@ -728,9 +778,24 @@ class DoormanAccessibilityService : AccessibilityService() {
         if (pkg == null || pkg !in watchedPackages()) {
             Log.d(TAG, "evaluate: skip pkg=$pkg nodes=${snapshot?.nodes?.size}")
             stopClock()
-            if (overlay.isShowing) overlay.hide()
+            if (overlay.isShowing) {
+                // A swipe home that is held halfway makes the launcher the active
+                // window while the app is still there, shrunk to a card with its
+                // video playing. The block stays for a moment; a real Home takes
+                // the app's window away and the block goes with it.
+                if (shouldHoldBlock()) {
+                    handler.removeCallbacks(holdCheck)
+                    handler.postDelayed(holdCheck, HOLD_CHECK_MS)
+                    armSilence()
+                    return
+                }
+                overlay.hide()
+            }
+            holdSince = 0L
             return
         }
+        // Back in a watched app: whatever was being held is over.
+        holdSince = 0L
         // A pass suspends blocking for one app until it lapses. Checked here
         // rather than inside the evaluator so the rules stay pure and testable.
         val pass = activePass
@@ -811,7 +876,7 @@ class DoormanAccessibilityService : AccessibilityService() {
                     band = bandFor(snapshot, verdict.screenId),
                     bodyRes = R.string.blocked_body_budget_spent,
                 )
-                if (shown) mediaPauser.pauseIfPlaying()
+                if (shown) blockLanded()
             }
             return
         }
@@ -899,7 +964,7 @@ class DoormanAccessibilityService : AccessibilityService() {
             outcome.targetId.contains('.')
         if (wholeApp || snapshot == null) {
             if (overlay.show(outcome.targetId, appLabelFor(outcome.targetId), bodyRes = body)) {
-                mediaPauser.pauseIfPlaying()
+                blockLanded()
             }
             return
         }
@@ -910,7 +975,7 @@ class DoormanAccessibilityService : AccessibilityService() {
             band = bandFor(snapshot, outcome.targetId),
             bodyRes = body,
         )
-        if (shown) mediaPauser.pauseIfPlaying()
+        if (shown) blockLanded()
     }
 
     /**
@@ -1240,6 +1305,11 @@ class DoormanAccessibilityService : AccessibilityService() {
         /** How often, and for how long, the foreground is re-read after it changes. */
         private const val SAFETY_NET_MS = 2_000L
         private const val SAFETY_NET_WINDOW_MS = 30_000L
+
+        /** How often a held block is looked at again, and how long sound is kept down. */
+        private const val HOLD_CHECK_MS = 200L
+        private const val SILENCE_TICK_MS = 1_000L
+        private const val SILENCE_WINDOW_MS = 15_000L
 
         /** Closing a floating video: how often to look, and how long to wait for the app. */
         private const val CLOSE_STEP_MS = 250L
