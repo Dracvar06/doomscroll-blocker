@@ -17,6 +17,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.TextView
+import androidx.core.graphics.withTranslation
 import cat.doorman.app.BuildConfig
 import cat.doorman.app.R
 import cat.doorman.app.rules.OverlayBounds
@@ -279,34 +280,44 @@ class BlockOverlayController(private val service: AccessibilityService) {
             textSize = 11 * density
         }
 
-        override fun onDraw(canvas: Canvas) {
-            val hole = if (withHole) {
-                PipHole.hole(width, height, density)
+        /** Laid out once per size rather than on every frame. */
+        private class Text(val title: StaticLayout, val sub: StaticLayout?, val pad: Int, val y: Int)
+
+        private var hole = PipHole.Box(0, 0, 0, 0)
+        private var boxes: List<PipHole.Box> = emptyList()
+        private var text: Text? = null
+
+        override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+            hole = if (withHole) PipHole.hole(w, h, density) else PipHole.Box(w, 0, w, 0)
+            boxes = PipHole.covered(w, h, hole)
+            val pad = (10 * density).toInt()
+            val textWidth = w - 2 * pad
+            text = if (textWidth <= 0) {
+                null
             } else {
-                PipHole.Box(width, 0, width, 0)
+                val title = layout(label, labelPaint, textWidth)
+                // The hint is only for the version with no button.
+                val sub = if (withHole) layout(hint, hintPaint, textWidth) else null
+                val gap = (6 * density).toInt()
+                val total = title.height + (sub?.let { gap + it.height } ?: 0)
+                val top = hole.bottom + pad
+                val bottomReserved = if (withHole) 0 else (CLOSE_BUTTON_DP * density).toInt()
+                Text(title, sub, pad, top + ((h - top - pad - bottomReserved - total) / 2).coerceAtLeast(0))
             }
-            PipHole.covered(width, height, hole).forEach {
+        }
+
+        override fun onDraw(canvas: Canvas) {
+            boxes.forEach {
                 canvas.drawRect(it.left.toFloat(), it.top.toFloat(), it.right.toFloat(), it.bottom.toFloat(), fill)
             }
-            val pad = (10 * density).toInt()
-            val textWidth = width - 2 * pad
-            if (textWidth <= 0) return
-            val title = layout(label, labelPaint, textWidth)
-            // The hint is only for the version with no button.
-            val sub = if (withHole) layout(hint, hintPaint, textWidth) else null
-            val gap = (6 * density).toInt()
-            val total = title.height + (sub?.let { gap + it.height } ?: 0)
-            val top = hole.bottom + pad
-            val bottomReserved = if (withHole) 0 else (CLOSE_BUTTON_DP * density).toInt()
-            val y = top + ((height - top - pad - bottomReserved - total) / 2).coerceAtLeast(0)
-            canvas.save()
-            canvas.translate(pad.toFloat(), y.toFloat())
-            title.draw(canvas)
-            if (sub != null) {
-                canvas.translate(0f, (title.height + gap).toFloat())
-                sub.draw(canvas)
+            val t = text ?: return
+            canvas.withTranslation(t.pad.toFloat(), t.y.toFloat()) {
+                t.title.draw(this)
+                t.sub?.let { sub ->
+                    translate(0f, (t.title.height + (6 * density).toInt()).toFloat())
+                    sub.draw(this)
+                }
             }
-            canvas.restore()
         }
 
         private fun layout(text: String, paint: TextPaint, width: Int) =
