@@ -2,8 +2,13 @@ package cat.doorman.app.block
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Context
+import android.graphics.Canvas
+import android.graphics.Paint
 import android.graphics.PixelFormat
 import android.graphics.Rect
+import android.text.Layout
+import android.text.StaticLayout
+import android.text.TextPaint
 import android.os.Build
 import android.util.Log
 import android.view.Gravity
@@ -123,46 +128,85 @@ class BlockOverlayController(private val service: AccessibilityService) {
             .isSuccess
     }
 
-    private var cover: TextView? = null
+    fun hide() {
+        overlay?.let {
+            runCatching { windowManager.removeView(it) }
+            Log.i(TAG, "overlay hidden")
+        }
+        overlay = null
+        shownForScreenId = null
+        shownBand = null
+    }
+
+    private var cover: CoverView? = null
+    private var closeButton: Button? = null
     private var coverBounds: Rect? = null
+    private var coverWithButton = false
 
     val isCoverShowing: Boolean get() = cover != null
 
     /**
      * Covers an app's floating window, wherever it has been dragged to.
      *
-     * Not touchable, on purpose: the user must still be able to drag it away,
-     * close it or tap it open -- which lands on the full app, where the normal
-     * block takes over. A cover that swallowed touches would trap the window on
-     * screen with no way to get rid of it.
+     * The cover itself is not touchable, on purpose: the user must still be able
+     * to drag the window away or tap it open -- which lands on the full app,
+     * where the normal block takes over. A cover that swallowed touches would
+     * trap the window on screen.
+     *
+     * Getting rid of the window is the part that needs care, because the system
+     * draws its close button and the cover hid it. With [closeLabel] and
+     * [onClose] a small touchable strip along the bottom says "close video" and
+     * does it, and the rest stays solid. Without them -- when closing that way
+     * is not working -- the top-right corner, where the system draws its
+     * button, is left open instead (see [PipHole]).
      */
-    fun showCover(bounds: Rect, label: String) {
+    fun showCover(
+        bounds: Rect,
+        label: String,
+        hint: String,
+        closeLabel: String? = null,
+        onClose: (() -> Unit)? = null,
+    ) {
         if (debugSuppress) return
+        val withButton = closeLabel != null && onClose != null
         val existing = cover
-        if (existing != null) {
+        if (existing != null && coverWithButton != withButton) hideCover()
+        val current = cover
+        if (current != null) {
             if (coverBounds != bounds) {
                 coverBounds = Rect(bounds)
-                runCatching { windowManager.updateViewLayout(existing, coverParams(bounds)) }
+                runCatching { windowManager.updateViewLayout(current, coverParams(bounds)) }
+                closeButton?.let {
+                    runCatching { windowManager.updateViewLayout(it, buttonParams(bounds)) }
+                }
             }
             return
         }
-        val view = TextView(service).apply {
-            setBackgroundColor(0xFF0F1A16.toInt())
-            setTextColor(0xFFB7C9C0.toInt())
-            textSize = 12f
-            gravity = Gravity.CENTER
-            text = label
+        val view = CoverView(service, label, hint, withHole = !withButton)
+        val added = runCatching { windowManager.addView(view, coverParams(bounds)) }
+        if (added.isFailure) {
+            Log.e(TAG, "cover failed", added.exceptionOrNull())
+            return
         }
-        runCatching { windowManager.addView(view, coverParams(bounds)) }
-            .onSuccess {
-                cover = view
-                coverBounds = Rect(bounds)
-                Log.i(TAG, "cover shown at ${bounds.flattenToString()}")
+        cover = view
+        coverBounds = Rect(bounds)
+        coverWithButton = withButton
+        if (withButton) {
+            val button = Button(service).apply {
+                text = closeLabel
+                isAllCaps = false
+                setOnClickListener { onClose?.invoke() }
             }
-            .onFailure { Log.e(TAG, "cover failed", it) }
+            runCatching { windowManager.addView(button, buttonParams(bounds)) }
+                .onSuccess { closeButton = button }
+                .onFailure { Log.e(TAG, "close button failed", it) }
+        }
+        Log.i(TAG, "cover shown at ${bounds.flattenToString()} button=$withButton")
     }
 
     fun hideCover() {
+        closeButton?.let { runCatching { windowManager.removeView(it) } }
+        closeButton = null
         cover?.let {
             runCatching { windowManager.removeView(it) }
             Log.i(TAG, "cover hidden")
@@ -179,7 +223,7 @@ class BlockOverlayController(private val service: AccessibilityService) {
             WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
             WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
             WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-        PixelFormat.OPAQUE,
+        PixelFormat.TRANSLUCENT,
     ).apply {
         gravity = Gravity.TOP or Gravity.START
         x = bounds.left
@@ -189,17 +233,90 @@ class BlockOverlayController(private val service: AccessibilityService) {
         }
     }
 
-    fun hide() {
-        overlay?.let {
-            runCatching { windowManager.removeView(it) }
-            Log.i(TAG, "overlay hidden")
+    /** The touchable strip: the bottom of the window, as wide as it is. */
+    private fun buttonParams(bounds: Rect): WindowManager.LayoutParams {
+        val height = (CLOSE_BUTTON_DP * service.resources.displayMetrics.density).toInt()
+            .coerceAtMost(bounds.height())
+        return WindowManager.LayoutParams(
+            bounds.width(),
+            height,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            // Touchable, unlike the cover, but never focusable.
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT,
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = bounds.left
+            y = bounds.bottom - height
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                fitInsetsTypes = 0
+            }
         }
-        overlay = null
-        shownForScreenId = null
-        shownBand = null
+    }
+
+    /**
+     * The cover itself: dark all over, with what it is and, when there is no
+     * button, how to close the window. With [withHole] the top-right corner is
+     * left open for the system's own close button.
+     */
+    private class CoverView(
+        context: Context,
+        private val label: String,
+        private val hint: String,
+        private val withHole: Boolean,
+    ) : View(context) {
+
+        private val density = context.resources.displayMetrics.density
+        private val fill = Paint().apply { color = 0xFF0F1A16.toInt() }
+        private val labelPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0xFFD5E2DB.toInt()
+            textSize = 12 * density
+        }
+        private val hintPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0xFF8FA39A.toInt()
+            textSize = 11 * density
+        }
+
+        override fun onDraw(canvas: Canvas) {
+            val hole = if (withHole) {
+                PipHole.hole(width, height, density)
+            } else {
+                PipHole.Box(width, 0, width, 0)
+            }
+            PipHole.covered(width, height, hole).forEach {
+                canvas.drawRect(it.left.toFloat(), it.top.toFloat(), it.right.toFloat(), it.bottom.toFloat(), fill)
+            }
+            val pad = (10 * density).toInt()
+            val textWidth = width - 2 * pad
+            if (textWidth <= 0) return
+            val title = layout(label, labelPaint, textWidth)
+            // The hint is only for the version with no button.
+            val sub = if (withHole) layout(hint, hintPaint, textWidth) else null
+            val gap = (6 * density).toInt()
+            val total = title.height + (sub?.let { gap + it.height } ?: 0)
+            val top = hole.bottom + pad
+            val bottomReserved = if (withHole) 0 else (CLOSE_BUTTON_DP * density).toInt()
+            val y = top + ((height - top - pad - bottomReserved - total) / 2).coerceAtLeast(0)
+            canvas.save()
+            canvas.translate(pad.toFloat(), y.toFloat())
+            title.draw(canvas)
+            if (sub != null) {
+                canvas.translate(0f, (title.height + gap).toFloat())
+                sub.draw(canvas)
+            }
+            canvas.restore()
+        }
+
+        private fun layout(text: String, paint: TextPaint, width: Int) =
+            StaticLayout.Builder.obtain(text, 0, text.length, paint, width)
+                .setAlignment(Layout.Alignment.ALIGN_CENTER)
+                .build()
     }
 
     private companion object {
         const val TAG = "Doorman"
+        const val CLOSE_BUTTON_DP = 48
     }
 }

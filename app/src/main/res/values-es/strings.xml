@@ -12,6 +12,8 @@
     <string name="blocked_title">%1$s está bloqueado</string>
     <string name="blocked_body">Le pediste a Doorman que no te dejara entrar aquí.</string>
     <string name="pip_cover_label">Bloqueado por Doorman</string>
+    <string name="pip_cover_hint">Toca el vídeo y luego ✕ para cerrarlo</string>
+    <string name="pip_close_video">Cerrar vídeo</string>
     <string name="action_go_back">Vuelve atrás</string>
     <string name="blocked_hint_pass">¿Quieres entrar igualmente? Abre Doorman y espera un permiso.</string>
 

@@ -173,6 +173,10 @@ class DoormanAccessibilityService : AccessibilityService() {
         if (!BuildConfig.DEBUG) return
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action == ACTION_WINDOWS) {
+                    logWindowTrees()
+                    return
+                }
                 if (intent?.action == ACTION_NOBLOCK) {
                     val on = intent.getBooleanExtra("on", false)
                     overlay.debugSuppress = on
@@ -202,7 +206,10 @@ class DoormanAccessibilityService : AccessibilityService() {
         }
         ContextCompat.registerReceiver(
             this, receiver,
-            IntentFilter(ACTION_DUMP).apply { addAction(ACTION_NOBLOCK) },
+            IntentFilter(ACTION_DUMP).apply {
+                addAction(ACTION_NOBLOCK)
+                addAction(ACTION_WINDOWS)
+            },
             ContextCompat.RECEIVER_EXPORTED,
         )
         dumpReceiver = receiver
@@ -223,6 +230,8 @@ class DoormanAccessibilityService : AccessibilityService() {
         handler.removeCallbacks(reconcile)
         handler.removeCallbacks(safetyNet)
         handler.removeCallbacks(pipWatch)
+        handler.removeCallbacks(closeStep)
+        closingPackage = null
         reconcilePending = false
         pipWatching = false
         pipCharging = false
@@ -309,6 +318,59 @@ class DoormanAccessibilityService : AccessibilityService() {
         }
     }
 
+    /**
+     * Android gives no way to close another app's floating window, and the
+     * system's own close button is not in the tree for Doorman to press. What
+     * does work, without any new permission: bring the app back to full screen,
+     * which ends the floating window, and step back out of the video. The app
+     * is blocked when it appears, as it always is.
+     *
+     * If the app does not come to the front -- some versions of Android refuse
+     * a launch from the background -- that app's cover falls back to leaving the
+     * system's close button reachable, rather than leaving a button that does
+     * nothing.
+     */
+    private val closeFailed = mutableSetOf<String>()
+    private var closingPackage: String? = null
+    private var closingCanonical: String? = null
+    private var closingSince = 0L
+    private val closeStep = object : Runnable {
+        override fun run() {
+            val pkg = closingPackage ?: return
+            if (foregroundNow()?.appPackage == pkg) {
+                closingPackage = null
+                Log.i(TAG, "close video: $pkg is back, stepping out")
+                performGlobalAction(GLOBAL_ACTION_BACK)
+                return
+            }
+            if (SystemClock.uptimeMillis() - closingSince > CLOSE_TIMEOUT_MS) {
+                closingPackage = null
+                closingCanonical?.let { closeFailed += it }
+                Log.w(TAG, "close video: $pkg did not come to the front; leaving the system button reachable")
+                reconcileForeground()
+                return
+            }
+            handler.postDelayed(this, CLOSE_STEP_MS)
+        }
+    }
+
+    private fun closeFloatingVideo(pkg: String, canonical: String) {
+        val launch = packageManager.getLaunchIntentForPackage(pkg)
+            ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val started = launch != null && runCatching { startActivity(launch) }.isSuccess
+        if (!started) {
+            closeFailed += canonical
+            Log.w(TAG, "close video: could not launch $pkg")
+            reconcileForeground()
+            return
+        }
+        closingPackage = pkg
+        closingCanonical = canonical
+        closingSince = SystemClock.uptimeMillis()
+        handler.removeCallbacks(closeStep)
+        handler.postDelayed(closeStep, CLOSE_STEP_MS)
+    }
+
     private fun handleFloatingWindows(pip: List<WindowFact>) {
         val floating = pip.firstOrNull { it.packageName in watchedPackages() }
         if (floating == null) {
@@ -332,9 +394,17 @@ class DoormanAccessibilityService : AccessibilityService() {
                     pipCharging = false
                     stopClock()
                 }
+                val canClose = canonical !in closeFailed
                 overlay.showCover(
                     android.graphics.Rect(floating.left, floating.top, floating.right, floating.bottom),
                     getString(R.string.pip_cover_label),
+                    getString(R.string.pip_cover_hint),
+                    closeLabel = if (canClose) getString(R.string.pip_close_video) else null,
+                    onClose = if (canClose) {
+                        { closeFloatingVideo(floating.packageName ?: canonical, canonical) }
+                    } else {
+                        null
+                    },
                 )
                 // Kept at it: the window can be tapped to play again blind.
                 if (mediaPauser.pauseIfPlaying()) Log.i(TAG, "floating window of $canonical paused")
@@ -418,6 +488,32 @@ class DoormanAccessibilityService : AccessibilityService() {
                 "layer=${w.layer} b=${bounds.flattenToString()}"
         }
         Log.i(TAG, "windows[$reason]: $lines")
+    }
+
+    /**
+     * Debug builds only: every window's tree, structure but no text, to see
+     * what the system exposes of windows that are not apps (the floating
+     * window's own controls, for one).
+     */
+    private fun logWindowTrees() {
+        if (!BuildConfig.DEBUG) return
+        val list = windows ?: return
+        for (w in list) {
+            val root = w.root
+            val b = android.graphics.Rect().also { w.getBoundsInScreen(it) }
+            Log.i(TAG, "WIN id=${w.id} type=${w.type} pkg=${root?.packageName} layer=${w.layer} " +
+                "pip=${w.isInPictureInPictureMode} b=${b.flattenToString()} childCount=${root?.childCount}")
+            fun walk(n: android.view.accessibility.AccessibilityNodeInfo?, depth: Int, budget: IntArray) {
+                if (n == null || budget[0] <= 0 || depth > 12) return
+                budget[0]--
+                val nb = android.graphics.Rect().also { n.getBoundsInScreen(it) }
+                Log.i(TAG, "   ".repeat(depth) + "N ${n.className} id=${n.viewIdResourceName} " +
+                    "click=${n.isClickable} vis=${n.isVisibleToUser} desc=${n.contentDescription != null} " +
+                    "b=${nb.flattenToString()}")
+                for (i in 0 until n.childCount) walk(n.getChild(i), depth + 1, budget)
+            }
+            if (root != null && root.packageName?.toString() != packageName) walk(root, 1, intArrayOf(40))
+        }
     }
 
     private fun currentImePackage(): String? =
@@ -1101,6 +1197,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         const val TAG = "Doorman"
         const val ACTION_DUMP = "cat.doorman.app.DUMP"
         const val ACTION_NOBLOCK = "cat.doorman.app.NOBLOCK"
+        const val ACTION_WINDOWS = "cat.doorman.app.WINDOWS"
         private const val PRESENCE_APP = "app"
         private const val PRESENCE_SCREEN = "screen"
         private const val PRESENCE_TICK_MS = 30_000L
@@ -1125,6 +1222,10 @@ class DoormanAccessibilityService : AccessibilityService() {
         /** How often, and for how long, the foreground is re-read after it changes. */
         private const val SAFETY_NET_MS = 2_000L
         private const val SAFETY_NET_WINDOW_MS = 30_000L
+
+        /** Closing a floating video: how often to look, and how long to wait for the app. */
+        private const val CLOSE_STEP_MS = 250L
+        private const val CLOSE_TIMEOUT_MS = 3_000L
 
         /** How often a floating window is looked at again while it exists. */
         private const val PIP_WATCH_MS = 1_000L
