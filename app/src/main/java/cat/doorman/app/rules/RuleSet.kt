@@ -154,6 +154,23 @@ data class ScreenRule(
      */
     val allowSeconds: Int? = null,
     /**
+     * Views whose presence says the user is back where the single item was
+     * *sent from* -- the conversation, the home page -- so the next one is a
+     * new item with a new allowance.
+     *
+     * Without this, "somewhere that is not this screen" would have to do, and
+     * it does not work: opening the comments, the share sheet or the author's
+     * profile over a reel all look like somewhere else, and coming back from
+     * any of them counted as a fresh arrival with a fresh free reel. Doing it
+     * again and again made the allowance endless. So a screen the rules cannot
+     * name does not end the session, and only a named screen or one of these
+     * markers does.
+     *
+     * Only needed where the way to the next sent item is not a named screen.
+     * Instagram's is the conversation, whose own ids are listed here.
+     */
+    val sessionEndViewIds: List<String> = emptyList(),
+    /**
      * Views this particular block must stay clear of at the top of the screen,
      * overriding the app-wide list.
      *

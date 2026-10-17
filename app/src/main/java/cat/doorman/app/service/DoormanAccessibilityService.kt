@@ -171,6 +171,13 @@ class DoormanAccessibilityService : AccessibilityService() {
         if (!BuildConfig.DEBUG) return
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action == ACTION_NOBLOCK) {
+                    val on = intent.getBooleanExtra("on", false)
+                    overlay.debugSuppress = on
+                    Log.i(TAG, "debug: block drawing suppressed=$on")
+                    if (!on) evaluateCurrentScreen()
+                    return
+                }
                 val label = intent?.getStringExtra("label")
                 val delaySeconds = intent?.getIntExtra("delay", 0) ?: 0
                 val redact = intent?.getBooleanExtra("redact", false) ?: false
@@ -192,7 +199,9 @@ class DoormanAccessibilityService : AccessibilityService() {
             }
         }
         ContextCompat.registerReceiver(
-            this, receiver, IntentFilter(ACTION_DUMP), ContextCompat.RECEIVER_EXPORTED,
+            this, receiver,
+            IntentFilter(ACTION_DUMP).apply { addAction(ACTION_NOBLOCK) },
+            ContextCompat.RECEIVER_EXPORTED,
         )
         dumpReceiver = receiver
     }
@@ -204,6 +213,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         flushPresence()
         handler.removeCallbacks(presenceTick)
         scrollBudget.reset()
+        session = null
         serviceScope.cancel()
         handler.removeCallbacks(evaluate)
         handler.removeCallbacks(passExpiry)
@@ -490,7 +500,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         return bounds.height().takeIf { it > 0 }
     }
 
-    private var lastEvaluatedScreenId: String? = null
+    private var session: ScrollSession.Session? = null
 
     /** What the rules call the current screen, held or not. Null when nothing matches. */
     private var lastRecognisedScreenId: String? = null
@@ -582,9 +592,11 @@ class DoormanAccessibilityService : AccessibilityService() {
         ) {
             stopClock()
             val key = "${snapshot.packageName}/${verdict.screenId}"
-            val arrivedFromElsewhere = lastEvaluatedScreenId != verdict.screenId
+            val arrivedFromElsewhere = ScrollSession.startsFresh(
+                session, snapshot.packageName ?: pkg, verdict.screenId,
+            )
             budgetKey = key
-            lastEvaluatedScreenId = verdict.screenId
+            session = ScrollSession.Session(snapshot.packageName ?: pkg, verdict.screenId, key)
             val now = System.currentTimeMillis()
             if (arrivedFromElsewhere) scrollBudget.reset()
             scrollBudget.begin(key, verdict.budget, now, verdict.allowMillis)
@@ -607,9 +619,19 @@ class DoormanAccessibilityService : AccessibilityService() {
             }
             return
         }
+        // Scrolls are only counted on the item itself, so the comments list is
+        // not a swipe past it. But the session outlives the item being covered:
+        // whatever the rules cannot name -- comments, a share sheet, the
+        // author's page -- is not the item being left, and coming back must not
+        // look like a new one.
         budgetKey = null
         handler.removeCallbacks(allowanceExpiry)
-        lastEvaluatedScreenId = verdict.screenId
+        val ending = session?.let { open ->
+            rules.appFor(pkg)?.screens?.firstOrNull { it.id == open.screenId }?.sessionEndViewIds
+        }.orEmpty()
+        if (!ScrollSession.continues(session, snapshot?.packageName ?: pkg, lastRecognisedScreenId, snapshot, ending)) {
+            session = null
+        }
 
         val canonical = rules.canonicalPackage(pkg) ?: pkg
         val appLimit = appLimits[canonical] ?: Limits.OFF
@@ -984,6 +1006,7 @@ class DoormanAccessibilityService : AccessibilityService() {
 
         const val TAG = "Doorman"
         const val ACTION_DUMP = "cat.doorman.app.DUMP"
+        const val ACTION_NOBLOCK = "cat.doorman.app.NOBLOCK"
         private const val PRESENCE_APP = "app"
         private const val PRESENCE_SCREEN = "screen"
         private const val PRESENCE_TICK_MS = 30_000L

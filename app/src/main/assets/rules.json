@@ -93,6 +93,10 @@
               "clips_tab"
             ]
           },
+          "sessionEndViewIds": [
+            "message_list",
+            "row_thread_composer_edittext"
+          ],
           "helpKey": "help_ig_single_reel",
           "endless": true
         },
@@ -352,6 +356,9 @@
               "fbp_vertical_pager"
             ]
           },
+          "sessionEndViewIds": [
+            "bottom_nav"
+          ],
           "helpKey": "help_rd_media_feed",
           "endless": true
         },

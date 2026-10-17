@@ -11,6 +11,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.TextView
+import cat.doorman.app.BuildConfig
 import cat.doorman.app.R
 import cat.doorman.app.rules.OverlayBounds
 
@@ -37,6 +38,17 @@ class BlockOverlayController(private val service: AccessibilityService) {
     val isShowing: Boolean get() = overlay != null
 
     /**
+     * Debug builds only: decisions are still made and logged, but nothing is
+     * drawn. It is how a screen that is blocked can be driven and dumped from
+     * adb, since a block swallows the taps meant for what is under it.
+     */
+    var debugSuppress = false
+        set(value) {
+            field = if (BuildConfig.DEBUG) value else false
+            if (field) hide()
+        }
+
+    /**
      * [band] is the slice of screen to cover. It stops short of the search bar
      * above and the tab bar below, so the user can still look someone up or
      * walk to their messages rather than being cornered into switching Doorman
@@ -49,6 +61,7 @@ class BlockOverlayController(private val service: AccessibilityService) {
         band: OverlayBounds.Band = OverlayBounds.Band(0, null),
         bodyRes: Int = R.string.blocked_body,
     ) {
+        if (debugSuppress) return
         if (shownForScreenId == screenId && shownBand == band && overlay != null) return
         hide()
 
