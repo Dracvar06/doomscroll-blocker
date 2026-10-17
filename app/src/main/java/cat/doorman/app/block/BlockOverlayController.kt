@@ -3,6 +3,7 @@ package cat.doorman.app.block
 import android.accessibilityservice.AccessibilityService
 import android.content.Context
 import android.graphics.PixelFormat
+import android.graphics.Rect
 import android.os.Build
 import android.util.Log
 import android.view.Gravity
@@ -60,9 +61,9 @@ class BlockOverlayController(private val service: AccessibilityService) {
         screenLabel: String,
         band: OverlayBounds.Band = OverlayBounds.Band(0, null),
         bodyRes: Int = R.string.blocked_body,
-    ) {
-        if (debugSuppress) return
-        if (shownForScreenId == screenId && shownBand == band && overlay != null) return
+    ): Boolean {
+        if (debugSuppress) return false
+        if (shownForScreenId == screenId && shownBand == band && overlay != null) return false
         hide()
 
         // Null root is right here: the view's layout params come from
@@ -111,7 +112,7 @@ class BlockOverlayController(private val service: AccessibilityService) {
             }
         }
 
-        runCatching { windowManager.addView(view, params) }
+        return runCatching { windowManager.addView(view, params) }
             .onSuccess {
                 overlay = view
                 shownForScreenId = screenId
@@ -119,6 +120,73 @@ class BlockOverlayController(private val service: AccessibilityService) {
                 Log.i(TAG, "overlay shown for $screenId")
             }
             .onFailure { Log.e(TAG, "overlay failed for $screenId", it) }
+            .isSuccess
+    }
+
+    private var cover: TextView? = null
+    private var coverBounds: Rect? = null
+
+    val isCoverShowing: Boolean get() = cover != null
+
+    /**
+     * Covers an app's floating window, wherever it has been dragged to.
+     *
+     * Not touchable, on purpose: the user must still be able to drag it away,
+     * close it or tap it open -- which lands on the full app, where the normal
+     * block takes over. A cover that swallowed touches would trap the window on
+     * screen with no way to get rid of it.
+     */
+    fun showCover(bounds: Rect, label: String) {
+        if (debugSuppress) return
+        val existing = cover
+        if (existing != null) {
+            if (coverBounds != bounds) {
+                coverBounds = Rect(bounds)
+                runCatching { windowManager.updateViewLayout(existing, coverParams(bounds)) }
+            }
+            return
+        }
+        val view = TextView(service).apply {
+            setBackgroundColor(0xFF0F1A16.toInt())
+            setTextColor(0xFFB7C9C0.toInt())
+            textSize = 12f
+            gravity = Gravity.CENTER
+            text = label
+        }
+        runCatching { windowManager.addView(view, coverParams(bounds)) }
+            .onSuccess {
+                cover = view
+                coverBounds = Rect(bounds)
+                Log.i(TAG, "cover shown at ${bounds.flattenToString()}")
+            }
+            .onFailure { Log.e(TAG, "cover failed", it) }
+    }
+
+    fun hideCover() {
+        cover?.let {
+            runCatching { windowManager.removeView(it) }
+            Log.i(TAG, "cover hidden")
+        }
+        cover = null
+        coverBounds = null
+    }
+
+    private fun coverParams(bounds: Rect) = WindowManager.LayoutParams(
+        bounds.width(),
+        bounds.height(),
+        WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+        PixelFormat.OPAQUE,
+    ).apply {
+        gravity = Gravity.TOP or Gravity.START
+        x = bounds.left
+        y = bounds.top
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            fitInsetsTypes = 0
+        }
     }
 
     fun hide() {

@@ -11,6 +11,7 @@
 
     <string name="blocked_title">%1$s està bloquejat</string>
     <string name="blocked_body">Has demanat a Doorman que no et deixi entrar aquí.</string>
+    <string name="pip_cover_label">Bloquejat per Doorman</string>
     <string name="action_go_back">Torna enrere</string>
     <string name="blocked_hint_pass">Hi vols entrar igualment? Obre Doorman i espera un permís.</string>
 

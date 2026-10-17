@@ -15,6 +15,7 @@ import android.view.accessibility.AccessibilityEvent
 import androidx.core.content.ContextCompat
 import cat.doorman.app.BuildConfig
 import cat.doorman.app.block.BlockOverlayController
+import cat.doorman.app.block.MediaPauser
 import cat.doorman.app.data.Prefs
 import cat.doorman.app.debug.TreeDumper
 import cat.doorman.app.model.SnapshotCapture
@@ -71,6 +72,7 @@ class DoormanAccessibilityService : AccessibilityService() {
 
 
     private lateinit var overlay: BlockOverlayController
+    private val mediaPauser by lazy { MediaPauser(this) }
     private var rules: RuleSet = RuleSet()
     private var enabledScreenIds: Set<String> = emptySet()
     private var screenLimits: Map<String, Limits> = emptyMap()
@@ -220,8 +222,16 @@ class DoormanAccessibilityService : AccessibilityService() {
         handler.removeCallbacks(allowanceExpiry)
         handler.removeCallbacks(reconcile)
         handler.removeCallbacks(safetyNet)
+        handler.removeCallbacks(pipWatch)
         reconcilePending = false
-        if (::overlay.isInitialized) overlay.hide()
+        pipWatching = false
+        pipCharging = false
+        blockedWhenLeft = null
+        if (::overlay.isInitialized) {
+            overlay.hide()
+            overlay.hideCover()
+        }
+        mediaPauser.release()
         dumpReceiver?.let { runCatching { unregisterReceiver(it) } }
         dumpReceiver = null
         return super.onUnbind(intent)
@@ -275,11 +285,81 @@ class DoormanAccessibilityService : AccessibilityService() {
      * again.
      */
     private fun reconcileForeground() {
-        val pkg = foregroundNow()?.appPackage ?: return
+        val result = foregroundNow()
+        handleFloatingWindows(result?.pip.orEmpty())
+        val pkg = result?.appPackage ?: return
         if (pkg == lastPackage) return
         logTransition(pkg, "window list")
         handler.removeCallbacks(evaluate)
         handler.postDelayed(evaluate, WINDOW_SETTLE_MS)
+    }
+
+    /**
+     * An app swiped away turns into a small floating window and carries on.
+     * What was true of the app is still true of it: a block that was standing
+     * stays standing, and time on the clock keeps running.
+     */
+    private var blockedWhenLeft: String? = null
+    private var pipCharging = false
+    private var pipWatching = false
+    private val pipWatch = object : Runnable {
+        override fun run() {
+            pipWatching = false
+            reconcileForeground()
+        }
+    }
+
+    private fun handleFloatingWindows(pip: List<WindowFact>) {
+        val floating = pip.firstOrNull { it.packageName in watchedPackages() }
+        if (floating == null) {
+            if (overlay.isCoverShowing) overlay.hideCover()
+            if (pipCharging) {
+                pipCharging = false
+                stopClock()
+            }
+            return
+        }
+        val canonical = rules.canonicalPackage(floating.packageName) ?: floating.packageName!!
+        val appLimit = appLimits[canonical] ?: Limits.OFF
+        val appOutcome = if (appLimit.isOff) {
+            null
+        } else {
+            Allowances.decide(listOf(Allowances.Target(canonical, appLimit, ledger)), LocalDateTime.now())
+        }
+        when (val action = PipPolicy.decide(blockedWhenLeft == canonical, appOutcome)) {
+            PipPolicy.Action.Cover -> {
+                if (pipCharging) {
+                    pipCharging = false
+                    stopClock()
+                }
+                overlay.showCover(
+                    android.graphics.Rect(floating.left, floating.top, floating.right, floating.bottom),
+                    getString(R.string.pip_cover_label),
+                )
+                // Kept at it: the window can be tapped to play again blind.
+                if (mediaPauser.pauseIfPlaying()) Log.i(TAG, "floating window of $canonical paused")
+            }
+
+            is PipPolicy.Action.Charge -> {
+                if (overlay.isCoverShowing) overlay.hideCover()
+                val interactive = getSystemService(android.os.PowerManager::class.java)?.isInteractive != false
+                if (interactive) {
+                    allowanceClock.tick(action.ledgerKeys)
+                    clockRunning = true
+                    pipCharging = true
+                    flushClock()
+                } else if (pipCharging) {
+                    pipCharging = false
+                    stopClock()
+                }
+            }
+
+            PipPolicy.Action.None -> if (overlay.isCoverShowing) overlay.hideCover()
+        }
+        if (!pipWatching) {
+            pipWatching = true
+            handler.postDelayed(pipWatch, PIP_WATCH_MS)
+        }
     }
 
     /** Window-list events come in bursts, one per frame of an animation. */
@@ -602,6 +682,7 @@ class DoormanAccessibilityService : AccessibilityService() {
             scrollBudget.begin(key, verdict.budget, now, verdict.allowMillis)
             handler.removeCallbacks(allowanceExpiry)
             if (scrollBudget.hasBudget(key, now)) {
+                if (blockedWhenLeft == (rules.canonicalPackage(pkg) ?: pkg)) blockedWhenLeft = null
                 if (overlay.isShowing) overlay.hide()
                 // A Short plays in silence -- no scroll, no content change --
                 // so nothing would bring us back here to notice the time was
@@ -610,12 +691,13 @@ class DoormanAccessibilityService : AccessibilityService() {
                     handler.postDelayed(allowanceExpiry, left + 250)
                 }
             } else {
-                overlay.show(
+                val shown = overlay.show(
                     verdict.screenId,
                     labelFor(verdict.labelKey),
                     band = bandFor(snapshot, verdict.screenId),
                     bodyRes = R.string.blocked_body_budget_spent,
                 )
+                if (shown) mediaPauser.pauseIfPlaying()
             }
             return
         }
@@ -654,6 +736,7 @@ class DoormanAccessibilityService : AccessibilityService() {
             is Allowances.Outcome.Allow -> {
                 stopClock()
                 stoppedTarget = null
+                if (blockedWhenLeft == canonical) blockedWhenLeft = null
                 if (overlay.isShowing) overlay.hide()
             }
 
@@ -674,6 +757,7 @@ class DoormanAccessibilityService : AccessibilityService() {
 
             is Allowances.Outcome.OnTheClock -> {
                 stoppedTarget = null
+                if (blockedWhenLeft == canonical) blockedWhenLeft = null
                 if (overlay.isShowing) overlay.hide()
                 startClock(outcome)
             }
@@ -700,16 +784,19 @@ class DoormanAccessibilityService : AccessibilityService() {
         val wholeApp = outcome.targetId == rules.canonicalPackage(pkg) ?: pkg ||
             outcome.targetId.contains('.')
         if (wholeApp || snapshot == null) {
-            overlay.show(outcome.targetId, appLabelFor(outcome.targetId), bodyRes = body)
+            if (overlay.show(outcome.targetId, appLabelFor(outcome.targetId), bodyRes = body)) {
+                mediaPauser.pauseIfPlaying()
+            }
             return
         }
         val rule = rules.appFor(pkg)?.screens?.firstOrNull { it.id == outcome.targetId }
-        overlay.show(
+        val shown = overlay.show(
             outcome.targetId,
             labelFor(rule?.labelKey),
             band = bandFor(snapshot, outcome.targetId),
             bodyRes = body,
         )
+        if (shown) mediaPauser.pauseIfPlaying()
     }
 
     /**
@@ -927,6 +1014,13 @@ class DoormanAccessibilityService : AccessibilityService() {
         // the transition log now rather than corrupting entry context later.
         if (pkg == lastPackage) return
         val previous = lastPackage
+        // Leaving a held app with a block standing over it is remembered, so
+        // that if the app carries on in a floating window it is still blocked.
+        if (previous != null && previous in watchedPackages() &&
+            ::overlay.isInitialized && overlay.isShowing
+        ) {
+            blockedWhenLeft = rules.canonicalPackage(previous) ?: previous
+        }
         // Where the user was immediately before this app. On TikTok this is the
         // only thing separating "a friend sent me this" from "I opened the feed".
         val now = SystemClock.uptimeMillis()
@@ -1031,6 +1125,9 @@ class DoormanAccessibilityService : AccessibilityService() {
         /** How often, and for how long, the foreground is re-read after it changes. */
         private const val SAFETY_NET_MS = 2_000L
         private const val SAFETY_NET_WINDOW_MS = 30_000L
+
+        /** How often a floating window is looked at again while it exists. */
+        private const val PIP_WATCH_MS = 1_000L
 
         /** How often a running allowance is advanced. */
         private const val CLOCK_TICK_MS = 1_000L
