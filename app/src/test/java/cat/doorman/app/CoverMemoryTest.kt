@@ -40,14 +40,23 @@ class CoverMemoryTest {
     /** What the service does with each screen it is shown. */
     private class Replay(val rules: RuleSet, val enabled: Set<String>, val fixture: (String) -> ScreenSnapshot) {
         var held: CoverMemory.Held? = null
+        var now = 0L
 
-        fun see(name: String, fromApp: Boolean = false): ScreenEvaluator.Verdict {
-            val snapshot = fixture(name)
+        /**
+         * Each screen [after] the one before. Two seconds by default, the pace
+         * of a person tapping from one screen to the next; the tests about
+         * frames in between pass their own, much shorter, gaps.
+         */
+        fun see(name: String, fromApp: Boolean = false, after: Long = HUMAN_STEP_MS): ScreenEvaluator.Verdict =
+            see(fixture(name), fromApp, after)
+
+        fun see(snapshot: ScreenSnapshot, fromApp: Boolean = false, after: Long = HUMAN_STEP_MS): ScreenEvaluator.Verdict {
+            now += after
             val pkg = snapshot.packageName!!
             val verdict = ScreenEvaluator.evaluate(snapshot, rules, enabled, fromApp)
             val recognised = ScreenEvaluator.recognise(snapshot, rules, fromApp)
             val step = CoverMemory.step(
-                held, pkg, verdict, recognised, snapshot, rules.appFor(pkg)?.coverViewIds.orEmpty(),
+                held, pkg, verdict, recognised, snapshot, rules.appFor(pkg)?.coverViewIds.orEmpty(), now,
             )
             held = step.held
             return step.verdict
@@ -138,5 +147,59 @@ class CoverMemoryTest {
         assertTrue(r.see("tiktok-for-you").blocked)
         // TikTok has no markers, so nothing can be held over by a sheet there.
         assertEquals(emptyList<String>(), rules.appFor("com.zhiliaoapp.musically")!!.coverViewIds)
+    }
+
+    /** A sheet halfway up: a few views of Instagram's, none of the sheet's own ids yet. */
+    private val sheetSlidingUp = ScreenSnapshot(packageName = "com.instagram.android")
+
+    @Test
+    fun `comments over a single reel are that reel, for its budget to decide`() {
+        // His report: swipe past a single reel, the block lands, open the
+        // comments, and the next reel played above them. Whether the reel
+        // still had its one allowance is the budget's question; this hands
+        // the service the reel back so it can ask.
+        val r = replay()
+        assertEquals("ig_single_reel", r.see("instagram-reel-from-feed").screenId)
+        val under = r.see("instagram-reel-comments")
+        assertEquals(ScreenEvaluator.Outcome.ALLOW_ONCE, under.outcome)
+        assertEquals("ig_single_reel", under.screenId)
+    }
+
+    @Test
+    fun `a frame in between does not make it forget`() {
+        val r = replay()
+        r.see("instagram-clips")
+        r.see(sheetSlidingUp, after = 80)
+        assertTrue(r.see("instagram-reel-comments", after = 320).blocked)
+    }
+
+    @Test
+    fun `but the frame in between is not blocked itself`() {
+        // Kept in mind, never acted on: an unnamed screen after a blocked one
+        // may be the inbox, and blocking that is the failure that matters.
+        val r = replay()
+        r.see("instagram-clips")
+        assertFalse(r.see(sheetSlidingUp, after = 80).blocked)
+    }
+
+    @Test
+    fun `the moment in between runs out`() {
+        val r = replay()
+        r.see("instagram-clips")
+        r.see(sheetSlidingUp, after = CoverMemory.TRANSITION_GRACE_MS + 1)
+        assertFalse(r.see("instagram-reel-comments", after = 100).blocked)
+    }
+
+    @Test
+    fun `the sheet keeps the memory fresh however long it is open`() {
+        val r = replay()
+        r.see("instagram-clips")
+        repeat(10) { assertTrue(r.see("instagram-reel-comments", after = 1_000).blocked) }
+        r.see(sheetSlidingUp, after = 500)
+        assertTrue(r.see("instagram-reel-comments", after = 500).blocked)
+    }
+
+    private companion object {
+        const val HUMAN_STEP_MS = 2_000L
     }
 }

@@ -879,18 +879,46 @@ class DoormanAccessibilityService : AccessibilityService() {
             recognisedScreenId = lastRecognisedScreenId,
             snapshot = snapshot,
             coverViewIds = rules.appFor(pkg)?.coverViewIds.orEmpty(),
+            nowMillis = SystemClock.uptimeMillis(),
         )
         held = cover.held
         val verdict = cover.verdict
-        if (verdict !== ruleVerdict) lastRecognisedScreenId = verdict.screenId
+        val underSheet = verdict !== ruleVerdict
+        if (underSheet) lastRecognisedScreenId = verdict.screenId
         Log.i(
             TAG,
             "evaluate: pkg=$pkg nodes=${snapshot?.nodes?.size} " +
-                "outcome=${verdict.outcome} screen=${verdict.screenId} enabled=$enabledScreenIds",
+                "outcome=${verdict.outcome} screen=${verdict.screenId}" +
+                (if (underSheet) " (under a sheet)" else "") +
+                " held=${held?.verdict?.screenId} enabled=$enabledScreenIds",
         )
         currentStatus = "$pkg -> ${verdict.screenId ?: "not recognised"}"
 
 
+        if (underSheet && verdict.outcome == ScreenEvaluator.Outcome.ALLOW_ONCE &&
+            verdict.screenId != null
+        ) {
+            // Comments over a single item. The item is not on screen, so
+            // nothing here may count as a swipe past it -- the comments list
+            // scrolls, and that is reading, not the feed. What decides is only
+            // whether the item still had its allowance: comments on the reel
+            // someone sent stay open, comments on the one past it do not.
+            stopClock()
+            budgetKey = null
+            val key = "${pkg}/${verdict.screenId}"
+            if (scrollBudget.hasBudget(key, System.currentTimeMillis())) {
+                if (overlay.isShowing) overlay.hide()
+            } else {
+                val shown = overlay.show(
+                    verdict.screenId,
+                    labelFor(verdict.labelKey),
+                    band = OverlayBounds.Band(0, null),
+                    bodyRes = R.string.blocked_body_budget_spent,
+                )
+                if (shown) blockLanded()
+            }
+            return
+        }
         if (verdict.outcome == ScreenEvaluator.Outcome.ALLOW_ONCE &&
             verdict.screenId != null && snapshot != null
         ) {
