@@ -57,7 +57,6 @@ import cat.doorman.app.report.WeeklyReportNotifier
 import cat.doorman.app.data.Prefs
 import cat.doorman.app.limits.Allowances
 import cat.doorman.app.limits.Limits
-import cat.doorman.app.limits.Period
 import cat.doorman.app.limits.isLoosening
 import cat.doorman.app.rules.RuleLoader
 import cat.doorman.app.rules.RuleSet
@@ -696,7 +695,11 @@ class MainActivity : ComponentActivity() {
         val limits = screenLimits[targetId] ?: appLimits[targetId] ?: return null
         val today = java.time.LocalDateTime.now()
         val applicable = limits.allowancesOn(today.dayOfWeek)
-        if (applicable.isEmpty()) return null
+        // A limit that skips today has to say so, or it reads as a limit that
+        // is not working.
+        if (applicable.isEmpty()) {
+            return if (limits.allowances.isEmpty()) null else getString(R.string.remaining_not_today)
+        }
         val left = applicable.minOf { allowance ->
             cat.doorman.app.limits.Allowances.remainingMillis(
                 allowance,
@@ -714,28 +717,7 @@ class MainActivity : ComponentActivity() {
      * What a set of limits says, outside a composable, for the pending-change
      * dialog. Deliberately terse: the dialog is a countdown, not a manual.
      */
-    private fun summaryText(limits: Limits): String = when {
-        limits.blocked -> getString(R.string.mode_blocked)
-        limits.isOff -> getString(R.string.mode_off)
-        else -> buildList {
-            limits.allowances.forEach { allowance ->
-                val minutes = durationText(resources, allowance.minutes)
-                add(
-                    getString(
-                        when (allowance.period) {
-                            Period.HOUR -> R.string.mode_allowance_hour
-                            Period.DAY -> R.string.mode_allowance_day
-                            Period.WEEK -> R.string.mode_allowance_week
-                        },
-                        minutes,
-                    ),
-                )
-            }
-            limits.windows.forEach { window ->
-                add("${formatMinute(window.fromMinute)}\u2013${formatMinute(window.toMinute)}")
-            }
-        }.joinToString(" \u00b7 ")
-    }
+    private fun summaryText(limits: Limits): String = limitsSummaryText(resources, limits)
 
     private fun labelKeyFor(screenId: String): String =
         rules.apps.values.flatMap { it.screens }.firstOrNull { it.id == screenId }?.labelKey ?: ""

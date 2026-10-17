@@ -114,6 +114,9 @@
     <string name="mode_allowance_day">%1$s a day</string>
     <string name="remaining_left">%1$s left</string>
     <string name="remaining_none">None left</string>
+    <string name="remaining_not_today">No limit today</string>
+    <!-- A limit and the days it holds on, e.g. "10 min an hour (weekdays)". -->
+    <string name="mode_on_days">%1$s (%2$s)</string>
     <string name="section_other_apps">Other apps</string>
     <string name="section_other_apps_hint">Any app on your phone. Games, shops, anything. Holding one here covers the whole app, because Doorman knows nothing about its insides.</string>
     <string name="other_apps_empty">Search for an app to hold. The ones you choose stay listed here.</string>

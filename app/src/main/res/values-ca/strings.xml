@@ -96,6 +96,9 @@
     <string name="mode_allowance_day">%1$s al dia</string>
     <string name="remaining_left">En queden %1$s</string>
     <string name="remaining_none">No en queda gens</string>
+    <string name="remaining_not_today">Avui sense límit</string>
+    <!-- A limit and the days it holds on, e.g. "10 min an hour (weekdays)". -->
+    <string name="mode_on_days">%1$s (%2$s)</string>
     <string name="section_other_apps">Altres aplicacions</string>
     <string name="section_other_apps_hint">Qualsevol aplicació del telèfon. Jocs, botigues, el que sigui. Bloquejar-ne una aquí cobreix tota l\'aplicació, perquè Doorman no en coneix les pantalles.</string>
     <string name="other_apps_empty">Cerca l\'aplicació que vulguis bloquejar. Les que triïs es quedaran aquí.</string>

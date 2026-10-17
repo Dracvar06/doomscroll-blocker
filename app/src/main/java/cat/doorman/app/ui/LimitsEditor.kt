@@ -1,6 +1,7 @@
 package cat.doorman.app.ui
 
 import android.app.TimePickerDialog
+import android.content.res.Resources
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -29,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import cat.doorman.app.R
@@ -52,24 +54,49 @@ fun formatMinute(minuteOfDay: Int): String =
  * is asking "is this held, and roughly how", not reading a specification.
  */
 @Composable
-fun limitsSummary(limits: Limits): String = when {
-    limits.blocked -> stringResource(R.string.mode_blocked)
-    limits.isOff -> stringResource(R.string.mode_off)
+fun limitsSummary(limits: Limits): String = limitsSummaryText(LocalResources.current, limits)
+
+/**
+ * [limitsSummary] outside a composable. Days are named whenever a rule is not
+ * every day: "10 minutes an hour" on a rule that only holds on weekdays read as
+ * a limit, and on a Saturday it let a video run for twenty minutes with nothing
+ * on screen saying why.
+ */
+fun limitsSummaryText(res: Resources, limits: Limits): String = when {
+    limits.blocked -> res.getString(R.string.mode_blocked)
+    limits.isOff -> res.getString(R.string.mode_off)
     else -> buildList {
         limits.allowances.forEach { allowance ->
-            val minutes = durationLabel(allowance.minutes)
-            add(
+            val minutes = durationText(res, allowance.minutes)
+            val text = res.getString(
                 when (allowance.period) {
-                    Period.HOUR -> stringResource(R.string.mode_allowance_hour, minutes)
-                    Period.DAY -> stringResource(R.string.mode_allowance_day, minutes)
-                    Period.WEEK -> stringResource(R.string.mode_allowance_week, minutes)
+                    Period.HOUR -> R.string.mode_allowance_hour
+                    Period.DAY -> R.string.mode_allowance_day
+                    Period.WEEK -> R.string.mode_allowance_week
                 },
+                minutes,
             )
+            add(withDays(res, text, allowance.days))
         }
         limits.windows.forEach { window ->
-            add("${formatMinute(window.fromMinute)}–${formatMinute(window.toMinute)}")
+            add(withDays(res, "${formatMinute(window.fromMinute)}–${formatMinute(window.toMinute)}", window.days))
         }
     }.joinToString(" · ")
+}
+
+private fun withDays(res: Resources, text: String, days: Days): String =
+    daysText(res, days)?.let { res.getString(R.string.mode_on_days, text, it) } ?: text
+
+/** "weekdays", "weekend", "Mon, Wed" -- or null for every day, which goes without saying. */
+fun daysText(res: Resources, days: Days): String? {
+    val locale = res.configuration.locales[0]
+    return when (days.mask and Days.ALL_MASK) {
+        Days.ALL_MASK -> null
+        Days.WEEKDAYS.mask -> res.getString(R.string.days_weekdays).lowercase(locale)
+        Days.WEEKEND.mask -> res.getString(R.string.days_weekend).lowercase(locale)
+        else -> DayOfWeek.entries.filter { it in days }
+            .joinToString(", ") { it.getDisplayName(TextStyle.SHORT, locale) }
+    }
 }
 
 /**
