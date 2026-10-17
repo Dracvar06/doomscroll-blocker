@@ -196,6 +196,10 @@ class BlockOverlayController(private val service: AccessibilityService) {
             val button = Button(service).apply {
                 text = closeLabel
                 isAllCaps = false
+                // The block screen's pill, so the two read as one product.
+                setBackgroundResource(R.drawable.bg_block_button)
+                setTextColor(service.getColor(R.color.block_on_button))
+                stateListAnimator = null
                 setOnClickListener { onClose?.invoke() }
             }
             runCatching { windowManager.addView(button, buttonParams(bounds)) }

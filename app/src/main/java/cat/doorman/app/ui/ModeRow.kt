@@ -3,25 +3,25 @@ package cat.doorman.app.ui
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,9 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import cat.doorman.app.R
@@ -62,8 +60,8 @@ fun LimitRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { editing = true }
-            .padding(vertical = 8.dp),
+            .heightIn(min = 56.dp)
+            .clickable { editing = true },
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -75,19 +73,14 @@ fun LimitRow(
             // loading. Drawing it only once it arrives would make every row in
             // a long list slide sideways under the user's thumb.
             if (hasIcon) {
-                Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
-                    if (icon != null) {
-                        Image(
-                            bitmap = icon,
-                            contentDescription = null,
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier.size(40.dp),
-                        )
-                    }
-                }
+                AppAvatar(icon = icon, label = label, size = 40.dp, loading = icon == null)
                 Spacer(Modifier.width(12.dp))
             }
-            Text(text = label, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f, fill = false),
+            )
             HelpButton(label, help)
         }
         Spacer(Modifier.width(8.dp))
@@ -102,6 +95,14 @@ fun LimitRow(
             } else {
                 MaterialTheme.colorScheme.primary
             },
+        )
+        // The arrow is what says "this opens something". Without it a row of
+        // the list and a row with a switch looked like the same kind of thing,
+        // and the only way to learn that one opens an editor was to tap it.
+        Icon(
+            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
     if (editing) {
@@ -133,10 +134,14 @@ fun SwitchRow(
     onCheckedChange: (Boolean) -> Unit,
     help: String? = null,
 ) {
+    // The whole row is the switch, not just the thumb: a 56dp row is a target
+    // a thumb finds without looking, and a screen reader reads it as one
+    // control with its label instead of a label and an unnamed toggle.
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .heightIn(min = 56.dp)
+            .toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -155,7 +160,7 @@ fun SwitchRow(
             HelpButton(label, help)
         }
         Spacer(Modifier.width(8.dp))
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        Switch(checked = checked, onCheckedChange = null)
     }
 }
 
@@ -174,20 +179,17 @@ fun SwitchRow(
 private fun HelpButton(label: String, help: String?) {
     if (help.isNullOrBlank()) return
     var open by remember { mutableStateOf(false) }
-    val description = stringResource(R.string.action_help)
-    IconButton(
-        onClick = { open = true },
-        // The glyph is a letter as far as a screen reader is concerned, so the
-        // button needs a name of its own. An app built on the accessibility
-        // framework should not ship a control that announces itself as "i".
-        modifier = Modifier
-            .size(32.dp)
-            .semantics { contentDescription = description },
-    ) {
-        Text(
-            text = "\u24d8",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary,
+    // A full 48dp target around a small icon. The old 32dp button with a
+    // text "i" in it was under Android's minimum and easy to miss for the
+    // row underneath it.
+    IconButton(onClick = { open = true }) {
+        Icon(
+            Icons.Outlined.Info,
+            // Named, because an app built on the accessibility framework
+            // should not ship a control a screen reader announces as nothing.
+            contentDescription = stringResource(R.string.action_help),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp),
         )
     }
     if (open) {

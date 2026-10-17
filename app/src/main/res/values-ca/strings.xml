@@ -24,17 +24,15 @@
 
     <string name="section_blocking">Què bloqueja Doorman</string>
     <string name="section_blocking_hint">Tot ho tries tu. Desactiva el que prefereixis conservar.</string>
-    <string name="preset_label">Configuracions ràpides</string>
     <string name="preset_strict">Estricte</string>
     <string name="preset_balanced">Equilibrat</string>
     <string name="preset_nothing">Res</string>
 
-    <string name="section_pass">Entrar-hi igualment</string>
     <string name="pass_explainer">Una pantalla bloquejada no ofereix cap sortida. Si realment hi has d\'entrar, véns aquí, esperes i obtens un permís curt.</string>
     <string name="action_get_pass">Obtén un permís</string>
     <string name="unlock_title">Espera un permís</string>
     <string name="unlock_pick_app">Quina aplicació?</string>
-    <string name="unlock_waiting">Esperant… %1$d s</string>
+    <string name="duration_seconds">%1$d s</string>
     <string name="unlock_leave_warning">Si surts d\'aquesta pantalla, l\'espera torna a començar.</string>
     <string name="unlock_reset">Has sortit, així que l\'espera ha tornat a començar.</string>
     <string name="pass_active_banner">%1$s està desbloquejat %2$d min més</string>
@@ -106,11 +104,12 @@
             <string name="pending_change_mode">%1$s passarà a «%2$s» en %3$d s</string>
     <string name="other_apps_search">Cerca aplicacions</string>
     <string name="card_close">Amaga</string>
+    <string name="card_open">Mostra</string>
     <string name="screens_held_none">Res bloquejat</string>
     <plurals name="screens_held">
-        <item quantity="one">%1$d de bloquejat</item>
-        <item quantity="many">%1$d de bloquejats</item>
-        <item quantity="other">%1$d de bloquejats</item>
+        <item quantity="one">%1$d pantalla bloquejada</item>
+        <item quantity="many">%1$d de pantalles bloquejades</item>
+        <item quantity="other">%1$d pantalles bloquejades</item>
     </plurals>
     <string name="screen_ig_reel_viewer">Reels, s\'obrin on s\'obrin</string>
     <string name="action_help">Què bloqueja això?</string>
@@ -176,7 +175,6 @@
     <string name="report_stops">Vegades que t\'ha aturat</string>
     <string name="report_time">Temps comptat contra un límit</string>
     <string name="report_loosenings">Límits afluixats</string>
-    <string name="section_weekly_report">Informe setmanal</string>
     <string name="weekly_report_switch">Guarda un informe setmanal</string>
     <string name="weekly_report_help">Doorman compta quantes vegades t\'ha aturat, quant temps s\'ha comptat contra un límit i quants límits has afluixat. Apagat, no enregistra res de nou i la pestanya de l\'informe desapareix. El que ja hi ha es queda fins que caduca.</string>
     <string name="notify_channel_weekly">Informe setmanal</string>

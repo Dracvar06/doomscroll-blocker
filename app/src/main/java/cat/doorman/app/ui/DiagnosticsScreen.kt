@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -33,19 +32,19 @@ fun DiagnosticsSection(
     onShare: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = stringResource(R.string.section_diagnostics),
-            style = MaterialTheme.typography.titleMedium,
-        )
-        Text(
-            text = stringResource(R.string.diagnostics_explainer),
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        Card {
+        SectionHeader(stringResource(R.string.section_diagnostics))
+        // Full width like every other card. Sized to its contents it sat
+        // narrower than the cards above it and looked like a different kind
+        // of thing.
+        SurfaceCard {
             Column(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                Text(
+                    text = stringResource(R.string.diagnostics_explainer),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
                 Text(
                     text = if (lastSeen.isNullOrBlank()) {
                         stringResource(R.string.diagnostics_last_seen_none)
@@ -53,6 +52,7 @@ fun DiagnosticsSection(
                         stringResource(R.string.diagnostics_last_seen, lastSeen)
                     },
                     style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 when {
                     countdown > 0 -> Text(

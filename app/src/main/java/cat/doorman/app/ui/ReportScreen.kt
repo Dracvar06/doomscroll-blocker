@@ -105,7 +105,7 @@ fun WeeklyReport(
  */
 @Composable
 private fun SupportNudgeCard(onCoffee: () -> Unit, onNotNow: () -> Unit) {
-    Card {
+    SurfaceCard {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -130,10 +130,10 @@ private fun SupportNudgeCard(onCoffee: () -> Unit, onNotNow: () -> Unit) {
 /** Eight bars is two months: long enough for a shape, short enough to read. */
 private const val WEEKS_CHARTED = 8
 
-// Fixed rather than taken from the theme. Material's dynamic colour is derived
-// from the wallpaper, so "the good one" could come out anywhere on the wheel,
-// and a report where better and worse are two shades of the same purple is a
-// report nobody can skim. Matched to the dials, which use the same two ends.
+// Fixed rather than taken from the theme. The theme has one green and nothing
+// to set against it, and a report where better and worse are two shades of the
+// same colour is a report nobody can skim. Matched to the dials, which use the
+// same two ends.
 private val BETTER = Color(0xFF63BE72)
 private val WORSE = Color(0xFFDF6350)
 
@@ -156,7 +156,7 @@ private fun HeadlineCard(
     weekBefore: WeekSummary,
     onAskForUsageAccess: () -> Unit,
 ) {
-    Card {
+    SurfaceCard {
         Column(
             modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -333,6 +333,7 @@ private fun DeltaRow(difference: Int, tone: Tone, formatted: String, deadband: I
 private fun StreakCard(weeks: Int) {
     if (weeks == 0) return
     Card(
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = BETTER.copy(alpha = 0.14f)),
     ) {
         Column(
@@ -355,7 +356,10 @@ private fun StreakCard(weeks: Int) {
 /** The question the user asked for: you loosened these, did you mean to keep them? */
 @Composable
 private fun LooseningCard(loosenings: Int, onReviewLimits: () -> Unit) {
-    Card(colors = CardDefaults.cardColors(containerColor = WORSE.copy(alpha = 0.14f))) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = WORSE.copy(alpha = 0.14f)),
+    ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -428,7 +432,7 @@ private class Bar(
 
 @Composable
 private fun ChartCard(title: String, caption: String, bars: List<Bar>) {
-    Card {
+    SurfaceCard {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -561,7 +565,7 @@ private val VALUE_LIFT = 16.dp
  */
 @Composable
 private fun ThisWeekCard(days: List<DayRecord?>, week: WeekSummary, today: LocalDate) {
-    Card {
+    SurfaceCard {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -606,7 +610,7 @@ private fun ThisWeekCard(days: List<DayRecord?>, week: WeekSummary, today: Local
 @Composable
 fun TodayCard(times: List<AppTime>) {
     if (times.isEmpty()) return
-    Card {
+    SurfaceCard {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -624,7 +628,7 @@ fun TodayCard(times: List<AppTime>) {
 
 @Composable
 private fun UsageOfferCard(onAsk: () -> Unit) {
-    Card {
+    SurfaceCard {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -711,7 +715,7 @@ data class AppTime(
 private fun AppTimeCard(title: String, times: List<AppTime>) {
     if (times.isEmpty()) return
     val most = times.maxOf { it.millis }.coerceAtLeast(1L)
-    Card {
+    SurfaceCard {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),

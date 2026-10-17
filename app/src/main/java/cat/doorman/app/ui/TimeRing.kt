@@ -408,13 +408,13 @@ private fun RotaryDial(
 
     Box(
         modifier = modifier
-            .size(160.dp)
+            .size(DIAL_SIZE)
             .semantics { contentDescription = description },
         contentAlignment = Alignment.Center,
     ) {
         Canvas(
             modifier = Modifier
-                .size(160.dp)
+                .size(DIAL_SIZE)
                 .pointerInput(positions) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
@@ -496,10 +496,20 @@ private fun RotaryDial(
         // The number is a button. Tapping it opens a keyboard, for anyone who
         // knows exactly what they want and would rather say it than hunt for it
         // around a circle.
+        val centreText = centreTextFor(shown)
         Text(
-            text = centreTextFor(shown),
-            style = MaterialTheme.typography.titleLarge,
+            text = centreText,
+            // A word ("Immediate", "Inmediato") is wider than a number, and at
+            // the number's size it ran out over the ring. Long labels step
+            // down a size and stay on one line inside the hole.
+            style = if (centreText.length > 7) {
+                MaterialTheme.typography.titleMedium
+            } else {
+                MaterialTheme.typography.titleLarge
+            },
             fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            softWrap = false,
             modifier = Modifier
                 .clip(RoundedCornerShape(percent = 50))
                 .clickable(onClickLabel = typeLabel, onClick = onType)
@@ -525,9 +535,8 @@ private fun RotaryDial(
  *   exists to prevent -- so "immediate" is the red end, and half a minute of
  *   pause is already enough to be green.
  *
- * Fixed colours rather than the theme's, because the theme is taken from the
- * user's wallpaper: green to red has to mean green to red on every phone, not
- * whatever two colours the wallpaper happens to offer. They are mid-toned so
+ * Fixed colours rather than the theme's: green to red has to mean green to red,
+ * and the theme has one green and no scale from it to red. They are mid-toned so
  * that neither end disappears against a light background or a dark one.
  *
  * The ring the day is drawn on keeps the theme colour and no gradient. There
@@ -535,6 +544,12 @@ private fun RotaryDial(
  * themselves; turning that red would be the app frowning at the thing it exists
  * to encourage.
  */
+/**
+ * 176dp leaves a 132dp hole inside the 22dp ring: room for the longest label
+ * any language puts there, plus the pill around it.
+ */
+private val DIAL_SIZE = 176.dp
+
 private val DIAL_LOW = Color(0xFF63BE72)
 private val DIAL_MID = Color(0xFFE0B341)
 private val DIAL_HIGH = Color(0xFFDF6350)

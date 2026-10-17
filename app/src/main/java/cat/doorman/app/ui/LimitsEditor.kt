@@ -13,9 +13,39 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.TopAppBar
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowCompat
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -107,7 +137,7 @@ fun daysText(res: Resources, days: Days): String? {
  * can be on at once, because that is one intention and not two, and the week
  * drawn underneath shows what the combination actually does.
  */
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun LimitsEditor(
     title: String,
@@ -120,21 +150,74 @@ fun LimitsEditor(
     var draft by remember { mutableStateOf(limits) }
     val context = LocalContext.current
 
-    AlertDialog(
+    // Full screen, not a pop-up. A budget with its dial, a period, the days,
+    // and a set of blocked hours with its own ring will never fit a dialog;
+    // squeezed into one, every section was a card inside a card inside a
+    // scrolling box, and Save sat at the bottom of something you could not
+    // see the bottom of. Close and Save live in the bar at the top, where
+    // they stay put however far down the editor goes.
+    Dialog(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false,
+        ),
+    ) {
+        // A dialog is a window of its own, drawn edge to edge here, and it
+        // does not inherit the activity's status-bar icon colour: on the
+        // light theme the clock and battery came out white on white.
+        val window = (LocalView.current.parent as? DialogWindowProvider)?.window
+        val dark = isSystemInDarkTheme()
+        SideEffect {
+            window?.let {
+                WindowCompat.getInsetsController(it, it.decorView).apply {
+                    isAppearanceLightStatusBars = !dark
+                    isAppearanceLightNavigationBars = !dark
+                }
+            }
+        }
+        Scaffold(
+            containerColor = MaterialTheme.colorScheme.surface,
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onDismiss) {
+                            Icon(
+                                Icons.Filled.Close,
+                                contentDescription = stringResource(R.string.action_cancel_change),
+                            )
+                        }
+                    },
+                    actions = {
+                        TextButton(onClick = { onSave(draft) }) {
+                            Text(stringResource(R.string.action_save))
+                        }
+                    },
+                )
+            },
+        ) { padding ->
             Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 if (!help.isNullOrBlank()) {
-                    Text(help, style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        help,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
 
-                // The two absolutes first, because most people want one of them
-                // and should not have to read about minutes to find out.
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                // The two absolutes first, because most people want one of
+                // them and should not have to read about minutes to find out.
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = draft.isOff,
                         onClick = { draft = Limits.OFF },
@@ -147,12 +230,7 @@ fun LimitsEditor(
                     )
                 }
 
-                HorizontalDivider()
-
-                Text(
-                    stringResource(R.string.limits_usage_heading),
-                    style = MaterialTheme.typography.titleSmall,
-                )
+                EditorHeading(stringResource(R.string.limits_usage_heading))
                 draft.allowances.forEachIndexed { index, allowance ->
                     AllowanceRow(
                         allowance = allowance,
@@ -170,25 +248,18 @@ fun LimitsEditor(
                         },
                     )
                 }
-                AssistChip(
-                    onClick = {
-                        draft = draft.copy(
-                            blocked = false,
-                            allowances = draft.allowances + Allowance(20, Period.DAY),
-                        )
-                    },
-                    label = { Text(stringResource(R.string.limits_add_allowance)) },
-                )
+                AddButton(stringResource(R.string.limits_add_allowance)) {
+                    draft = draft.copy(
+                        blocked = false,
+                        allowances = draft.allowances + Allowance(20, Period.DAY),
+                    )
+                }
 
-                HorizontalDivider()
-
-                Text(
-                    stringResource(R.string.limits_hours_heading),
-                    style = MaterialTheme.typography.titleSmall,
-                )
+                EditorHeading(stringResource(R.string.limits_hours_heading))
                 Text(
                     stringResource(R.string.limits_hours_hint),
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 draft.windows.forEachIndexed { index, window ->
                     WindowRow(
@@ -243,7 +314,8 @@ fun LimitsEditor(
                 if (reusable.isNotEmpty()) {
                     Text(
                         stringResource(R.string.limits_reuse),
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         reusable.forEach { window ->
@@ -264,73 +336,93 @@ fun LimitsEditor(
                         }
                     }
                 }
-                AssistChip(
-                    onClick = {
-                        draft = draft.copy(
-                            blocked = false,
-                            // Nine in the evening to nine in the morning: the
-                            // rule most people are reaching for, already
-                            // crossing midnight so the wrap explains itself.
-                            windows = draft.windows + Window(21 * 60, 9 * 60),
-                        )
-                    },
-                    label = { Text(stringResource(R.string.limits_add_window)) },
-                )
+                AddButton(stringResource(R.string.limits_add_window)) {
+                    draft = draft.copy(
+                        blocked = false,
+                        // Nine in the evening to nine in the morning: the
+                        // rule most people are reaching for, already
+                        // crossing midnight so the wrap explains itself.
+                        windows = draft.windows + Window(21 * 60, 9 * 60),
+                    )
+                }
 
                 if (draft.windows.isNotEmpty() || draft.blocked) {
-                    HorizontalDivider()
-                    Text(
-                        stringResource(R.string.limits_week_heading),
-                        style = MaterialTheme.typography.titleSmall,
-                    )
+                    EditorHeading(stringResource(R.string.limits_week_heading))
                     WeekTimeline(draft)
                 }
+                Spacer(Modifier.height(24.dp))
             }
-        },
-        confirmButton = {
-            TextButton(onClick = { onSave(draft) }) {
-                Text(stringResource(R.string.action_save))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.action_cancel_change))
-            }
-        },
-    )
+        }
+    }
+}
+
+/** A section of the editor: a rule above it says where one part ends. */
+@Composable
+private fun EditorHeading(text: String) {
+    Column(
+        modifier = Modifier.padding(top = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Text(text, style = MaterialTheme.typography.titleMedium)
+    }
+}
+
+@Composable
+private fun AddButton(label: String, onClick: () -> Unit) {
+    OutlinedButton(onClick = onClick) {
+        Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(label)
+    }
+}
+
+/** The bin at the corner of a budget or a set of hours. */
+@Composable
+private fun RemoveButton(onRemove: () -> Unit) {
+    IconButton(onClick = onRemove) {
+        Icon(
+            Icons.Outlined.Delete,
+            contentDescription = stringResource(R.string.action_remove),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
 }
 
 /** "____ minutes per ____", plus the days it applies on. */
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AllowanceRow(
     allowance: Allowance,
     onChange: (Allowance) -> Unit,
     onRemove: () -> Unit,
 ) {
-    Card {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
+    SurfaceCard {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Box(
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                contentAlignment = Alignment.Center,
             ) {
-                TextButton(onClick = onRemove) {
-                    Text(stringResource(R.string.action_remove))
-                }
-            }
-            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 MinutesDial(
                     minutes = allowance.minutes,
                     period = allowance.period,
                     onChange = { onChange(allowance.copy(minutes = it)) },
                 )
             }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Period.entries.forEach { period ->
-                    FilterChip(
+            Box(modifier = Modifier.align(Alignment.TopEnd).padding(4.dp)) {
+                RemoveButton(onRemove)
+            }
+        }
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            // One control with three parts rather than three loose chips:
+            // only one period can be true, and a wrapped third chip on a line
+            // of its own read as a separate setting.
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                Period.entries.forEachIndexed { index, period ->
+                    SegmentedButton(
                         selected = period == allowance.period,
                         onClick = {
                             // The dial's reach changes with the period, so the
@@ -344,7 +436,8 @@ private fun AllowanceRow(
                                 ),
                             )
                         },
-                        label = { Text(periodLabel(period)) },
+                        shape = SegmentedButtonDefaults.itemShape(index, Period.entries.size),
+                        label = { Text(periodLabel(period), maxLines = 1) },
                     )
                 }
             }
@@ -362,32 +455,27 @@ private fun WindowRow(
     onDaysChange: (Days) -> Unit,
     onRemove: () -> Unit,
 ) {
-    Card {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Spacer(Modifier.weight(1f))
-                TextButton(onClick = onRemove) {
-                    Text(stringResource(R.string.action_remove))
-                }
-            }
+    SurfaceCard {
+        Box(modifier = Modifier.fillMaxWidth()) {
             TimeRing(
                 window = window,
                 onChange = onChange,
                 onPickExactly = onPick,
-                modifier = Modifier.padding(horizontal = 24.dp),
+                modifier = Modifier.padding(start = 40.dp, end = 40.dp, top = 16.dp),
             )
+            Box(modifier = Modifier.align(Alignment.TopEnd).padding(4.dp)) {
+                RemoveButton(onRemove)
+            }
+        }
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             if (window.wrapsMidnight) {
                 Text(
                     text = stringResource(R.string.limits_wraps_midnight),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             DayPicker(window.days, onDaysChange)
@@ -395,13 +483,19 @@ private fun WindowRow(
     }
 }
 
-/** Every day, weekdays, weekend, or a hand-picked set. */
+/**
+ * Every day, weekdays, weekend, or a hand-picked set.
+ *
+ * The seven days are one row of round toggles, the way the phone's own alarm
+ * clock lays them out. As chips they wrapped onto a second line, and a week
+ * broken in two after Thursday is not a shape anybody recognises.
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DayPicker(days: Days, onChange: (Days) -> Unit) {
     val locale = LocalConfiguration.current.locales[0]
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf(
                 Days.EVERY_DAY to R.string.days_every,
                 Days.WEEKDAYS to R.string.days_weekdays,
@@ -414,20 +508,53 @@ private fun DayPicker(days: Days, onChange: (Days) -> Unit) {
                 )
             }
         }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(modifier = Modifier.fillMaxWidth()) {
             DayOfWeek.entries.forEach { day ->
-                FilterChip(
-                    selected = day in days,
-                    onClick = {
-                        val next = days.with(day, day !in days)
-                        // Never leave a rule applying on no days at all: it
-                        // would sit in the list looking active and do nothing.
-                        if (!next.isEmpty) onChange(next)
-                    },
-                    label = {
-                        Text(day.getDisplayName(TextStyle.NARROW, locale))
-                    },
-                )
+                val on = day in days
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                        .toggleable(
+                            value = on,
+                            role = Role.Checkbox,
+                            onValueChange = { checked ->
+                                val next = days.with(day, checked)
+                                // Never leave a rule applying on no days at
+                                // all: it would sit in the list looking active
+                                // and do nothing.
+                                if (!next.isEmpty) onChange(next)
+                            },
+                        )
+                        .semantics {
+                            contentDescription = day.getDisplayName(TextStyle.FULL, locale)
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    val shape = CircleShape
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .then(
+                                if (on) {
+                                    Modifier.background(MaterialTheme.colorScheme.primary, shape)
+                                } else {
+                                    Modifier.border(1.dp, MaterialTheme.colorScheme.outline, shape)
+                                },
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            day.getDisplayName(TextStyle.NARROW, locale),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (on) {
+                                MaterialTheme.colorScheme.onPrimary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        )
+                    }
+                }
             }
         }
     }

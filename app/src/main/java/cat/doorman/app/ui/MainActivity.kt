@@ -16,11 +16,24 @@ import androidx.compose.animation.Crossfade
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.runtime.key
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -37,7 +50,6 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -259,80 +271,92 @@ class MainActivity : ComponentActivity() {
                         }
                     },
                 ) { insets ->
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(insets)
-                            .verticalScroll(rememberScrollState())
-                            .padding(24.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                    ) {
-                        PendingChangeDialog(
-                            seconds = pendingSeconds,
-                            isDelayChange = pendingChange is PendingChange.Delay,
-                            targetLabel = (pendingChange as? PendingChange.Mode)?.let { change ->
-                                labelKeyFor(change.id).let(::labelFor)
-                                    .ifEmpty { appLabelFor(change.id) }
-                            },
-                            modeLabel = (pendingChange as? PendingChange.Mode)
-                                ?.let { change -> summaryText(change.limits) },
-                            onCancel = { cancelPendingChange() },
-                        )
+                    PendingChangeDialog(
+                        seconds = pendingSeconds,
+                        isDelayChange = pendingChange is PendingChange.Delay,
+                        targetLabel = (pendingChange as? PendingChange.Mode)?.let { change ->
+                            labelKeyFor(change.id).let(::labelFor)
+                                .ifEmpty { appLabelFor(change.id) }
+                        },
+                        modeLabel = (pendingChange as? PendingChange.Mode)
+                            ?.let { change -> summaryText(change.limits) },
+                        onCancel = { cancelPendingChange() },
+                    )
+                    // System Back on the pass screen goes back to Doorman, the
+                    // way the Back button on it does. Without this the gesture
+                    // closed the whole app.
+                    BackHandler(enabled = screen == Screen.UNLOCK) { leaveUnlock() }
+                    Box(modifier = Modifier.fillMaxSize().padding(insets)) {
                         when (screen) {
                             Screen.HOME -> if (tutorialSeen == false) {
-                                Tutorial(
-                                    languageSupported =
-                                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU,
-                                    languageTag = appLocaleTag(),
-                                    onPickLanguage = { tag -> setAppLocale(tag) },
-                                    onCoffee = { openCoffee() },
-                                    onDone = {
-                                        lifecycleScope.launch {
-                                            // Stamped now so the first seasonal
-                                            // reminder is a season after install,
-                                            // not the first time the report opens.
-                                            prefs.setCoffeeNudgedOn(java.time.LocalDate.now().toString())
-                                            prefs.setTutorialSeen(true)
-                                        }
-                                    },
-                                )
+                                run {
+                                    Tutorial(
+                                        languageSupported =
+                                            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU,
+                                        languageTag = appLocaleTag(),
+                                        onPickLanguage = { tag -> setAppLocale(tag) },
+                                        onCoffee = { openCoffee() },
+                                        onDone = {
+                                            lifecycleScope.launch {
+                                                // Stamped now so the first seasonal
+                                                // reminder is a season after install,
+                                                // not the first time the report opens.
+                                                prefs.setCoffeeNudgedOn(java.time.LocalDate.now().toString())
+                                                prefs.setTutorialSeen(true)
+                                            }
+                                        },
+                                    )
+                                }
                             } else if (tutorialSeen == true) Crossfade(
                                 targetState = tab,
                                 label = "tab",
                             ) { shown ->
-                                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                                    when (shown) {
-                                Tab.BLOCKS -> BlocksTab()
-                                Tab.REPORT -> WeeklyReport(
-                                    days = journal,
-                                    today = java.time.LocalDate.now(),
-                                    use = watchedUse,
-                                    onAskForUsageAccess = { askForUsageAccess() },
-                                    onReviewLimits = { tab = Tab.BLOCKS },
-                                    appTimesFor = { week -> appTimes(week.apps, week.screens) },
-                                    coffeeNudge = coffeeNudgeDue(),
-                                    onCoffee = { openCoffee() },
-                                    onNotNow = { stampCoffeeNudge() },
-                                )
-                                Tab.SETTINGS -> SettingsTab()
+                                // One scroll position per tab, and a fresh one
+                                // each visit. A single scroll shared by all
+                                // three tabs opened the report at whatever
+                                // depth the blocks list had been left at --
+                                // usually its last card, with the headline
+                                // somewhere off the top.
+                                key(shown) {
+                                    Page {
+                                        when (shown) {
+                                            Tab.BLOCKS -> BlocksTab()
+                                            Tab.REPORT -> WeeklyReport(
+                                                days = journal,
+                                                today = java.time.LocalDate.now(),
+                                                use = watchedUse,
+                                                onAskForUsageAccess = { askForUsageAccess() },
+                                                onReviewLimits = { tab = Tab.BLOCKS },
+                                                appTimesFor = { week -> appTimes(week.apps, week.screens) },
+                                                coffeeNudge = coffeeNudgeDue(),
+                                                onCoffee = { openCoffee() },
+                                                onNotNow = { stampCoffeeNudge() },
+                                            )
+                                            Tab.SETTINGS -> SettingsTab()
+                                        }
                                     }
                                 }
                             }
-                            Screen.UNLOCK -> UnlockScreen(
-                                rules = rules,
-                                selectedPackage = selectedPackage,
-                                secondsRemaining = secondsRemaining,
-                                passMinutes = passMinutes,
-                                wasReset = wasReset,
-                                onSelectPackage = { pkg ->
-                                    selectedPackage = pkg
-                                    wasReset = false
-                                    startCountdown()
-                                },
-                                onGrant = { grantPass() },
-                                onBack = { leaveUnlock() },
-                                labelFor = ::labelFor,
-                            )
+                            Screen.UNLOCK -> Page {
+                                UnlockScreen(
+                                    rules = rules,
+                                    icons = appIcons,
+                                    installedPackages = installedPackages,
+                                    selectedPackage = selectedPackage,
+                                    secondsRemaining = secondsRemaining,
+                                    totalSeconds = waitSeconds,
+                                    passMinutes = passMinutes,
+                                    wasReset = wasReset,
+                                    onSelectPackage = { pkg ->
+                                        selectedPackage = pkg
+                                        wasReset = false
+                                        startCountdown()
+                                    },
+                                    onGrant = { grantPass() },
+                                    onBack = { leaveUnlock() },
+                                    labelFor = ::labelFor,
+                                )
+                            }
                         }
                     }
                 }
@@ -340,79 +364,55 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** A tab's worth of content, scrolling on its own. */
+    @Composable
+    private fun Page(content: @Composable ColumnScope.() -> Unit) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            content = content,
+        )
+    }
+
     @Composable
     private fun BlocksTab() {
-        Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium)
-        Text(stringResource(R.string.home_tagline), style = MaterialTheme.typography.bodyLarge)
-
-        // The only alarm colour in the app, and it is the only thing that
-        // deserves one: with the service off Doorman is a settings screen that
-        // blocks nothing, and a card the same colour as every other card is a
-        // card people scroll past.
-        Card(
-            colors = if (serviceEnabled) {
-                CardDefaults.cardColors()
-            } else {
-                CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                )
-            },
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(
-                    text = stringResource(
-                        if (serviceEnabled) R.string.status_enabled else R.string.status_disabled
-                    ),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Text(
-                    text = stringResource(
-                        if (serviceEnabled) R.string.status_enabled_body
-                        else R.string.status_disabled_body
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                if (!serviceEnabled) {
-                    // Also the prominent disclosure Google Play requires before
-                    // an accessibility service is requested.
-                    Text(
-                        text = stringResource(R.string.accessibility_service_description),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    Button(onClick = {
-                        // NEW_TASK matters: without it the settings screen lands
-                        // inside Doorman's own task, and tapping the launcher
-                        // icon afterwards reopens Android settings.
-                        startActivity(
-                            Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        )
-                    }) {
-                        Text(stringResource(R.string.action_open_accessibility_settings))
-                    }
-                }
-            }
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium)
+            Text(
+                stringResource(R.string.home_tagline),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
+
+        StatusCard()
 
         activePass?.let { pass ->
             val minutesLeft =
                 ((pass.expiresAt - System.currentTimeMillis()) / 60_000L).toInt().coerceAtLeast(0)
             if (pass.isActiveAt(System.currentTimeMillis())) {
-                Card {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                    ),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
                             stringResource(
                                 R.string.pass_active_banner,
                                 labelFor(rules.appFor(pass.packageName)?.labelKey ?: ""),
                                 minutesLeft + 1,
-                            )
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f),
                         )
                         TextButton(onClick = { lifecycleScope.launch { prefs.clearPass() } }) {
                             Text(stringResource(R.string.action_end_pass))
@@ -445,6 +445,113 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
+     * Whether Doorman is working, and the way in when it is.
+     *
+     * The only alarm colour in the app is here, and it is the only thing that
+     * deserves one: with the service off Doorman is a settings screen that
+     * blocks nothing, and a card the same colour as every other card is a card
+     * people scroll past.
+     *
+     * The pass lives here too. The block screen tells people to open Doorman
+     * for a pass, and Doorman opens on this tab; it used to be in Settings,
+     * under the delay dial, where somebody told "open Doorman" had to go
+     * looking. Finding the door is not the friction -- the wait behind it is.
+     */
+    @Composable
+    private fun StatusCard() {
+        if (!serviceEnabled) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                ),
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.Warning, contentDescription = null)
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            stringResource(R.string.status_disabled),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
+                    Text(
+                        stringResource(R.string.status_disabled_body),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    // Also the prominent disclosure Google Play requires before
+                    // an accessibility service is requested.
+                    Text(
+                        stringResource(R.string.accessibility_service_description),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Button(
+                        onClick = {
+                            // NEW_TASK matters: without it the settings screen
+                            // lands inside Doorman's own task, and tapping the
+                            // launcher icon afterwards reopens Android settings.
+                            startActivity(
+                                Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            )
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError,
+                        ),
+                    ) {
+                        Text(stringResource(R.string.action_open_accessibility_settings))
+                    }
+                }
+            }
+            return
+        }
+        SurfaceCard {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    Icons.Filled.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(28.dp),
+                )
+                Spacer(Modifier.width(16.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        stringResource(R.string.status_enabled),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        stringResource(R.string.status_enabled_body),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            NavRow(
+                icon = Icons.Outlined.Lock,
+                title = stringResource(R.string.action_get_pass),
+                supporting = stringResource(R.string.pass_explainer),
+                onClick = { openUnlock() },
+            )
+        }
+    }
+
+    private fun openUnlock() {
+        screen = Screen.UNLOCK
+        selectedPackage = null
+        wasReset = false
+        secondsRemaining = 0
+    }
+
+    /**
      * How Doorman behaves and what it is, which is not what it blocks.
      *
      * Both settings here are set once and then lived with. They were in the way
@@ -453,103 +560,87 @@ class MainActivity : ComponentActivity() {
     @Composable
     private fun SettingsTab() {
         Text(
-            stringResource(R.string.section_behaviour),
+            stringResource(R.string.tab_settings),
             style = MaterialTheme.typography.headlineMedium,
         )
-        run {
-            Text(
-                stringResource(R.string.section_change_delay),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Text(
-                stringResource(R.string.change_delay_explainer),
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                DelayDial(
-                    seconds = changeDelaySeconds,
-                    onChange = { seconds -> requestDelayChange(seconds) },
+
+        SectionHeader(stringResource(R.string.section_behaviour))
+        SurfaceCard {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    stringResource(R.string.section_change_delay),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    stringResource(R.string.change_delay_explainer),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    DelayDial(
+                        seconds = changeDelaySeconds,
+                        onChange = { seconds -> requestDelayChange(seconds) },
+                    )
+                }
+            }
+        }
+        // Kept with the behaviour group rather than with language and
+        // diagnostics: this one is about the user's week, not about the app,
+        // and it belongs beside the other things that change what Doorman
+        // does to them.
+        SurfaceCard {
+            Box(modifier = Modifier.padding(start = 16.dp, end = 16.dp)) {
+                SwitchRow(
+                    label = stringResource(R.string.weekly_report_switch),
+                    checked = weeklyReport,
+                    onCheckedChange = { on ->
+                        if (on) askToNotify()
+                        lifecycleScope.launch { prefs.setWeeklyReport(on) }
+                    },
+                    help = stringResource(R.string.weekly_report_help),
                 )
             }
-            Text(
-                stringResource(R.string.section_pass),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Text(
-                stringResource(R.string.pass_explainer),
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Button(onClick = {
-                screen = Screen.UNLOCK
-                selectedPackage = null
-                wasReset = false
-                secondsRemaining = 0
-            }) {
-                Text(stringResource(R.string.action_get_pass))
-            }
-
-            // Kept with the behaviour group rather than with language and
-            // diagnostics: this one is about the user's week, not about the
-            // app, and it belongs beside the other things that change what
-            // Doorman does to them.
-            Text(
-                stringResource(R.string.section_weekly_report),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            SwitchRow(
-                label = stringResource(R.string.weekly_report_switch),
-                checked = weeklyReport,
-                onCheckedChange = { on ->
-                    if (on) askToNotify()
-                    lifecycleScope.launch { prefs.setWeeklyReport(on) }
-                },
-                help = stringResource(R.string.weekly_report_help),
-            )
         }
 
         // The app itself: which language it speaks and what to do when a rule
         // stops matching. Neither is about anybody's phone habits.
-        Text(
-            stringResource(R.string.section_about),
-            style = MaterialTheme.typography.headlineMedium,
-        )
-        run {
+        SectionHeader(stringResource(R.string.section_about))
+        SurfaceCard {
             LanguageSection(
                 supported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU,
                 currentTag = appLocaleTag(),
                 onPick = { tag -> setAppLocale(tag) },
             )
-
-            Text(
-                stringResource(R.string.support_title),
-                style = MaterialTheme.typography.titleMedium,
+        }
+        SurfaceCard {
+            NavRow(
+                icon = Icons.Outlined.FavoriteBorder,
+                title = stringResource(R.string.support_title),
+                supporting = stringResource(R.string.support_body),
+                onClick = { openCoffee() },
             )
-            Text(
-                stringResource(R.string.support_body),
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            TextButton(onClick = { openCoffee() }) {
-                Text(stringResource(R.string.action_coffee))
-            }
-
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             // The walkthrough explains the change delay and the pass, which
             // are the two things people forget how to use. Somewhere to find
-            // it again costs one button.
-            TextButton(onClick = {
-                lifecycleScope.launch { prefs.setTutorialSeen(false) }
-            }) {
-                Text(stringResource(R.string.tutorial_replay))
-            }
-
-            DiagnosticsSection(
-                lastSeen = lastSeen,
-                countdown = reportCountdown,
-                reportReady = reportFile != null,
-                captureFailed = reportFailed,
-                onCapture = { captureReport() },
-                onShare = { shareReport() },
+            // it again costs one row.
+            NavRow(
+                icon = Icons.Outlined.Refresh,
+                title = stringResource(R.string.tutorial_replay),
+                onClick = { lifecycleScope.launch { prefs.setTutorialSeen(false) } },
             )
         }
+
+        DiagnosticsSection(
+            lastSeen = lastSeen,
+            countdown = reportCountdown,
+            reportReady = reportFile != null,
+            captureFailed = reportFailed,
+            onCapture = { captureReport() },
+            onShare = { shareReport() },
+        )
     }
 
     /**

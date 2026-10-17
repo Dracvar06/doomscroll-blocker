@@ -33,17 +33,15 @@
 
     <string name="section_blocking">What Doorman blocks</string>
     <string name="section_blocking_hint">Everything is your choice. Switch off anything you would rather keep.</string>
-    <string name="preset_label">Presets</string>
     <string name="preset_strict">Strict</string>
     <string name="preset_balanced">Balanced</string>
     <string name="preset_nothing">Nothing</string>
 
-    <string name="section_pass">Getting in anyway</string>
     <string name="pass_explainer">A blocked screen offers no way past it. If you really need in, you come here, wait, and get a short pass.</string>
     <string name="action_get_pass">Get a pass</string>
     <string name="unlock_title">Wait for a pass</string>
     <string name="unlock_pick_app">Which app?</string>
-    <string name="unlock_waiting">Waiting… %1$d s</string>
+    <string name="duration_seconds">%1$d s</string>
     <string name="unlock_leave_warning">Leave this screen and the wait starts again.</string>
     <string name="unlock_reset">You left, so the wait restarted.</string>
     <string name="pass_active_banner">%1$s is unlocked for another %2$d min</string>
@@ -124,10 +122,11 @@
             <string name="pending_change_mode">%1$s becomes “%2$s” in %3$d s</string>
     <string name="other_apps_search">Search apps</string>
     <string name="card_close">Hide</string>
+    <string name="card_open">Show</string>
     <string name="screens_held_none">Nothing held</string>
     <plurals name="screens_held">
-        <item quantity="one">%1$d held</item>
-        <item quantity="other">%1$d held</item>
+        <item quantity="one">%1$d screen held</item>
+        <item quantity="other">%1$d screens held</item>
     </plurals>
     <string name="screen_ig_reel_viewer" tools:ignore="UnusedResources">Reels, wherever they open</string>
     <string name="action_help">What does this block?</string>
@@ -197,7 +196,6 @@
     <string name="report_stops">Times you were stopped</string>
     <string name="report_time">Time counted against a budget</string>
     <string name="report_loosenings">Limits weakened</string>
-    <string name="section_weekly_report">Weekly report</string>
     <string name="weekly_report_switch">Keep a weekly report</string>
     <string name="weekly_report_help">Doorman counts how often it stopped you, how much time was counted against a budget, and how many limits you loosened. Switched off, it records nothing new and the report tab disappears. What is already recorded stays until it ages out.</string>
     <string name="notify_channel_weekly">Weekly report</string>

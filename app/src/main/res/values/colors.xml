@@ -1,4 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#1B5E4A</color>
+
+    <!-- The block screen. It is drawn by the service, outside any Compose
+         theme, so these are the dark scheme of ui/theme/Theme.kt written out
+         by hand: the block and the app should look like one thing. -->
+    <color name="block_background">#0F1A16</color>
+    <color name="block_badge">#0F513D</color>
+    <color name="block_on_badge">#A7F2D1</color>
+    <color name="block_title">#DEE4E0</color>
+    <color name="block_body">#BFC9C3</color>
+    <color name="block_hint">#89938E</color>
+    <color name="block_button">#8BD5B6</color>
+    <color name="block_on_button">#003828</color>
 </resources>

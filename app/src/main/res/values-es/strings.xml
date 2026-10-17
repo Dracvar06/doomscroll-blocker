@@ -25,17 +25,15 @@
 
     <string name="section_blocking">Qué bloquea Doorman</string>
     <string name="section_blocking_hint">Todo lo eliges tú. Desactiva lo que prefieras conservar.</string>
-    <string name="preset_label">Configuraciones rápidas</string>
     <string name="preset_strict">Estricto</string>
     <string name="preset_balanced">Equilibrado</string>
     <string name="preset_nothing">Nada</string>
 
-    <string name="section_pass">Entrar igualmente</string>
     <string name="pass_explainer">Una pantalla bloqueada no ofrece ninguna salida. Si de verdad tienes que entrar, vienes aquí, esperas y obtienes un permiso corto.</string>
     <string name="action_get_pass">Obtén un permiso</string>
     <string name="unlock_title">Espera un permiso</string>
     <string name="unlock_pick_app">¿Qué aplicación?</string>
-    <string name="unlock_waiting">Esperando… %1$d s</string>
+    <string name="duration_seconds">%1$d s</string>
     <string name="unlock_leave_warning">Si sales de esta pantalla, la espera vuelve a empezar.</string>
     <string name="unlock_reset">Has salido, así que la espera ha vuelto a empezar.</string>
     <string name="pass_active_banner">%1$s está desbloqueado %2$d min más</string>
@@ -79,7 +77,7 @@
     <string name="pending_change_preset">Se aplicará en %1$d s</string>
     <string name="pending_change_delay">La espera se acortará en %1$d s</string>
     <string name="pending_change_hint">Si sales de esta pantalla, el cambio se cancela.</string>
-    <string name="action_cancel_change">Cancela</string>
+    <string name="action_cancel_change">Cancelar</string>
 
     <plurals name="unlock_grant">
         <item quantity="one">Déjame entrar %1$d minuto</item>
@@ -110,11 +108,12 @@
             <string name="pending_change_mode">%1$s pasará a «%2$s» en %3$d s</string>
     <string name="other_apps_search">Buscar aplicaciones</string>
     <string name="card_close">Ocultar</string>
+    <string name="card_open">Mostrar</string>
     <string name="screens_held_none">Nada bloqueado</string>
     <plurals name="screens_held">
-        <item quantity="one">%1$d bloqueado</item>
-        <item quantity="many">%1$d de bloqueados</item>
-        <item quantity="other">%1$d bloqueados</item>
+        <item quantity="one">%1$d pantalla bloqueada</item>
+        <item quantity="many">%1$d de pantallas bloqueadas</item>
+        <item quantity="other">%1$d pantallas bloqueadas</item>
     </plurals>
     <string name="screen_ig_reel_viewer">Reels, se abran donde se abran</string>
     <string name="action_help">¿Qué bloquea esto?</string>
@@ -180,7 +179,6 @@
     <string name="report_stops">Veces que te ha parado</string>
     <string name="report_time">Tiempo contado contra un límite</string>
     <string name="report_loosenings">Límites aflojados</string>
-    <string name="section_weekly_report">Informe semanal</string>
     <string name="weekly_report_switch">Guardar un informe semanal</string>
     <string name="weekly_report_help">Doorman cuenta cuántas veces te ha parado, cuánto tiempo se ha contado contra un límite y cuántos límites has aflojado. Apagado, no registra nada nuevo y la pestaña del informe desaparece. Lo ya registrado se queda hasta que caduca.</string>
     <string name="notify_channel_weekly">Informe semanal</string>

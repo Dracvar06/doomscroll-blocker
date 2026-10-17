@@ -6,19 +6,32 @@
     tools:ignore="Overdraw"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0F1A16"
+    android:background="@color/block_background"
     android:gravity="center"
     android:orientation="vertical"
-    android:padding="32dp">
+    android:paddingStart="32dp"
+    android:paddingEnd="32dp"
+    android:paddingTop="24dp"
+    android:paddingBottom="24dp">
+
+    <ImageView
+        android:layout_width="72dp"
+        android:layout_height="72dp"
+        android:background="@drawable/bg_block_badge"
+        android:importantForAccessibility="no"
+        android:scaleType="center"
+        android:src="@drawable/ic_door_closed" />
 
     <!-- Text set at runtime: it names the screen that was blocked. -->
     <TextView
         android:id="@+id/blocked_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:fontFamily="sans-serif-medium"
         android:gravity="center"
-        android:textColor="#FFFFFF"
-        android:textSize="28sp" />
+        android:textColor="@color/block_title"
+        android:textSize="26sp" />
 
     <TextView
         android:id="@+id/blocked_body"
@@ -26,8 +39,9 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
         android:gravity="center"
+        android:lineSpacingExtra="4sp"
         android:text="@string/blocked_body"
-        android:textColor="#B7C9C0"
+        android:textColor="@color/block_body"
         android:textSize="16sp" />
 
     <Button
@@ -35,7 +49,17 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="32dp"
-        android:text="@string/action_go_back" />
+        android:background="@drawable/bg_block_button"
+        android:fontFamily="sans-serif-medium"
+        android:minHeight="48dp"
+        android:minWidth="160dp"
+        android:paddingStart="32dp"
+        android:paddingEnd="32dp"
+        android:stateListAnimator="@null"
+        android:text="@string/action_go_back"
+        android:textAllCaps="false"
+        android:textColor="@color/block_on_button"
+        android:textSize="15sp" />
 
     <TextView
         android:layout_width="match_parent"
@@ -43,6 +67,6 @@
         android:layout_marginTop="24dp"
         android:gravity="center"
         android:text="@string/blocked_hint_pass"
-        android:textColor="#7E918A"
+        android:textColor="@color/block_hint"
         android:textSize="14sp" />
 </LinearLayout>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A filled pill with a ripple, matching the app's primary button. The
+     platform default button came out grey and square on some phones and in
+     the system's accent on others, and never looked like Doorman. -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="#33003828">
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="24dp" />
+            <solid android:color="@color/block_button" />
+        </shape>
+    </item>
+</ripple>
