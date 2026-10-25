@@ -282,4 +282,22 @@
     <string name="screen_x_home_brief">The timeline</string>
     <string name="screen_rd_home_brief">The feed</string>
     <string name="screen_rd_media_feed_brief">Pictures and videos</string>
+
+    <!-- RedNote -->
+    <string name="app_rednote" tools:ignore="UnusedResources">RedNote</string>
+    <string name="screen_rn_explore" tools:ignore="UnusedResources">Explore</string>
+    <string name="screen_rn_nearby" tools:ignore="UnusedResources">Nearby</string>
+    <string name="screen_rn_following" tools:ignore="UnusedResources">Following</string>
+    <string name="screen_rn_market" tools:ignore="UnusedResources">Market</string>
+    <string name="screen_rn_video_feed" tools:ignore="UnusedResources">Scrolling on from a video you opened</string>
+    <string name="screen_rn_explore_brief">Explore</string>
+    <string name="screen_rn_nearby_brief">Nearby</string>
+    <string name="screen_rn_following_brief">Following</string>
+    <string name="screen_rn_market_brief">Market</string>
+    <string name="screen_rn_video_feed_brief">A single video</string>
+    <string name="help_rn_explore" tools:ignore="UnusedResources">RedNote\'s Explore grid, the endless wall of posts that opens with the app. Search, a post you open, your messages and your profile are untouched.</string>
+    <string name="help_rn_nearby" tools:ignore="UnusedResources">The Nearby grid: posts from strangers around you, as endless as Explore.</string>
+    <string name="help_rn_following" tools:ignore="UnusedResources">Posts from the people you follow. Off to begin with, because you chose them; switch it on if it has become a feed of its own.</string>
+    <string name="help_rn_market" tools:ignore="UnusedResources">The shopping grid behind the Market tab. Off to begin with.</string>
+    <string name="help_rn_video_feed" tools:ignore="UnusedResources">Opening a video on RedNote drops you into a feed you can keep swiping through. The video you opened plays, and the block lands on the first swipe past it. Its comments stay open while it does.</string>
 </resources>

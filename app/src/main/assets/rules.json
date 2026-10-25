@@ -388,6 +388,102 @@
       "keepVisibleTopViewIds": [
         "home_revamp_m1_app_bar"
       ]
+    },
+    "com.xingin.xhs": {
+      "labelKey": "app_rednote",
+      "screens": [
+        {
+          "id": "rn_video_feed",
+          "labelKey": "screen_rn_video_feed",
+          "defaultEnabled": true,
+          "verdict": "ALLOW_ONCE",
+          "budget": 1,
+          "match": {
+            "visibleViewId": [
+              "matrix_video_feed_note_detail_list"
+            ]
+          },
+          "sessionEndViewIds": [
+            "index_home",
+            "mSearchResultListContentViewPager",
+            "matrix_profile_new_page_coordinator_layout"
+          ],
+          "helpKey": "help_rn_video_feed",
+          "endless": true
+        },
+        {
+          "id": "rn_explore",
+          "labelKey": "screen_rn_explore",
+          "defaultEnabled": true,
+          "match": {
+            "selectedViewId": [
+              "index_home"
+            ],
+            "visibleViewId": [
+              "exploreViewPager"
+            ]
+          },
+          "helpKey": "help_rn_explore",
+          "endless": true
+        },
+        {
+          "id": "rn_nearby",
+          "labelKey": "screen_rn_nearby",
+          "defaultEnabled": true,
+          "match": {
+            "selectedViewId": [
+              "index_home"
+            ],
+            "visibleViewId": [
+              "nearbyViewPager"
+            ]
+          },
+          "helpKey": "help_rn_nearby",
+          "endless": true
+        },
+        {
+          "id": "rn_following",
+          "labelKey": "screen_rn_following",
+          "defaultEnabled": false,
+          "match": {
+            "selectedViewId": [
+              "index_home"
+            ],
+            "visibleViewId": [
+              "followFeedRecyclerView"
+            ]
+          },
+          "helpKey": "help_rn_following"
+        },
+        {
+          "id": "rn_market",
+          "labelKey": "screen_rn_market",
+          "defaultEnabled": false,
+          "match": {
+            "selectedViewId": [
+              "index_store"
+            ]
+          },
+          "helpKey": "help_rn_market"
+        }
+      ],
+      "coverViewIds": [
+        "commentListView",
+        "mirrorComment"
+      ],
+      "keepVisibleViewIds": [
+        "index_home",
+        "index_store",
+        "index_post",
+        "index_message",
+        "index_me"
+      ],
+      "keepVisibleTopViewIds": [
+        "tabs",
+        "search",
+        "mHintTextArea",
+        "tab_layout"
+      ]
     }
   }
 }

@@ -17,8 +17,8 @@ subscription, no telemetry.
 
 ## Status
 
-**Seven apps have rules: YouTube, Instagram, TikTok, Snapchat, LinkedIn, X and
-Reddit.** Everything below is an individual switch; nothing is all-or-nothing.
+**Eight apps have rules: YouTube, Instagram, TikTok, Snapchat, LinkedIn, X,
+Reddit and RedNote.** Everything below is an individual switch; nothing is all-or-nothing.
 
 - **YouTube**: the Shorts player and the home feed are blocked. Watch page,
   search, subscriptions and library are left alone. A Short someone sends you
@@ -40,6 +40,11 @@ Reddit.** Everything below is an individual switch; nothing is all-or-nothing.
   its comments, search and your inbox are untouched. Opening a picture or video
   drops you into a player you can keep swiping through; that one is held for two
   minutes and then covered.
+- **RedNote** (Xiaohongshu): the Explore and Nearby grids are blocked. A video
+  you open plays, and the swipe to the next one is blocked, as with a single
+  reel. Following and the Market have their own switches, off to begin with.
+  Search, a post you open, your messages and your profile are untouched, and
+  the top tabs, search and the tab bar stay reachable around the block.
 
 - **Any single reel you open plays, and stops there.** From a conversation, from
   a post in the feed, from someone's story, from a link -- it plays, and the
@@ -68,7 +73,8 @@ immediate, because friction belongs on the decision you would regret. To get int
 countdown that restarts if you walk away, and take a short timed pass.
 
 Verified on a Pixel 10 (Android 16) against YouTube 21.32.4, Instagram
-442.0.0.46.79, and the September 2026 builds of LinkedIn, X and Reddit.
+442.0.0.46.79, the September 2026 builds of LinkedIn, X and Reddit, and
+RedNote 9.51.0.
 
 Where an app reports a swipe with no distance and no position in it -- X and
 Reddit both do, and YouTube does half the time -- a "keep swiping" allowance

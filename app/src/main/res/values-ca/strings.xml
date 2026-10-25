@@ -277,4 +277,22 @@
     <string name="help_x_home_timeline">Les cronologies «Per a tu» i «Seguint». Els missatges, les notificacions, la cerca, els perfils i qualsevol publicació que obris queden tal com són.</string>
     <string name="help_rd_home_feed">El feed d\'inici de Reddit, el que s\'obre amb l\'aplicació. Una comunitat on vagis tu, una publicació, els seus comentaris, la cerca i la safata d\'entrada queden intactes.</string>
     <string name="help_rd_media_feed">Obrir una imatge o un vídeo a Reddit et deixa en un reproductor pel qual pots seguir passant, una publicació darrere l\'altra. El que has obert es queda dos minuts i després el reproductor es tapa. Reddit no diu a Doorman quan has lliscat, així que és un rellotge i no pas un lliscament. La publicació i els seus comentaris no es toquen mai.</string>
+
+    <!-- RedNote -->
+    <string name="app_rednote">RedNote</string>
+    <string name="screen_rn_explore">Explora</string>
+    <string name="screen_rn_nearby">A prop</string>
+    <string name="screen_rn_following">Seguint</string>
+    <string name="screen_rn_market">Mercat</string>
+    <string name="screen_rn_video_feed">Seguir passant des d\'un vídeo obert</string>
+    <string name="screen_rn_explore_brief">Explora</string>
+    <string name="screen_rn_nearby_brief">A prop</string>
+    <string name="screen_rn_following_brief">Seguint</string>
+    <string name="screen_rn_market_brief">Mercat</string>
+    <string name="screen_rn_video_feed_brief">Un vídeo concret</string>
+    <string name="help_rn_explore">La graella «Explora» de RedNote, el mur de publicacions sense fi que s\'obre amb l\'aplicació. La cerca, una publicació que obris, els missatges i el teu perfil queden intactes.</string>
+    <string name="help_rn_nearby">La graella «A prop»: publicacions de desconeguts del teu voltant, tan infinita com «Explora».</string>
+    <string name="help_rn_following">Les publicacions de la gent que segueixes. Comença desactivat, perquè els has triat tu; activa-ho si s\'ha convertit en un flux com qualsevol altre.</string>
+    <string name="help_rn_market">La graella de compres de la pestanya «Mercat». Comença desactivat.</string>
+    <string name="help_rn_video_feed">Obrir un vídeo a RedNote et deixa en un flux pel qual pots seguir passant. El vídeo que has obert es reprodueix i el bloqueig arriba al primer lliscament. Mentrestant, els seus comentaris queden oberts.</string>
 </resources>

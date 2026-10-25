@@ -281,4 +281,22 @@
     <string name="help_x_home_timeline">Las cronologías «Para ti» y «Siguiendo». Los mensajes, las notificaciones, la búsqueda, los perfiles y cualquier publicación que abras quedan tal como están.</string>
     <string name="help_rd_home_feed">El feed de inicio de Reddit, el que se abre con la aplicación. Una comunidad a la que vayas tú, una publicación, sus comentarios, la búsqueda y la bandeja de entrada quedan intactos.</string>
     <string name="help_rd_media_feed">Abrir una imagen o un vídeo en Reddit te deja en un reproductor por el que puedes seguir pasando, una publicación tras otra. Lo que has abierto se queda dos minutos y después el reproductor se tapa. Reddit no le dice a Doorman cuándo has deslizado, así que es un reloj y no un deslizamiento. La publicación y sus comentarios no se tocan nunca.</string>
+
+    <!-- RedNote -->
+    <string name="app_rednote">RedNote</string>
+    <string name="screen_rn_explore">Explora</string>
+    <string name="screen_rn_nearby">Cerca</string>
+    <string name="screen_rn_following">Siguiendo</string>
+    <string name="screen_rn_market">Mercado</string>
+    <string name="screen_rn_video_feed">Seguir pasando desde un vídeo abierto</string>
+    <string name="screen_rn_explore_brief">Explora</string>
+    <string name="screen_rn_nearby_brief">Cerca</string>
+    <string name="screen_rn_following_brief">Siguiendo</string>
+    <string name="screen_rn_market_brief">Mercado</string>
+    <string name="screen_rn_video_feed_brief">Un vídeo concreto</string>
+    <string name="help_rn_explore">La cuadrícula «Explora» de RedNote, el muro de publicaciones sin fin que se abre con la aplicación. La búsqueda, una publicación que abras, los mensajes y tu perfil quedan intactos.</string>
+    <string name="help_rn_nearby">La cuadrícula «Cerca»: publicaciones de desconocidos de tu alrededor, tan infinita como «Explora».</string>
+    <string name="help_rn_following">Las publicaciones de la gente a la que sigues. Empieza desactivado, porque los has elegido tú; actívalo si se ha convertido en un flujo como cualquier otro.</string>
+    <string name="help_rn_market">La cuadrícula de compras de la pestaña «Mercado». Empieza desactivado.</string>
+    <string name="help_rn_video_feed">Abrir un vídeo en RedNote te deja en un flujo por el que puedes seguir pasando. El vídeo que has abierto se reproduce y el bloqueo llega al primer deslizamiento. Mientras tanto, sus comentarios quedan abiertos.</string>
 </resources>
