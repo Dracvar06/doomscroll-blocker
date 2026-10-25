@@ -40,6 +40,9 @@ class CoverMemoryTest {
     /** What the service does with each screen it is shown. */
     private class Replay(val rules: RuleSet, val enabled: Set<String>, val fixture: (String) -> ScreenSnapshot) {
         var held: CoverMemory.Held? = null
+
+        /** Whether limits leave a matched screen blocked; a schedule can open it. */
+        var blockedNow: (String) -> Boolean = { true }
         var now = 0L
 
         /**
@@ -58,6 +61,7 @@ class CoverMemoryTest {
             val step = CoverMemory.step(
                 held, pkg, verdict, recognised, snapshot, rules.appFor(pkg)?.coverViewIds.orEmpty(), now,
                 justArrivedFromAnotherApp = fromApp,
+                heldBlockedNow = held?.verdict?.screenId?.let(blockedNow) == true,
             )
             held = step.held
             return step.verdict
@@ -256,6 +260,26 @@ class CoverMemoryTest {
         val r = replay(enabled = all - "ig_reels" - "ig_reel_viewer")
         r.see("instagram-clips")
         assertEquals(ScreenEvaluator.Outcome.ALLOW_ONCE, r.see("instagram-reel-from-feed", after = 200).outcome)
+    }
+
+    @Test
+    fun `a reel opened from stories that are open right now is a single reel`() {
+        // His phone, 24 Oct: Stories blocked only 20:00-10:00, so open at
+        // 16:55. A reel opened from a story was taken for Stories -- open, and
+        // nothing counted -- and he swiped on through reels unnoticed.
+        val r = replay()
+        r.blockedNow = { it != "ig_stories" }
+        assertEquals("ig_stories", r.see("instagram-story-viewer").screenId)
+        val reel = r.see("instagram-reel-from-feed", after = 1_000)
+        assertEquals(ScreenEvaluator.Outcome.ALLOW_ONCE, reel.outcome)
+        assertEquals("ig_single_reel", reel.screenId)
+    }
+
+    @Test
+    fun `but from stories that are blocked it is still stories`() {
+        val r = replay()
+        assertEquals("ig_stories", r.see("instagram-story-viewer").screenId)
+        assertEquals("ig_stories", r.see("instagram-reel-from-feed", after = 200).screenId)
     }
 
     @Test

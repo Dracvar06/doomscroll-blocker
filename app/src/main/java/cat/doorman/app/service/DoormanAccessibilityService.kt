@@ -774,6 +774,12 @@ class DoormanAccessibilityService : AccessibilityService() {
     /** The blocked screen last seen, which a comments sheet may now be covering. */
     private var held: CoverMemory.Held? = null
 
+    /**
+     * The screen whose block was standing at the last decision, or null. A rule
+     * that matches is not yet a block: limits and schedules decide that.
+     */
+    private var screenBlockedNow: String? = null
+
     /** When the app in front was last arrived at from another app. */
     private var arrivedAt = 0L
 
@@ -887,6 +893,7 @@ class DoormanAccessibilityService : AccessibilityService() {
             nowMillis = SystemClock.uptimeMillis(),
             justArrivedFromAnotherApp = arrivedFromAnotherApp &&
                 SystemClock.uptimeMillis() - arrivedAt <= LINK_SETTLE_MS,
+            heldBlockedNow = held?.verdict?.screenId?.let { it == screenBlockedNow } == true,
         )
         held = cover.held
         val verdict = cover.verdict
@@ -992,6 +999,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         }
 
         val outcome = Allowances.decide(targets, LocalDateTime.now())
+        screenBlockedNow = if (outcome is Allowances.Outcome.Block) verdict.screenId else null
         // The line above logs what the *rules* made of the screen. This logs
         // what actually happens to it, which since allowances arrived is a
         // different question: a rule can match and the screen still be open

@@ -66,6 +66,7 @@ object CoverMemory {
         coverViewIds: List<String>,
         nowMillis: Long = 0L,
         justArrivedFromAnotherApp: Boolean = false,
+        heldBlockedNow: Boolean = true,
     ): Step {
         // A single item straight after a blocked screen in the same app, with
         // nothing in between, is that blocked screen showing itself another
@@ -80,7 +81,13 @@ object CoverMemory {
         // A link from another app is the exception: the app may show where it
         // was left for a frame before it gets to the reel the link points at,
         // and that reel was sent to you.
-        if (held != null && held.packageName == packageName && held.verdict.blocked &&
+        //
+        // Only a block actually standing carries over, not a rule that could
+        // block. Stories on a 20:00-10:00 schedule are open in the afternoon,
+        // and a reel opened from one became "Stories" -- open, uncounted, and
+        // every swipe after it free. A screen that is open right now is a place
+        // a single item may be reached from like any other.
+        if (held != null && held.packageName == packageName && held.verdict.blocked && heldBlockedNow &&
             verdict.outcome == Outcome.ALLOW_ONCE && verdict.screenId != null &&
             !justArrivedFromAnotherApp
         ) {
