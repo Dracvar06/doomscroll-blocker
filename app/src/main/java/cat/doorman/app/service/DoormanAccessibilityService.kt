@@ -13,10 +13,12 @@ import android.provider.Settings
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import cat.doorman.app.BuildConfig
 import cat.doorman.app.block.BlockOverlayController
 import cat.doorman.app.block.MediaPauser
 import cat.doorman.app.data.Prefs
+import cat.doorman.app.data.Redirect
 import cat.doorman.app.debug.TreeDumper
 import cat.doorman.app.model.SnapshotCapture
 import cat.doorman.app.report.WeeklyReportNotifier
@@ -112,6 +114,22 @@ class DoormanAccessibilityService : AccessibilityService() {
         WeeklyReportNotifier.clearServiceOff(this)
         imePackage = currentImePackage()
         overlay = BlockOverlayController(this)
+        overlay.listener = object : BlockOverlayController.Listener {
+            override fun onBlockShown() {
+                val now = SystemClock.uptimeMillis()
+                blockShownAt = now
+                blockActivityAt = now
+                blockPackage = lastPackage
+                scheduleRedirectCheck()
+            }
+
+            override fun onBlockHidden() {
+                handler.removeCallbacks(redirectCheck)
+                blockPackage = null
+            }
+
+            override fun onRedirectTapped() = sendOnward(byHand = true)
+        }
         rules = RuleLoader.load(this)
         val screenDefaults = RuleLoader.screenDefaults(rules)
         enabledScreenIds = RuleLoader.defaultEnabledScreenIds(rules)
@@ -145,6 +163,13 @@ class DoormanAccessibilityService : AccessibilityService() {
             }
         }
         serviceScope.launch { prefs.spent.collectLatest { ledger = it } }
+        serviceScope.launch {
+            prefs.redirect.collectLatest {
+                redirect = it
+                overlay.redirectLabel = it?.let(::redirectLabelFor)
+                scheduleRedirectCheck()
+            }
+        }
         serviceScope.launch {
             prefs.activePass.collectLatest {
                 activePass = it
@@ -228,6 +253,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         session = null
         held = null
         budgetBlock = null
+        handler.removeCallbacks(redirectCheck)
         serviceScope.cancel()
         handler.removeCallbacks(evaluate)
         handler.removeCallbacks(passExpiry)
@@ -393,6 +419,88 @@ class DoormanAccessibilityService : AccessibilityService() {
     }
 
     /** A block has just landed: stop what was playing, and keep it stopped. */
+    // ---------------------------------------------------------------- redirect
+
+    private var redirect: Redirect? = null
+    private var blockShownAt = 0L
+    private var blockActivityAt = 0L
+    private var blockPackage: String? = null
+    private var lastRedirectAt: Long? = null
+    private val redirectCheck = Runnable { checkRedirect() }
+
+    private fun scheduleRedirectCheck() {
+        handler.removeCallbacks(redirectCheck)
+        if (redirect == null || !overlay.isShowing) return
+        val at = RedirectPolicy.nextCheckAt(blockShownAt, blockActivityAt, lastRedirectAt)
+        handler.postDelayed(redirectCheck, (at - SystemClock.uptimeMillis()).coerceAtLeast(0) + 50)
+    }
+
+    /**
+     * Sends the user on if the block has held them long enough. Only while the
+     * blocked app is still the one in front: a block held up over a half swipe
+     * home is not somebody sitting in front of it.
+     */
+    private fun checkRedirect() {
+        if (redirect == null || !overlay.isShowing) return
+        if (foregroundNow()?.appPackage != blockPackage) return
+        val interactive = getSystemService(android.os.PowerManager::class.java)?.isInteractive != false
+        if (RedirectPolicy.due(
+                blockShownAt, blockActivityAt, lastRedirectAt, SystemClock.uptimeMillis(), interactive,
+            )
+        ) {
+            sendOnward(byHand = false)
+        } else if (interactive) {
+            scheduleRedirectCheck()
+        }
+    }
+
+    private fun sendOnward(byHand: Boolean) {
+        val target = redirect ?: return
+        val intent = intentFor(target)
+        if (intent == null) {
+            Log.w(TAG, "redirect: nothing on the phone opens $target")
+            return
+        }
+        runCatching { startActivity(intent) }
+            .onSuccess {
+                lastRedirectAt = SystemClock.uptimeMillis()
+                Log.i(TAG, "redirect: sent on to $target (${if (byHand) "button" else "held"})")
+            }
+            .onFailure { Log.w(TAG, "redirect: could not open $target", it) }
+    }
+
+    /**
+     * How to open [target], or null if nothing installed can. A WhatsApp chat
+     * goes to WhatsApp, or WhatsApp Business, or failing both to whatever opens
+     * wa.me links -- usually the browser, which offers to install it.
+     */
+    private fun intentFor(target: Redirect): Intent? {
+        val intent = when (target) {
+            is Redirect.App -> packageManager.getLaunchIntentForPackage(target.packageName)
+            is Redirect.WhatsAppChat -> {
+                val link = Intent(Intent.ACTION_VIEW, "https://wa.me/${target.number}".toUri())
+                listOf("com.whatsapp", "com.whatsapp.w4b")
+                    .map { Intent(link).setPackage(it) }
+                    .firstOrNull { it.resolveActivity(packageManager) != null }
+                    ?: link.takeIf { it.resolveActivity(packageManager) != null }
+            }
+        } ?: return null
+        return intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+
+    private fun redirectLabelFor(target: Redirect): String = when (target) {
+        is Redirect.App -> getString(
+            R.string.redirect_button_app,
+            runCatching {
+                packageManager.getApplicationLabel(packageManager.getApplicationInfo(target.packageName, 0))
+            }.getOrNull() ?: target.packageName,
+        )
+        is Redirect.WhatsAppChat -> getString(
+            R.string.redirect_button_chat,
+            target.name.ifBlank { "+" + target.number },
+        )
+    }
+
     private fun blockLanded() {
         mediaPauser.pauseIfPlaying()
         armSilence()
@@ -698,6 +806,13 @@ class DoormanAccessibilityService : AccessibilityService() {
      * chance to play.
      */
     private fun onScrolled(event: AccessibilityEvent) {
+        // Scrolling while a block stands is using what it leaves open -- the
+        // stories row, the top tabs -- since the block itself swallows every
+        // touch. That is doing something, not waiting for the feed.
+        if (overlay.isShowing) {
+            blockActivityAt = SystemClock.uptimeMillis()
+            scheduleRedirectCheck()
+        }
         if (BuildConfig.DEBUG) {
             Log.d(
                 TAG,

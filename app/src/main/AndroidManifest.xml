@@ -37,6 +37,16 @@
         tools:ignore="ProtectedPermissions" />
 
     <queries>
+        <!--
+          Where a block that holds you can send you: a WhatsApp chat opens in
+          WhatsApp or WhatsApp Business, or else in whatever opens wa.me links.
+        -->
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" android:host="wa.me" />
+        </intent>
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.HOME" />

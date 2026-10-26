@@ -51,6 +51,9 @@ class Prefs(private val context: Context) {
         /** Whether the weekly report is kept at all. */
         val WEEKLY_REPORT = booleanPreferencesKey("weekly_report")
 
+        /** Where a block that holds you sends you, as [Redirect.encode] writes it. */
+        val REDIRECT = stringPreferencesKey("redirect")
+
         /** Whether the first-run walkthrough has been finished or skipped. */
         val TUTORIAL_SEEN = booleanPreferencesKey("tutorial_seen")
 
@@ -200,6 +203,24 @@ class Prefs(private val context: Context) {
 
     suspend fun setWeeklyReport(on: Boolean) {
         context.dataStore.edit { it[Keys.WEEKLY_REPORT] = on }
+    }
+
+    /**
+     * Where to be sent when a block holds you, or null for nowhere.
+     *
+     * Changing it never waits, in either direction: it is not a block, so
+     * clearing it opens nothing up, and somebody choosing where to go instead
+     * should not be made to stand in front of the very feed they are trying
+     * to leave.
+     */
+    val redirect: Flow<Redirect?> =
+        context.dataStore.data.map { Redirect.decode(it[Keys.REDIRECT]) }
+
+    suspend fun setRedirect(redirect: Redirect?) {
+        context.dataStore.edit { prefs ->
+            val raw = Redirect.encode(redirect)
+            if (raw == null) prefs.remove(Keys.REDIRECT) else prefs[Keys.REDIRECT] = raw
+        }
     }
 
     /**

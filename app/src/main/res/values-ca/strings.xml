@@ -295,4 +295,21 @@
     <string name="help_rn_following">Les publicacions de la gent que segueixes. Comença desactivat, perquè els has triat tu; activa-ho si s\'ha convertit en un flux com qualsevol altre.</string>
     <string name="help_rn_market">La graella de compres de la pestanya «Mercat». Comença desactivat.</string>
     <string name="help_rn_video_feed">Obrir un vídeo a RedNote et deixa en un flux pel qual pots seguir passant. El vídeo que has obert es reprodueix i el bloqueig arriba al primer lliscament. Mentrestant, els seus comentaris queden oberts.</string>
+
+    <!-- Where a block that holds you sends you -->
+    <string name="redirect_title">Quan un bloqueig et reté</string>
+    <string name="redirect_nowhere">Enlloc: només bloquejar</string>
+    <string name="redirect_summary_app">Obre %1$s</string>
+    <string name="redirect_summary_chat">Obre el teu xat de WhatsApp amb %1$s</string>
+    <string name="redirect_kind_app">Una altra aplicació</string>
+    <string name="redirect_kind_chat">Un xat de WhatsApp</string>
+    <string name="redirect_explainer">Si et quedes 5 segons en una pantalla bloquejada, Doorman obre això en lloc seu. Passar per un bloqueig de camí cap a un altre lloc, com l\'inici d\'Instagram de camí als missatges, no t\'envia mai enlloc. El bloqueig també té un botó per anar-hi de seguida.</string>
+    <string name="redirect_search_apps">Cerca aplicacions</string>
+    <string name="redirect_chat_explainer">El número amb el prefix del país. Es queda en aquest telèfon: Doorman no pot fer servir internet.</string>
+    <string name="redirect_chat_name">Nom al botó</string>
+    <string name="redirect_chat_number">Número de telèfon</string>
+    <string name="redirect_chat_number_invalid">Inclou el prefix del país, com +34.</string>
+    <string name="redirect_save">Desa</string>
+    <string name="redirect_button_app">Ves a %1$s</string>
+    <string name="redirect_button_chat">Escriu a %1$s</string>
 </resources>

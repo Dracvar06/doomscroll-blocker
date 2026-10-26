@@ -66,6 +66,15 @@ Reddit and RedNote.** Everything below is an individual switch; nothing is all-o
   -- and kept stopped while the block is on screen: the volume key no longer
   brings a blocked reel's sound back.
 
+- **A block can send you somewhere better.** Choose an app -- a book, say --
+  or a WhatsApp chat, and stay on a blocked screen for five seconds: Doorman
+  opens it for you. Walking through a block on the way somewhere, like
+  Instagram's home feed on the way to your messages, sends you nowhere, and
+  using what a block leaves open (the stories row, the top tabs) starts the
+  five seconds again. After sending you once it waits a minute before doing
+  it again, and the block has a button to go there straight away. Off until
+  you choose somewhere.
+
 Every screen is an individual switch in the app, with Strict / Balanced /
 Nothing presets. Switching a block **off** waits a configurable delay (30 s by
 default) and is cancelled if you leave the app; switching one **on** is

@@ -61,6 +61,23 @@
         android:textColor="@color/block_on_button"
         android:textSize="15sp" />
 
+    <!-- Where the user chose to be sent when a block holds them; gone when
+         they chose nowhere. Text set at runtime: "Go to Play Books". -->
+    <Button
+        android:id="@+id/blocked_redirect"
+        style="?android:attr/borderlessButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:fontFamily="sans-serif-medium"
+        android:minHeight="48dp"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:textAllCaps="false"
+        android:textColor="@color/block_button"
+        android:textSize="15sp"
+        android:visibility="gone" />
+
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

@@ -162,6 +162,7 @@ class MainActivity : ComponentActivity() {
     private var tab by mutableStateOf(Tab.BLOCKS)
     private var journal by mutableStateOf(emptyList<cat.doorman.app.limits.DayRecord>())
     private var weeklyReport by mutableStateOf(true)
+    private var redirect by mutableStateOf<cat.doorman.app.data.Redirect?>(null)
 
     private var watchedUse by mutableStateOf<WatchedUse?>(null)
 
@@ -216,6 +217,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch { prefs.journal.collectLatest { journal = it } }
         lifecycleScope.launch { prefs.tutorialSeen.collectLatest { tutorialSeen = it } }
         lifecycleScope.launch { prefs.coffeeNudgedOn.collectLatest { coffeeNudgedOn = it } }
+        lifecycleScope.launch { prefs.redirect.collectLatest { redirect = it } }
         lifecycleScope.launch {
             prefs.weeklyReport.collectLatest { on ->
                 weeklyReport = on
@@ -603,6 +605,15 @@ class MainActivity : ComponentActivity() {
                     help = stringResource(R.string.weekly_report_help),
                 )
             }
+        }
+        // With the behaviour group: it changes what a block does to you.
+        SurfaceCard {
+            RedirectSection(
+                current = redirect,
+                apps = allApps,
+                icons = appIcons,
+                onPick = { choice -> lifecycleScope.launch { prefs.setRedirect(choice) } },
+            )
         }
 
         // The app itself: which language it speaks and what to do when a rule

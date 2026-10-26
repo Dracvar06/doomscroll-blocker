@@ -45,6 +45,38 @@ class BlockOverlayController(private val service: AccessibilityService) {
     val isShowing: Boolean get() = overlay != null
 
     /**
+     * Told when a block appears and when it goes. A block redrawn for the same
+     * screen -- its band measured a few pixels differently -- is the same block
+     * still standing, and is not reported again: how long a block has held
+     * someone is counted from these.
+     */
+    interface Listener {
+        fun onBlockShown()
+        fun onBlockHidden()
+        fun onRedirectTapped()
+    }
+
+    var listener: Listener? = null
+
+    /**
+     * What the second button on the block says -- "Go to Play Books" -- or
+     * null for no second button, when there is nowhere to send anyone.
+     */
+    var redirectLabel: String? = null
+        set(value) {
+            field = value
+            overlay?.let(::bindRedirect)
+        }
+
+    private fun bindRedirect(view: View) {
+        val button = view.findViewById<Button>(R.id.blocked_redirect)
+        val label = redirectLabel
+        button.visibility = if (label == null) View.GONE else View.VISIBLE
+        button.text = label
+        button.setOnClickListener { listener?.onRedirectTapped() }
+    }
+
+    /**
      * Debug builds only: decisions are still made and logged, but nothing is
      * drawn. It is how a screen that is blocked can be driven and dumped from
      * adb, since a block swallows the taps meant for what is under it.
@@ -70,7 +102,8 @@ class BlockOverlayController(private val service: AccessibilityService) {
     ): Boolean {
         if (debugSuppress) return false
         if (shownForScreenId == screenId && shownBand == band && overlay != null) return false
-        hide()
+        val sameBlock = overlay != null && shownForScreenId == screenId
+        if (sameBlock) removeOverlay() else hide()
 
         // Null root is right here: the view's layout params come from
         // WindowManager, not from a parent.
@@ -79,6 +112,7 @@ class BlockOverlayController(private val service: AccessibilityService) {
         view.findViewById<TextView>(R.id.blocked_title).text =
             service.getString(R.string.blocked_title, screenLabel)
         view.findViewById<TextView>(R.id.blocked_body).setText(bodyRes)
+        bindRedirect(view)
         view.findViewById<Button>(R.id.blocked_go_back).setOnClickListener {
             // Dismiss first: the app underneath needs a frame to settle on the
             // previous screen, and leaving the overlay up during that makes the
@@ -124,12 +158,19 @@ class BlockOverlayController(private val service: AccessibilityService) {
                 shownForScreenId = screenId
                 shownBand = band
                 Log.i(TAG, "overlay shown for $screenId")
+                if (!sameBlock) listener?.onBlockShown()
             }
             .onFailure { Log.e(TAG, "overlay failed for $screenId", it) }
             .isSuccess
     }
 
     fun hide() {
+        val wasShowing = overlay != null
+        removeOverlay()
+        if (wasShowing) listener?.onBlockHidden()
+    }
+
+    private fun removeOverlay() {
         overlay?.let {
             runCatching { windowManager.removeView(it) }
             Log.i(TAG, "overlay hidden")
