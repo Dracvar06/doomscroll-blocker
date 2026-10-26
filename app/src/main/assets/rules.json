@@ -31,6 +31,10 @@
               "reel_player_page_container"
             ]
           },
+          "entryTab": {
+            "under": "pivot_bar",
+            "index": 1
+          },
           "helpKey": "help_yt_shorts",
           "endless": true
         },
@@ -124,6 +128,9 @@
               "clips_tab"
             ]
           },
+          "entryViewIds": [
+            "clips_tab"
+          ],
           "helpKey": "help_ig_reels",
           "endless": true
         },
@@ -268,6 +275,9 @@
               "memories_grid"
             ]
           },
+          "entryViewIds": [
+            "ngs_spotlight_icon_container"
+          ],
           "helpKey": "help_sc_spotlight",
           "endless": true
         },
@@ -464,6 +474,9 @@
               "index_store"
             ]
           },
+          "entryViewIds": [
+            "index_store"
+          ],
           "helpKey": "help_rn_market"
         }
       ],

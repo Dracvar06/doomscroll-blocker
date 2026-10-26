@@ -182,6 +182,22 @@ data class ScreenRule(
      */
     val sessionEndViewIds: List<String> = emptyList(),
     /**
+     * The button that leads to this screen -- Instagram's Reels tab,
+     * Snapchat's Spotlight -- covered on every screen of the app for as long
+     * as this one is blocked. A door that only ever opens onto a block is not
+     * worth leaving in the wall: every tap on it is a small temptation and a
+     * small defeat.
+     *
+     * Named by view id where the app names it.
+     */
+    val entryViewIds: List<String> = emptyList(),
+    /**
+     * Or by position, where it does not: YouTube's bottom tabs carry no ids,
+     * and Shorts is the second child of `pivot_bar`. The same assumption the
+     * YouTube home rule already makes about that bar.
+     */
+    val entryTab: SelectedTab? = null,
+    /**
      * Views this particular block must stay clear of at the top of the screen,
      * overriding the app-wide list.
      *

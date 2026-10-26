@@ -254,6 +254,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         held = null
         budgetBlock = null
         handler.removeCallbacks(redirectCheck)
+        if (::overlay.isInitialized) overlay.hideEntryCovers()
         serviceScope.cancel()
         handler.removeCallbacks(evaluate)
         handler.removeCallbacks(passExpiry)
@@ -419,6 +420,44 @@ class DoormanAccessibilityService : AccessibilityService() {
     }
 
     /** A block has just landed: stop what was playing, and keep it stopped. */
+    // ----------------------------------------------------------- entry covers
+
+    /**
+     * Covers the buttons into screens that are blocked right now -- Instagram's
+     * Reels tab while Reels is held -- wherever in the app they show. Right
+     * now, not merely switched on: with time left on an allowance, or outside
+     * a schedule, the screen is open and so is the way to it.
+     */
+    private fun updateEntryCovers(pkg: String, snapshot: cat.doorman.app.model.ScreenSnapshot?) {
+        val app = rules.appFor(pkg)
+        if (snapshot == null || app == null) {
+            overlay.hideEntryCovers()
+            return
+        }
+        val now = LocalDateTime.now()
+        val spent = ledgerNow()
+        val closed = app.screens
+            .filter { it.entryViewIds.isNotEmpty() || it.entryTab != null }
+            .filter { screenBlockedNow(it.id, spent, now) }
+        val boxes = closed.flatMap { cat.doorman.app.rules.EntryButtons.find(snapshot, it) }
+        if (boxes.isEmpty()) {
+            overlay.hideEntryCovers()
+        } else {
+            overlay.showEntryCovers(boxes, getString(R.string.blocked_title, labelFor(closed.first().labelKey)))
+        }
+    }
+
+    private fun screenBlockedNow(
+        screenId: String,
+        spent: Map<String, Allowances.Spent>,
+        now: LocalDateTime,
+    ): Boolean {
+        if (screenId !in enabledScreenIds) return false
+        val limit = screenLimits[screenId] ?: Limits.BLOCKED
+        if (limit.isOff) return false
+        return Allowances.decide(listOf(Allowances.Target(screenId, limit, spent)), now) is Allowances.Outcome.Block
+    }
+
     // ---------------------------------------------------------------- redirect
 
     private var redirect: Redirect? = null
@@ -944,6 +983,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         if (pkg == null || pkg !in watchedPackages()) {
             Log.d(TAG, "evaluate: skip pkg=$pkg nodes=${snapshot?.nodes?.size}")
             stopClock()
+            overlay.hideEntryCovers()
             if (overlay.isShowing) {
                 // A swipe home that is held halfway makes the launcher the active
                 // window while the app is still there, shrunk to a card with its
@@ -976,8 +1016,10 @@ class DoormanAccessibilityService : AccessibilityService() {
             budgetKey = null
             budgetBlock = null
             if (overlay.isShowing) overlay.hide()
+            overlay.hideEntryCovers()
             return
         }
+        updateEntryCovers(pkg, snapshot)
 
         val arrivedFromAnotherApp = cat.doorman.app.rules.Arrival.isFromAnotherApp(
             previous = arrivedFromPackage,

@@ -84,7 +84,10 @@ class BlockOverlayController(private val service: AccessibilityService) {
     var debugSuppress = false
         set(value) {
             field = if (BuildConfig.DEBUG) value else false
-            if (field) hide()
+            if (field) {
+                hide()
+                hideEntryCovers()
+            }
         }
 
     /**
@@ -178,6 +181,67 @@ class BlockOverlayController(private val service: AccessibilityService) {
         overlay = null
         shownForScreenId = null
         shownBand = null
+    }
+
+    // ------------------------------------------------------------ entry covers
+
+    private val entryCovers = mutableMapOf<cat.doorman.app.rules.EntryButtons.Box, View>()
+
+    /**
+     * Covers the buttons into blocked screens -- Instagram's Reels tab -- with
+     * a patch that takes the tap and shows a shut door. Called on every
+     * evaluation; patches already where they should be are left alone, so the
+     * bar does not flicker while a video plays above it.
+     */
+    fun showEntryCovers(boxes: List<cat.doorman.app.rules.EntryButtons.Box>, description: String) {
+        if (debugSuppress) {
+            hideEntryCovers()
+            return
+        }
+        val wanted = boxes.toSet()
+        (entryCovers.keys - wanted).forEach { box ->
+            entryCovers.remove(box)?.let { runCatching { windowManager.removeView(it) } }
+        }
+        val density = service.resources.displayMetrics.density
+        for (box in wanted - entryCovers.keys) {
+            val icon = android.widget.ImageView(service).apply {
+                setImageResource(R.drawable.ic_door_closed)
+                setColorFilter(androidx.core.content.ContextCompat.getColor(service, R.color.block_hint))
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            }
+            val patch = android.widget.FrameLayout(service).apply {
+                setBackgroundColor(androidx.core.content.ContextCompat.getColor(service, R.color.block_background))
+                contentDescription = description
+                // Takes the tap so it never reaches the button underneath.
+                isClickable = true
+                setOnClickListener { }
+                val size = (24 * density).toInt()
+                addView(icon, android.widget.FrameLayout.LayoutParams(size, size, Gravity.CENTER))
+            }
+            val params = WindowManager.LayoutParams(
+                box.right - box.left,
+                box.bottom - box.top,
+                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                PixelFormat.OPAQUE,
+            ).apply {
+                gravity = Gravity.TOP or Gravity.START
+                x = box.left
+                y = box.top
+                // Absolute coordinates, as for the block itself.
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) fitInsetsTypes = 0
+            }
+            runCatching { windowManager.addView(patch, params) }
+                .onSuccess { entryCovers[box] = patch }
+                .onFailure { Log.e(TAG, "entry cover failed", it) }
+        }
+    }
+
+    fun hideEntryCovers() {
+        entryCovers.values.forEach { runCatching { windowManager.removeView(it) } }
+        entryCovers.clear()
     }
 
     private var cover: CoverView? = null

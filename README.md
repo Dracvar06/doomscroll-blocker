@@ -66,6 +66,13 @@ Reddit and RedNote.** Everything below is an individual switch; nothing is all-o
   -- and kept stopped while the block is on screen: the volume key no longer
   brings a blocked reel's sound back.
 
+- **The button into a blocked screen goes too.** While Reels is blocked,
+  Instagram's Reels tab is covered on every screen -- home, messages, your
+  profile -- and the same goes for YouTube's Shorts tab, Snapchat's Spotlight
+  and RedNote's Market when those are blocked. Only while the block actually
+  stands: with time left on an allowance, outside a schedule or under a pass,
+  the button is back.
+
 - **A block can send you somewhere better.** Choose an app -- a book, say --
   or a WhatsApp chat, and stay on a blocked screen for five seconds: Doorman
   opens it for you. Walking through a block on the way somewhere, like
