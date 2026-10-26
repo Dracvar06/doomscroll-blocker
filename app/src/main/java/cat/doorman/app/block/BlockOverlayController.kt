@@ -136,6 +136,7 @@ class BlockOverlayController(private val service: AccessibilityService) {
                 hide()
                 hideEntryCovers()
                 hideCardCover()
+                hideRecentsCover()
             }
         }
 
@@ -376,48 +377,63 @@ class BlockOverlayController(private val service: AccessibilityService) {
         coverBounds = null
     }
 
-    private var cardCover: CoverView? = null
-    private var cardBounds: Rect? = null
-
-    val isCardCoverShowing: Boolean get() = cardCover != null
-
     /**
-     * Covers an app that a held swipe home has shrunk to a card, and follows
-     * the card as it moves.
-     *
-     * Not touchable, like the floating-window cover: whatever the thumb does
-     * next -- let go, carry on to recents, pick another app -- reaches the
-     * system as if the cover were not there. It hides the card and nothing
-     * else, so it can stay for as long as the card does.
+     * A cover that takes no touches and is moved, not redrawn, as what it
+     * covers moves. Whatever the thumb does -- let go, carry on to recents,
+     * pick another app -- reaches the system as if it were not there, so it
+     * can stay for as long as the thing it hides does.
      */
-    fun showCardCover(bounds: Rect, label: String) {
-        if (debugSuppress) return
-        val current = cardCover
-        if (current != null) {
-            if (cardBounds != bounds) {
-                cardBounds = Rect(bounds)
-                runCatching { windowManager.updateViewLayout(current, coverParams(bounds)) }
+    private inner class FollowingCover(private val name: String) {
+        private var view: CoverView? = null
+        private var bounds: Rect? = null
+
+        val isShowing: Boolean get() = view != null
+
+        fun show(at: Rect, label: String) {
+            if (debugSuppress) return
+            val current = view
+            if (current != null) {
+                if (bounds != at) {
+                    bounds = Rect(at)
+                    runCatching { windowManager.updateViewLayout(current, coverParams(at)) }
+                }
+                return
             }
-            return
+            val created = CoverView(service, label, hint = "", withHole = false, withButton = false)
+            runCatching { windowManager.addView(created, coverParams(at)) }
+                .onSuccess {
+                    view = created
+                    bounds = Rect(at)
+                    Log.i(TAG, "$name shown at ${at.flattenToString()}")
+                }
+                .onFailure { Log.e(TAG, "$name failed", it) }
         }
-        val view = CoverView(service, label, hint = "", withHole = false, withButton = false)
-        runCatching { windowManager.addView(view, coverParams(bounds)) }
-            .onSuccess {
-                cardCover = view
-                cardBounds = Rect(bounds)
-                Log.i(TAG, "card cover shown at ${bounds.flattenToString()}")
+
+        fun hide() {
+            view?.let {
+                runCatching { windowManager.removeView(it) }
+                Log.i(TAG, "$name hidden")
             }
-            .onFailure { Log.e(TAG, "card cover failed", it) }
+            view = null
+            bounds = null
+        }
     }
 
-    fun hideCardCover() {
-        cardCover?.let {
-            runCatching { windowManager.removeView(it) }
-            Log.i(TAG, "card cover hidden")
-        }
-        cardCover = null
-        cardBounds = null
-    }
+    /** Over an app that a held swipe home has shrunk to a card, following the card. */
+    private val cardCover = FollowingCover("card cover")
+
+    /** Over the recent-apps card of an app that was left with a block standing. */
+    private val recentsCover = FollowingCover("recents cover")
+
+    val isCardCoverShowing: Boolean get() = cardCover.isShowing
+
+    fun showCardCover(bounds: Rect, label: String) = cardCover.show(bounds, label)
+
+    fun hideCardCover() = cardCover.hide()
+
+    fun showRecentsCover(bounds: Rect, label: String) = recentsCover.show(bounds, label)
+
+    fun hideRecentsCover() = recentsCover.hide()
 
     private fun coverParams(bounds: Rect) = WindowManager.LayoutParams(
         bounds.width(),

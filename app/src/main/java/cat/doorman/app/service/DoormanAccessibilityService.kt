@@ -279,7 +279,9 @@ class DoormanAccessibilityService : AccessibilityService() {
             overlay.hide()
             overlay.hideCover()
             overlay.hideCardCover()
+            overlay.hideRecentsCover()
         }
+        handler.removeCallbacks(recentsCheck)
         mediaPauser.release()
         dumpReceiver?.let { runCatching { unregisterReceiver(it) } }
         dumpReceiver = null
@@ -360,6 +362,83 @@ class DoormanAccessibilityService : AccessibilityService() {
 
     private var holdSince = 0L
     private val holdCheck = Runnable { evaluateCurrentScreen() }
+
+    /**
+     * The recent-apps card of an app left with a block standing is a picture
+     * of the blocked screen, taken without the block. It is covered wherever
+     * the launcher says it is, and looked for again as the cards scroll.
+     */
+    private var recentsCheckPending = false
+    private val recentsCheck = Runnable {
+        recentsCheckPending = false
+        val blocked = blockedWhenLeft
+        val interactive = getSystemService(android.os.PowerManager::class.java)?.isInteractive != false
+        val snapshot = if (blocked != null && interactive && lastPackage in launcherPackages) {
+            launcherCards(appLabel(blocked))
+        } else {
+            null
+        }
+        val m = android.util.DisplayMetrics()
+        @Suppress("DEPRECATION")
+        getSystemService(android.hardware.display.DisplayManager::class.java)
+            ?.getDisplay(android.view.Display.DEFAULT_DISPLAY)?.getRealMetrics(m)
+        val card = if (snapshot != null && snapshot.packageName in launcherPackages && blocked != null) {
+            cat.doorman.app.rules.RecentsCards.find(snapshot, appLabel(blocked), m.widthPixels, m.heightPixels)
+        } else {
+            null
+        }
+        if (card != null) {
+            overlay.showRecentsCover(
+                android.graphics.Rect(card.left, card.top, card.right, card.bottom),
+                getString(R.string.pip_cover_label),
+            )
+        } else {
+            overlay.hideRecentsCover()
+        }
+    }
+
+    /**
+     * The launcher's nodes labelled with [label], and nothing else from it.
+     *
+     * The one place Doorman looks at a label at all: everywhere else it goes by
+     * view ids, so that nothing anyone wrote is ever read ([SnapshotCapture]).
+     * Here it is the launcher's own window, and a label is only compared with
+     * an app's name, never kept.
+     */
+    private fun launcherCards(label: String): cat.doorman.app.model.ScreenSnapshot? {
+        if (label.isBlank()) return null
+        val root = rootInActiveWindow ?: return null
+        val pkg = root.packageName?.toString()
+        if (pkg !in launcherPackages) return null
+        val found = mutableListOf<cat.doorman.app.model.UiNode>()
+        val rect = android.graphics.Rect()
+        var visited = 0
+        fun walk(node: android.view.accessibility.AccessibilityNodeInfo?, depth: Int) {
+            if (node == null || depth > SnapshotCapture.MAX_DEPTH || visited++ > SnapshotCapture.MAX_NODES) return
+            if (cat.doorman.app.rules.RecentsCards.namesApp(node.contentDescription?.toString(), label)) {
+                node.getBoundsInScreen(rect)
+                found += cat.doorman.app.model.UiNode(
+                    contentDescription = label,
+                    bounds = "${rect.left},${rect.top},${rect.right},${rect.bottom}",
+                    visible = node.isVisibleToUser,
+                )
+            }
+            for (i in 0 until node.childCount) walk(node.getChild(i), depth + 1)
+        }
+        walk(root, 0)
+        return cat.doorman.app.model.ScreenSnapshot(packageName = pkg, nodes = found)
+    }
+
+    private fun scheduleRecentsCheck() {
+        if (recentsCheckPending) return
+        recentsCheckPending = true
+        handler.postDelayed(recentsCheck, RECENTS_CHECK_MS)
+    }
+
+    /** The name the launcher shows for [pkg], which is what it labels the card with. */
+    private fun appLabel(pkg: String): String = runCatching {
+        packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
+    }.getOrDefault("")
 
     /** The card cover is over an app being opened, so it is the whole screen and stays put. */
     private var arrivalCover = false
@@ -813,6 +892,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         // after allowing a video someone had sent, the service decided the user
         // had arrived from Doorman, and the allowance vanished under them.
         if (pkg in TRANSIENT_PACKAGES || pkg == imePackage || pkg == packageName) return
+        if (pkg in launcherPackages && blockedWhenLeft != null) scheduleRecentsCheck()
 
         when (event.eventType) {
             // A new screen: decide at once, so the block lands before the feed
@@ -1553,6 +1633,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         // Leaving the app ends whatever was on the clock, and the time belongs
         // to the app being left rather than the one being entered.
         stopClock()
+        if (pkg !in launcherPackages) overlay.hideRecentsCover()
         lastPackage = pkg
         lastRecognisedScreenId = null
         notePresence()
@@ -1662,6 +1743,9 @@ class DoormanAccessibilityService : AccessibilityService() {
 
         /** How often a held block is looked at again, and how often sound is checked. */
         private const val HOLD_CHECK_MS = 200L
+
+        /** Recents scrolls under the thumb; a cover a few frames behind is still a cover. */
+        private const val RECENTS_CHECK_MS = 50L
 
         /**
          * How long after arriving from another app the screen it opened on may
