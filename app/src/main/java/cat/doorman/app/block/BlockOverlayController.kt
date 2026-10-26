@@ -135,6 +135,7 @@ class BlockOverlayController(private val service: AccessibilityService) {
             if (field) {
                 hide()
                 hideEntryCovers()
+                hideCardCover()
             }
         }
 
@@ -338,7 +339,7 @@ class BlockOverlayController(private val service: AccessibilityService) {
             }
             return
         }
-        val view = CoverView(service, label, hint, withHole = !withButton)
+        val view = CoverView(service, label, hint, withHole = !withButton, withButton = withButton)
         val added = runCatching { windowManager.addView(view, coverParams(bounds)) }
         if (added.isFailure) {
             Log.e(TAG, "cover failed", added.exceptionOrNull())
@@ -373,6 +374,49 @@ class BlockOverlayController(private val service: AccessibilityService) {
         }
         cover = null
         coverBounds = null
+    }
+
+    private var cardCover: CoverView? = null
+    private var cardBounds: Rect? = null
+
+    val isCardCoverShowing: Boolean get() = cardCover != null
+
+    /**
+     * Covers an app that a held swipe home has shrunk to a card, and follows
+     * the card as it moves.
+     *
+     * Not touchable, like the floating-window cover: whatever the thumb does
+     * next -- let go, carry on to recents, pick another app -- reaches the
+     * system as if the cover were not there. It hides the card and nothing
+     * else, so it can stay for as long as the card does.
+     */
+    fun showCardCover(bounds: Rect, label: String) {
+        if (debugSuppress) return
+        val current = cardCover
+        if (current != null) {
+            if (cardBounds != bounds) {
+                cardBounds = Rect(bounds)
+                runCatching { windowManager.updateViewLayout(current, coverParams(bounds)) }
+            }
+            return
+        }
+        val view = CoverView(service, label, hint = "", withHole = false, withButton = false)
+        runCatching { windowManager.addView(view, coverParams(bounds)) }
+            .onSuccess {
+                cardCover = view
+                cardBounds = Rect(bounds)
+                Log.i(TAG, "card cover shown at ${bounds.flattenToString()}")
+            }
+            .onFailure { Log.e(TAG, "card cover failed", it) }
+    }
+
+    fun hideCardCover() {
+        cardCover?.let {
+            runCatching { windowManager.removeView(it) }
+            Log.i(TAG, "card cover hidden")
+        }
+        cardCover = null
+        cardBounds = null
     }
 
     private fun coverParams(bounds: Rect) = WindowManager.LayoutParams(
@@ -426,6 +470,7 @@ class BlockOverlayController(private val service: AccessibilityService) {
         private val label: String,
         private val hint: String,
         private val withHole: Boolean,
+        private val withButton: Boolean,
     ) : View(context) {
 
         private val density = context.resources.displayMetrics.density
@@ -460,7 +505,7 @@ class BlockOverlayController(private val service: AccessibilityService) {
                 val gap = (6 * density).toInt()
                 val total = title.height + (sub?.let { gap + it.height } ?: 0)
                 val top = hole.bottom + pad
-                val bottomReserved = if (withHole) 0 else (CLOSE_BUTTON_DP * density).toInt()
+                val bottomReserved = if (withButton) (CLOSE_BUTTON_DP * density).toInt() else 0
                 Text(title, sub, pad, top + ((h - top - pad - bottomReserved - total) / 2).coerceAtLeast(0))
             }
         }

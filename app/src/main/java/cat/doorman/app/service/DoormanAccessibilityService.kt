@@ -278,6 +278,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         if (::overlay.isInitialized) {
             overlay.hide()
             overlay.hideCover()
+            overlay.hideCardCover()
         }
         mediaPauser.release()
         dumpReceiver?.let { runCatching { unregisterReceiver(it) } }
@@ -359,6 +360,32 @@ class DoormanAccessibilityService : AccessibilityService() {
 
     private var holdSince = 0L
     private val holdCheck = Runnable { evaluateCurrentScreen() }
+
+    /** The card cover is over an app being opened, so it is the whole screen and stays put. */
+    private var arrivalCover = false
+
+    /** Puts the card cover on the blocked app's card, or says there is none to cover. */
+    private fun coverCard(): Boolean {
+        arrivalCover = false
+        val interactive = getSystemService(android.os.PowerManager::class.java)?.isInteractive != false
+        val card = HoldPolicy.card(blockedWhenLeft, windowFacts().orEmpty(), interactive) {
+            rules.canonicalPackage(it) ?: it
+        } ?: return false
+        overlay.showCardCover(
+            android.graphics.Rect(card.left, card.top, card.right, card.bottom),
+            getString(R.string.pip_cover_label),
+        )
+        return true
+    }
+
+    /** The blocked app's window when it is the active one again, growing back to full size. */
+    private fun blockedAppInFront(): WindowFact? {
+        val blocked = blockedWhenLeft ?: return null
+        return windowFacts()?.firstOrNull {
+            it.isApplication && it.active && !it.pip && it.packageName != null &&
+                (rules.canonicalPackage(it.packageName) ?: it.packageName) == blocked
+        }
+    }
 
     private fun shouldHoldBlock(): Boolean {
         val blocked = blockedWhenLeft ?: return false
@@ -678,6 +705,19 @@ class DoormanAccessibilityService : AccessibilityService() {
     private var reconcilePending = false
     private val reconcile = Runnable {
         reconcilePending = false
+        // The card moves with the thumb; the list says where it is now. Once
+        // the app is back in front the cover is the evaluation's to take away.
+        if (overlay.isCardCoverShowing && !arrivalCover && !coverCard()) {
+            val front = blockedAppInFront()
+            if (front != null) {
+                overlay.showCardCover(
+                    android.graphics.Rect(front.left, front.top, front.right, front.bottom),
+                    getString(R.string.pip_cover_label),
+                )
+            } else {
+                overlay.hideCardCover()
+            }
+        }
         reconcileForeground()
     }
 
@@ -976,7 +1016,15 @@ class DoormanAccessibilityService : AccessibilityService() {
         rules.supportedPackages + appLimits.filterValues { !it.isOff }.keys
 
     private fun evaluateCurrentScreen() {
+        val covering = overlay.isCardCoverShowing
         evaluateCurrentScreenNow()
+        // Let go and back in the app, the card cover stays until the screen has
+        // been judged, so the moment between the app filling the screen and the
+        // block landing shows nothing. Whatever was decided, it has done its job.
+        if (covering && lastPackage in watchedPackages()) {
+            overlay.hideCardCover()
+            arrivalCover = false
+        }
         // Whatever was decided -- blocked, allowed, not recognised -- is the
         // state the presence clock should be timing from here on.
         notePresence()
@@ -993,18 +1041,35 @@ class DoormanAccessibilityService : AccessibilityService() {
             Log.d(TAG, "evaluate: skip pkg=$pkg nodes=${snapshot?.nodes?.size}")
             stopClock()
             overlay.hideEntryCovers()
-            if (overlay.isShowing) {
+            if (overlay.isShowing || overlay.isCardCoverShowing) {
+                // On a real Home the launcher's tree is read a moment before
+                // the move is recorded, so the app is still the last one here:
+                // remember that it was left blocked, as the move would have.
+                val left = lastPackage
+                if (overlay.isShowing && blockedWhenLeft == null && left != null && left in watchedPackages()) {
+                    blockedWhenLeft = rules.canonicalPackage(left) ?: left
+                }
                 // A swipe home that is held halfway makes the launcher the active
                 // window while the app is still there, shrunk to a card with its
                 // video playing. The block stays for a moment; a real Home takes
                 // the app's window away and the block goes with it.
-                if (shouldHoldBlock()) {
+                if (overlay.isShowing && shouldHoldBlock()) {
+                    handler.removeCallbacks(holdCheck)
+                    handler.postDelayed(holdCheck, HOLD_CHECK_MS)
+                    armSilence()
+                    return
+                }
+                // Held for longer than that, the block gives way to a cover on
+                // the card alone, which takes no touches and so traps nobody.
+                if (coverCard()) {
+                    overlay.hide()
                     handler.removeCallbacks(holdCheck)
                     handler.postDelayed(holdCheck, HOLD_CHECK_MS)
                     armSilence()
                     return
                 }
                 overlay.hide()
+                overlay.hideCardCover()
             }
             holdSince = 0L
             return
@@ -1491,6 +1556,27 @@ class DoormanAccessibilityService : AccessibilityService() {
         lastPackage = pkg
         lastRecognisedScreenId = null
         notePresence()
+        // Back from the home screen or recents into an app that was left with
+        // a block standing: the app is on screen a few hundred milliseconds
+        // before its screen can be read. Covered meanwhile; the evaluation that
+        // follows takes the cover away, whatever it decides.
+        if (previous in launcherPackages && blockedWhenLeft == (rules.canonicalPackage(pkg) ?: pkg) &&
+            !overlay.isShowing
+        ) {
+            // The whole screen, not the window: it is still growing out of the
+            // icon, and a cover its size now would be too small in a moment.
+            val m = android.util.DisplayMetrics()
+            @Suppress("DEPRECATION")
+            getSystemService(android.hardware.display.DisplayManager::class.java)
+                ?.getDisplay(android.view.Display.DEFAULT_DISPLAY)?.getRealMetrics(m)
+            if (m.widthPixels > 0 && m.heightPixels > 0) {
+                arrivalCover = true
+                overlay.showCardCover(
+                    android.graphics.Rect(0, 0, m.widthPixels, m.heightPixels),
+                    getString(R.string.pip_cover_label),
+                )
+            }
+        }
         val relevance = if (pkg in rules.supportedPackages) "SUPPORTED" else "ignored"
         Log.i(TAG, "foreground: ${previous ?: "(none)"} -> $pkg [$relevance] via=$detail")
         armSafetyNet()

@@ -72,4 +72,52 @@ class HoldPolicyTest {
         )
         assertEquals(setOf(yt), result.present)
     }
+
+    // ---- the card cover, past the hold
+
+    private val ig = "com.instagram.android"
+    private fun at(pkg: String, l: Int, t: Int, r: Int, b: Int, active: Boolean = false, pip: Boolean = false) =
+        WindowFact(pkg, true, active, active, pip, l, t, r, b)
+    private val launcher = at("launcher", 0, 0, 1080, 2424, active = true)
+    private fun card(windows: List<WindowFact>, blocked: String? = ig, interactive: Boolean = true) =
+        HoldPolicy.card(blocked, windows, interactive) { it }
+
+    /** Bounds read off a Pixel 10 with Instagram held halfway home. */
+    @Test
+    fun `a card shrunk under the thumb is covered where it is`() {
+        val c = card(listOf(at(ig, 181, 324, 899, 1937), launcher))
+        assertEquals(181, c?.left)
+        assertEquals(1937, c?.bottom)
+    }
+
+    @Test
+    fun `a card at nearly full size has the whole screen covered`() {
+        val c = card(listOf(at(ig, 18, 32, 1062, 2377), launcher))
+        assertEquals(0, c?.left)
+        assertEquals(2424, c?.bottom)
+    }
+
+    @Test
+    fun `nothing is covered once the card is gone`() {
+        assertEquals(null, card(listOf(launcher)))
+    }
+
+    /**
+     * A phone that reports the app at full size while it is drawn smaller
+     * would have the cover hide the home screen or recents. Not covered there.
+     */
+    @Test
+    fun `a window reported at full size is not taken for a card`() {
+        assertEquals(null, card(listOf(at(ig, 0, 0, 1080, 2424), launcher)))
+    }
+
+    @Test
+    fun `only the blocked app's card, only with the screen on, only while the launcher is in front`() {
+        val windows = listOf(at(ig, 18, 32, 1062, 2377), launcher)
+        assertEquals(null, card(windows, blocked = yt))
+        assertEquals(null, card(windows, blocked = null))
+        assertEquals(null, card(windows, interactive = false))
+        assertEquals(null, card(listOf(at(ig, 18, 32, 1062, 2377, active = true))))
+        assertEquals(null, card(listOf(at(ig, 18, 32, 1062, 2377, pip = true), launcher)))
+    }
 }
