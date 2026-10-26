@@ -16,6 +16,10 @@
   without a word, and an app shrunk into its floating window leaves the
   launcher active. The window list is read whenever it changes.
 
+  typeViewClicked says where a tap on a tab is going before the app gets there:
+  a tab into a blocked screen has the screen covered at the tap rather than once
+  the new screen has settled.
+
   accessibilityFlags: flagReportViewIds is mandatory. Without it
   getViewIdResourceName() returns null on every node and the whole detection
   scheme is blind.
@@ -33,7 +37,7 @@
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:description="@string/accessibility_service_description"
-    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewScrolled|typeWindowsChanged"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewScrolled|typeWindowsChanged|typeViewClicked"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagReportViewIds|flagRetrieveInteractiveWindows"
     android:canRetrieveWindowContent="true"

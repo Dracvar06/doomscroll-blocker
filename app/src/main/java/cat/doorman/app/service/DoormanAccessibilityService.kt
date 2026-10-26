@@ -282,6 +282,8 @@ class DoormanAccessibilityService : AccessibilityService() {
             overlay.hideRecentsCover()
         }
         handler.removeCallbacks(recentsCheck)
+        handler.removeCallbacks(tabCoverExpiry)
+        tabCoverActive = false
         mediaPauser.release()
         dumpReceiver?.let { runCatching { unregisterReceiver(it) } }
         dumpReceiver = null
@@ -427,6 +429,61 @@ class DoormanAccessibilityService : AccessibilityService() {
         }
         walk(root, 0)
         return cat.doorman.app.model.ScreenSnapshot(packageName = pkg, nodes = found)
+    }
+
+    /**
+     * The whole screen, not a window: an app opening is still growing out of
+     * its icon, and a cover its size now would be too small in a moment. The
+     * evaluation that follows takes it away ([evaluateCurrentScreen]).
+     */
+    private fun coverWholeScreen() {
+        val m = android.util.DisplayMetrics()
+        @Suppress("DEPRECATION")
+        getSystemService(android.hardware.display.DisplayManager::class.java)
+            ?.getDisplay(android.view.Display.DEFAULT_DISPLAY)?.getRealMetrics(m)
+        if (m.widthPixels > 0 && m.heightPixels > 0) {
+            arrivalCover = true
+            overlay.showCardCover(
+                android.graphics.Rect(0, 0, m.widthPixels, m.heightPixels),
+                getString(R.string.pip_cover_label),
+            )
+        }
+    }
+
+    /**
+     * A tap on a tab into a screen that is blocked right now -- Home, from the
+     * messages -- covers the screen at once. Judged the usual way, the new
+     * screen is only read once the app goes quiet, and the feed was in view
+     * until then. The cover stays until a screen other than the one tapped
+     * from has been judged, or [TAB_COVER_MS] at most.
+     */
+    private var tabCoverFrom: String? = null
+    private var tabCoverActive = false
+    private var tabCoverUntil = 0L
+    private val tabCoverExpiry = Runnable {
+        if (tabCoverActive) {
+            tabCoverActive = false
+            overlay.hideCardCover()
+            arrivalCover = false
+        }
+    }
+
+    private fun onTapped(pkg: String, viewId: String) {
+        val app = rules.appFor(pkg) ?: return
+        val now = LocalDateTime.now()
+        val spent = ledgerNow()
+        val target = cat.doorman.app.rules.TabTargets.screensFor(app, viewId)
+            .firstOrNull { it != screenBlockedNow && screenBlockedNow(it, spent, now) } ?: return
+        if (overlay.isCardCoverShowing) return
+        Log.i(TAG, "tapped into $target: covering until it is judged")
+        coverWholeScreen()
+        tabCoverActive = overlay.isCardCoverShowing
+        tabCoverFrom = lastRecognisedScreenId
+        tabCoverUntil = SystemClock.uptimeMillis() + TAB_COVER_MS
+        handler.removeCallbacks(tabCoverExpiry)
+        handler.postDelayed(tabCoverExpiry, TAB_COVER_MS)
+        handler.removeCallbacks(evaluate)
+        handler.postDelayed(evaluate, CONTENT_DEBOUNCE_MS)
     }
 
     private fun scheduleRecentsCheck() {
@@ -964,6 +1021,10 @@ class DoormanAccessibilityService : AccessibilityService() {
                 if (pkg !in rules.supportedPackages) return
                 onScrolled(event)
             }
+            AccessibilityEvent.TYPE_VIEW_CLICKED -> {
+                if (pkg !in rules.supportedPackages || pkg != lastPackage) return
+                onTapped(pkg, event.source?.viewIdResourceName ?: return)
+            }
             else -> Unit
         }
     }
@@ -1101,9 +1162,13 @@ class DoormanAccessibilityService : AccessibilityService() {
         // Let go and back in the app, the card cover stays until the screen has
         // been judged, so the moment between the app filling the screen and the
         // block landing shows nothing. Whatever was decided, it has done its job.
-        if (covering && lastPackage in watchedPackages()) {
+        val tapWaiting = tabCoverActive && lastRecognisedScreenId == tabCoverFrom &&
+            SystemClock.uptimeMillis() < tabCoverUntil
+        if (covering && lastPackage in watchedPackages() && !tapWaiting) {
             overlay.hideCardCover()
             arrivalCover = false
+            tabCoverActive = false
+            handler.removeCallbacks(tabCoverExpiry)
         }
         // Whatever was decided -- blocked, allowed, not recognised -- is the
         // state the presence clock should be timing from here on.
@@ -1644,19 +1709,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         if (previous in launcherPackages && blockedWhenLeft == (rules.canonicalPackage(pkg) ?: pkg) &&
             !overlay.isShowing
         ) {
-            // The whole screen, not the window: it is still growing out of the
-            // icon, and a cover its size now would be too small in a moment.
-            val m = android.util.DisplayMetrics()
-            @Suppress("DEPRECATION")
-            getSystemService(android.hardware.display.DisplayManager::class.java)
-                ?.getDisplay(android.view.Display.DEFAULT_DISPLAY)?.getRealMetrics(m)
-            if (m.widthPixels > 0 && m.heightPixels > 0) {
-                arrivalCover = true
-                overlay.showCardCover(
-                    android.graphics.Rect(0, 0, m.widthPixels, m.heightPixels),
-                    getString(R.string.pip_cover_label),
-                )
-            }
+            coverWholeScreen()
         }
         val relevance = if (pkg in rules.supportedPackages) "SUPPORTED" else "ignored"
         Log.i(TAG, "foreground: ${previous ?: "(none)"} -> $pkg [$relevance] via=$detail")
@@ -1746,6 +1799,9 @@ class DoormanAccessibilityService : AccessibilityService() {
 
         /** Recents scrolls under the thumb; a cover a few frames behind is still a cover. */
         private const val RECENTS_CHECK_MS = 50L
+
+        /** The longest a tap into a blocked screen keeps the screen covered without a verdict. */
+        private const val TAB_COVER_MS = 800L
 
         /**
          * How long after arriving from another app the screen it opened on may
