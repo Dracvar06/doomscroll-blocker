@@ -68,12 +68,60 @@ class BlockOverlayController(private val service: AccessibilityService) {
             overlay?.let(::bindRedirect)
         }
 
+    /** The icon of wherever [redirectLabel] goes, shown on its button. */
+    var redirectIcon: android.graphics.drawable.Drawable? = null
+        set(value) {
+            field = value
+            overlay?.let(::bindRedirect)
+        }
+
+    private var pulse: android.animation.Animator? = null
+
+    /**
+     * With somewhere to go, that is the block's main action: the big filled
+     * button, with the destination's own icon, breathing slowly so it is
+     * still seen on the hundredth visit, when the rest of the screen has long
+     * since stopped being read. "Go back" steps down to a plain link.
+     */
     private fun bindRedirect(view: View) {
         val button = view.findViewById<Button>(R.id.blocked_redirect)
+        val goBack = view.findViewById<Button>(R.id.blocked_go_back)
         val label = redirectLabel
-        button.visibility = if (label == null) View.GONE else View.VISIBLE
+        pulse?.cancel()
+        pulse = null
+        if (label == null) {
+            button.visibility = View.GONE
+            goBack.setBackgroundResource(R.drawable.bg_block_button)
+            goBack.setTextColor(service.getColor(R.color.block_on_button))
+            return
+        }
+        val density = service.resources.displayMetrics.density
+        button.visibility = View.VISIBLE
         button.text = label
         button.setOnClickListener { listener?.onRedirectTapped() }
+        button.setBackgroundResource(R.drawable.bg_block_button)
+        button.setTextColor(service.getColor(R.color.block_on_button))
+        button.textSize = 18f
+        button.minHeight = (64 * density).toInt()
+        button.compoundDrawablePadding = (12 * density).toInt()
+        val icon = redirectIcon?.mutate()?.apply {
+            val size = (28 * density).toInt()
+            setBounds(0, 0, size, size)
+        }
+        button.setCompoundDrawablesRelative(icon, null, null, null)
+        goBack.background = null
+        goBack.setTextColor(service.getColor(R.color.block_button))
+        pulse = android.animation.ObjectAnimator.ofPropertyValuesHolder(
+            button,
+            android.animation.PropertyValuesHolder.ofFloat(View.SCALE_X, 1f, 1.06f),
+            android.animation.PropertyValuesHolder.ofFloat(View.SCALE_Y, 1f, 1.06f),
+        ).apply {
+            duration = 900
+            repeatCount = android.animation.ValueAnimator.INFINITE
+            repeatMode = android.animation.ValueAnimator.REVERSE
+            interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+            start()
+        }
     }
 
     /**
@@ -174,6 +222,8 @@ class BlockOverlayController(private val service: AccessibilityService) {
     }
 
     private fun removeOverlay() {
+        pulse?.cancel()
+        pulse = null
         overlay?.let {
             runCatching { windowManager.removeView(it) }
             Log.i(TAG, "overlay hidden")

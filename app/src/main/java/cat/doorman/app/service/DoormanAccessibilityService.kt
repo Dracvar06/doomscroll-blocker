@@ -166,6 +166,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         serviceScope.launch {
             prefs.redirect.collectLatest {
                 redirect = it
+                overlay.redirectIcon = it?.let(::redirectIconFor)
                 overlay.redirectLabel = it?.let(::redirectLabelFor)
                 scheduleRedirectCheck()
             }
@@ -526,6 +527,14 @@ class DoormanAccessibilityService : AccessibilityService() {
         } ?: return null
         return intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
+
+    private fun redirectIconFor(target: Redirect): android.graphics.drawable.Drawable? =
+        runCatching {
+            when (target) {
+                is Redirect.App -> packageManager.getApplicationIcon(target.packageName)
+                is Redirect.WhatsAppChat -> intentFor(target)?.`package`?.let(packageManager::getApplicationIcon)
+            }
+        }.getOrNull()
 
     private fun redirectLabelFor(target: Redirect): String = when (target) {
         is Redirect.App -> getString(
