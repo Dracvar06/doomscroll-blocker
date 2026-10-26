@@ -110,6 +110,12 @@ expected). Then install the **release** build on a real device and check:
 - [ ] A change delay actually delays; a pass actually opens.
 - [ ] The weekly report tab renders; the notification channel exists.
 - [ ] Turning the language chip recreates the app in that language.
+- [ ] On a **debug** build, `./tools/check-covers.sh` on the Pixel and on at
+      least one phone of another make (Samsung first): a held swipe home,
+      Instagram's card in recents, reopening it, and a tab tap into a blocked
+      screen are all covered. FALLBACK lines mean that phone does not report
+      what the cover needs and behaves as before; FAIL lines need a look. Set
+      the block's way out to Nowhere first.
 - [ ] On a **debug** build, `./tools/check-comments-origin.sh` passes, on the
       Pixel and on at least one phone of another make (Samsung first). It
       replays opening the comments on the blocked Reels tab straight after
