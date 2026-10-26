@@ -74,13 +74,10 @@ Reddit and RedNote.** Everything below is an individual switch; nothing is all-o
   the button is back.
 
 - **A block can send you somewhere better.** Choose an app -- a book, say --
-  or a WhatsApp chat, and stay on a blocked screen for five seconds: Doorman
-  opens it for you. Walking through a block on the way somewhere, like
-  Instagram's home feed on the way to your messages, sends you nowhere, and
-  using what a block leaves open (the stories row, the top tabs) starts the
-  five seconds again. After sending you once it waits a minute before doing
-  it again, and the block has a button to go there straight away. Off until
-  you choose somewhere.
+  or a WhatsApp chat, and every block gets a big button that opens it. It only
+  goes when you tap it: a block you are walking through on the way somewhere,
+  like Instagram's home feed on the way to your messages, never sends you
+  anywhere. Off until you choose somewhere.
 
 Every screen is an individual switch in the app, with Strict / Balanced /
 Nothing presets. Switching a block **off** waits a configurable delay (30 s by

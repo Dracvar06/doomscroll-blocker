@@ -302,13 +302,13 @@
     <string name="help_rn_video_feed" tools:ignore="UnusedResources">Opening a video on RedNote drops you into a feed you can keep swiping through. The video you opened plays, and the block lands on the first swipe past it. Its comments stay open while it does.</string>
 
     <!-- Where a block that holds you sends you -->
-    <string name="redirect_title">When a block holds you</string>
+    <string name="redirect_title">The way out of a block</string>
     <string name="redirect_nowhere">Nowhere: just block</string>
     <string name="redirect_summary_app">Opens %1$s</string>
     <string name="redirect_summary_chat">Opens your WhatsApp chat with %1$s</string>
     <string name="redirect_kind_app">Another app</string>
     <string name="redirect_kind_chat">A WhatsApp chat</string>
-    <string name="redirect_explainer">Stay on a blocked screen for 5 seconds and Doorman opens this instead. Passing through a block on your way somewhere, like Instagram\'s home on the way to your messages, never sends you anywhere. The block also gets a button to go there straight away.</string>
+    <string name="redirect_explainer">Blocks get a big button that takes you here instead. It only goes when you tap it.</string>
     <string name="redirect_search_apps">Search apps</string>
     <string name="redirect_chat_explainer">The number with its country code. It stays on this phone: Doorman cannot use the internet.</string>
     <string name="redirect_chat_name">Name on the button</string>

@@ -114,22 +114,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         WeeklyReportNotifier.clearServiceOff(this)
         imePackage = currentImePackage()
         overlay = BlockOverlayController(this)
-        overlay.listener = object : BlockOverlayController.Listener {
-            override fun onBlockShown() {
-                val now = SystemClock.uptimeMillis()
-                blockShownAt = now
-                blockActivityAt = now
-                blockPackage = lastPackage
-                scheduleRedirectCheck()
-            }
-
-            override fun onBlockHidden() {
-                handler.removeCallbacks(redirectCheck)
-                blockPackage = null
-            }
-
-            override fun onRedirectTapped() = sendOnward(byHand = true)
-        }
+        overlay.onRedirectTapped = ::sendOnward
         rules = RuleLoader.load(this)
         val screenDefaults = RuleLoader.screenDefaults(rules)
         enabledScreenIds = RuleLoader.defaultEnabledScreenIds(rules)
@@ -168,7 +153,6 @@ class DoormanAccessibilityService : AccessibilityService() {
                 redirect = it
                 overlay.redirectIcon = it?.let(::redirectIconFor)
                 overlay.redirectLabel = it?.let(::redirectLabelFor)
-                scheduleRedirectCheck()
             }
         }
         serviceScope.launch {
@@ -242,6 +226,52 @@ class DoormanAccessibilityService : AccessibilityService() {
             ContextCompat.RECEIVER_EXPORTED,
         )
         dumpReceiver = receiver
+        val screen = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                when (intent.action) {
+                    // Through evaluate, so the lock check there takes everything down.
+                    Intent.ACTION_SCREEN_OFF -> evaluateCurrentScreen()
+                    Intent.ACTION_SCREEN_ON, Intent.ACTION_USER_PRESENT -> onUnlocked()
+                }
+            }
+        }
+        ContextCompat.registerReceiver(
+            this, screen,
+            IntentFilter(Intent.ACTION_SCREEN_OFF).apply {
+                addAction(Intent.ACTION_SCREEN_ON)
+                addAction(Intent.ACTION_USER_PRESENT)
+            },
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+        screenReceiver = screen
+    }
+
+    private var screenReceiver: BroadcastReceiver? = null
+
+    /**
+     * Doorman's windows are drawn above everything, the lock screen and the
+     * dimmed always-on clock included. A block that was up when the phone went
+     * to sleep stayed there over the lock screen, so while the screen is off or
+     * locked nothing of Doorman's is shown at all.
+     */
+    private var blockedBeforeLock = false
+
+    private fun screenLocked(): Boolean {
+        val interactive = getSystemService(android.os.PowerManager::class.java)?.isInteractive != false
+        val locked = getSystemService(android.app.KeyguardManager::class.java)?.isKeyguardLocked == true
+        return !interactive || locked
+    }
+
+    /**
+     * Unlocked straight back into the app that was blocked when the phone went
+     * to sleep: covered until it has been judged again, as when it is opened.
+     */
+    private fun onUnlocked() {
+        if (screenLocked()) return
+        if (blockedBeforeLock && lastPackage in watchedPackages()) coverWholeScreen()
+        blockedBeforeLock = false
+        handler.removeCallbacks(evaluate)
+        handler.post(evaluate)
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
@@ -254,7 +284,6 @@ class DoormanAccessibilityService : AccessibilityService() {
         session = null
         held = null
         budgetBlock = null
-        handler.removeCallbacks(redirectCheck)
         if (::overlay.isInitialized) overlay.hideEntryCovers()
         serviceScope.cancel()
         handler.removeCallbacks(evaluate)
@@ -287,6 +316,8 @@ class DoormanAccessibilityService : AccessibilityService() {
         mediaPauser.release()
         dumpReceiver?.let { runCatching { unregisterReceiver(it) } }
         dumpReceiver = null
+        screenReceiver?.let { runCatching { unregisterReceiver(it) } }
+        screenReceiver = null
         return super.onUnbind(intent)
     }
 
@@ -625,39 +656,13 @@ class DoormanAccessibilityService : AccessibilityService() {
     // ---------------------------------------------------------------- redirect
 
     private var redirect: Redirect? = null
-    private var blockShownAt = 0L
-    private var blockActivityAt = 0L
-    private var blockPackage: String? = null
-    private var lastRedirectAt: Long? = null
-    private val redirectCheck = Runnable { checkRedirect() }
-
-    private fun scheduleRedirectCheck() {
-        handler.removeCallbacks(redirectCheck)
-        if (redirect == null || !overlay.isShowing) return
-        val at = RedirectPolicy.nextCheckAt(blockShownAt, blockActivityAt, lastRedirectAt)
-        handler.postDelayed(redirectCheck, (at - SystemClock.uptimeMillis()).coerceAtLeast(0) + 50)
-    }
-
     /**
-     * Sends the user on if the block has held them long enough. Only while the
-     * blocked app is still the one in front: a block held up over a half swipe
-     * home is not somebody sitting in front of it.
+     * Only ever from the block's button. Sending people on by themselves after
+     * a few seconds on a block was tried and taken out: it fired on blocks that
+     * were only being passed through or looked at, and the button, big and
+     * first on the screen, is enough.
      */
-    private fun checkRedirect() {
-        if (redirect == null || !overlay.isShowing) return
-        if (foregroundNow()?.appPackage != blockPackage) return
-        val interactive = getSystemService(android.os.PowerManager::class.java)?.isInteractive != false
-        if (RedirectPolicy.due(
-                blockShownAt, blockActivityAt, lastRedirectAt, SystemClock.uptimeMillis(), interactive,
-            )
-        ) {
-            sendOnward(byHand = false)
-        } else if (interactive) {
-            scheduleRedirectCheck()
-        }
-    }
-
-    private fun sendOnward(byHand: Boolean) {
+    private fun sendOnward() {
         val target = redirect ?: return
         val intent = intentFor(target)
         if (intent == null) {
@@ -665,10 +670,7 @@ class DoormanAccessibilityService : AccessibilityService() {
             return
         }
         runCatching { startActivity(intent) }
-            .onSuccess {
-                lastRedirectAt = SystemClock.uptimeMillis()
-                Log.i(TAG, "redirect: sent on to $target (${if (byHand) "button" else "held"})")
-            }
+            .onSuccess { Log.i(TAG, "redirect: sent on to $target") }
             .onFailure { Log.w(TAG, "redirect: could not open $target", it) }
     }
 
@@ -1035,13 +1037,6 @@ class DoormanAccessibilityService : AccessibilityService() {
      * chance to play.
      */
     private fun onScrolled(event: AccessibilityEvent) {
-        // Scrolling while a block stands is using what it leaves open -- the
-        // stories row, the top tabs -- since the block itself swallows every
-        // touch. That is doing something, not waiting for the feed.
-        if (overlay.isShowing) {
-            blockActivityAt = SystemClock.uptimeMillis()
-            scheduleRedirectCheck()
-        }
         if (BuildConfig.DEBUG) {
             Log.d(
                 TAG,
@@ -1177,6 +1172,19 @@ class DoormanAccessibilityService : AccessibilityService() {
 
     private fun evaluateCurrentScreenNow() {
         lastEvaluationAt = SystemClock.uptimeMillis()
+        if (screenLocked()) {
+            if (overlay.isShowing) {
+                blockedBeforeLock = true
+                overlay.hide()
+            }
+            overlay.hideCardCover()
+            overlay.hideRecentsCover()
+            overlay.hideEntryCovers()
+            arrivalCover = false
+            tabCoverActive = false
+            stopClock()
+            return
+        }
         val snapshot = SnapshotCapture.capture(this, preferPackage = lastPackage)
         // A game is often one drawing surface with nothing readable in it, so
         // there may be no tree at all. Holding a whole app needs only its name,

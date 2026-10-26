@@ -1,61 +1,14 @@
 package cat.doorman.app
 
 import cat.doorman.app.data.Redirect
-import cat.doorman.app.service.RedirectPolicy
-import cat.doorman.app.service.RedirectPolicy.DWELL_MS
-import cat.doorman.app.service.RedirectPolicy.QUIET_MS
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * Being sent somewhere better when a block holds you -- and, the half that
- * matters, not when you are only passing through one.
- */
+/** Where the block's button sends you: how the choice is stored and read back. */
 class RedirectTest {
-
-    // --------------------------------------------------------------- timing
-
-    @Test
-    fun `passing through a block on the way to your messages sends you nowhere`() {
-        // Instagram opens on its feed; the messages are a tap away. Gone in two
-        // seconds, the block was never holding anyone.
-        assertFalse(RedirectPolicy.due(shownAt = 0, lastActivityAt = 0, lastRedirectAt = null, now = 2_000, interactive = true))
-    }
-
-    @Test
-    fun `staying on a block sends you on`() {
-        assertTrue(RedirectPolicy.due(0, 0, null, DWELL_MS, true))
-    }
-
-    @Test
-    fun `using what the block leaves open starts the wait again`() {
-        // Scrolling the stories row above a blocked feed at 4 s.
-        assertFalse(RedirectPolicy.due(0, 4_000, null, DWELL_MS, true))
-        assertTrue(RedirectPolicy.due(0, 4_000, null, 4_000 + DWELL_MS, true))
-    }
-
-    @Test
-    fun `a screen that is off sends nobody anywhere`() {
-        assertFalse(RedirectPolicy.due(0, 0, null, 60_000, false))
-    }
-
-    @Test
-    fun `coming back on purpose is not bounced straight out again`() {
-        val sentAt = 10_000L
-        // Back at 20 s, through the feed, on the way to a message.
-        assertFalse(RedirectPolicy.due(20_000, 20_000, sentAt, 20_000 + DWELL_MS, true))
-        assertTrue(RedirectPolicy.due(sentAt + QUIET_MS, sentAt + QUIET_MS, sentAt, sentAt + QUIET_MS + DWELL_MS, true))
-    }
-
-    @Test
-    fun `the next look is when both the wait and the quiet are over`() {
-        assertEquals(DWELL_MS, RedirectPolicy.nextCheckAt(0, 0, null))
-        assertEquals(3_000 + DWELL_MS, RedirectPolicy.nextCheckAt(0, 3_000, null))
-        assertEquals(1_000 + QUIET_MS, RedirectPolicy.nextCheckAt(2_000, 2_000, 1_000))
-    }
 
     // ---------------------------------------------------------------- where
 

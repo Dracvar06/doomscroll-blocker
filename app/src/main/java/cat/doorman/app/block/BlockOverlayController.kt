@@ -44,19 +44,8 @@ class BlockOverlayController(private val service: AccessibilityService) {
 
     val isShowing: Boolean get() = overlay != null
 
-    /**
-     * Told when a block appears and when it goes. A block redrawn for the same
-     * screen -- its band measured a few pixels differently -- is the same block
-     * still standing, and is not reported again: how long a block has held
-     * someone is counted from these.
-     */
-    interface Listener {
-        fun onBlockShown()
-        fun onBlockHidden()
-        fun onRedirectTapped()
-    }
-
-    var listener: Listener? = null
+    /** The block's button to the place the user chose to be sent instead. */
+    var onRedirectTapped: (() -> Unit)? = null
 
     /**
      * What the second button on the block says -- "Go to Play Books" -- or
@@ -98,7 +87,7 @@ class BlockOverlayController(private val service: AccessibilityService) {
         val density = service.resources.displayMetrics.density
         button.visibility = View.VISIBLE
         button.text = label
-        button.setOnClickListener { listener?.onRedirectTapped() }
+        button.setOnClickListener { onRedirectTapped?.invoke() }
         button.setBackgroundResource(R.drawable.bg_block_button)
         button.setTextColor(service.getColor(R.color.block_on_button))
         button.textSize = 18f
@@ -211,17 +200,12 @@ class BlockOverlayController(private val service: AccessibilityService) {
                 shownForScreenId = screenId
                 shownBand = band
                 Log.i(TAG, "overlay shown for $screenId")
-                if (!sameBlock) listener?.onBlockShown()
             }
             .onFailure { Log.e(TAG, "overlay failed for $screenId", it) }
             .isSuccess
     }
 
-    fun hide() {
-        val wasShowing = overlay != null
-        removeOverlay()
-        if (wasShowing) listener?.onBlockHidden()
-    }
+    fun hide() = removeOverlay()
 
     private fun removeOverlay() {
         pulse?.cancel()

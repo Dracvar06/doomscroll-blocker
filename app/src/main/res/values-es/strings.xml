@@ -301,13 +301,13 @@
     <string name="help_rn_video_feed">Abrir un vídeo en RedNote te deja en un flujo por el que puedes seguir pasando. El vídeo que has abierto se reproduce y el bloqueo llega al primer deslizamiento. Mientras tanto, sus comentarios quedan abiertos.</string>
 
     <!-- Where a block that holds you sends you -->
-    <string name="redirect_title">Cuando un bloqueo te retiene</string>
+    <string name="redirect_title">La salida de un bloqueo</string>
     <string name="redirect_nowhere">A ningún sitio: solo bloquear</string>
     <string name="redirect_summary_app">Abre %1$s</string>
     <string name="redirect_summary_chat">Abre tu chat de WhatsApp con %1$s</string>
     <string name="redirect_kind_app">Otra aplicación</string>
     <string name="redirect_kind_chat">Un chat de WhatsApp</string>
-    <string name="redirect_explainer">Si te quedas 5 segundos en una pantalla bloqueada, Doorman abre esto en su lugar. Pasar por un bloqueo de camino a otro sitio, como el inicio de Instagram de camino a los mensajes, nunca te envía a ningún sitio. El bloqueo también tiene un botón para ir de inmediato.</string>
+    <string name="redirect_explainer">Los bloqueos tienen un botón grande que te lleva aquí. Solo vas si lo tocas.</string>
     <string name="redirect_search_apps">Buscar aplicaciones</string>
     <string name="redirect_chat_explainer">El número con el prefijo del país. Se queda en este teléfono: Doorman no puede usar internet.</string>
     <string name="redirect_chat_name">Nombre en el botón</string>
