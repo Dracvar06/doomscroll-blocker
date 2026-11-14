@@ -13,7 +13,9 @@ import cat.doorman.app.limits.ReelWindow
  * visit and costs nothing; coming back after a couple of minutes is a new one,
  * and it counts a reel. Without that, glancing at your messages between reels
  * would be a way to watch them for free, and charging every re-check of the
- * screen would spend a whole quota on one reel.
+ * screen would spend a whole quota on one reel. What matters is time spent
+ * *away*: a reel left playing for ten minutes without a single event is still
+ * the one reel.
  *
  * Pure: the clock is passed in and storage is a callback, so the awkward
  * orderings can be replayed in a test.
@@ -30,14 +32,25 @@ class ReelCounter(
         data class Closed(val untilMillis: Long) : State
     }
 
-    private class Session(val screenId: String, var lastSeenAt: Long)
+    /** [leftAt] is when the screen was last left, and null while it is in front. */
+    private class Session(val screenId: String, var leftAt: Long? = null, var lastSwipeAt: Long? = null)
 
     private var books: MutableMap<String, ReelWindow> = mutableMapOf()
     private var session: Session? = null
 
-    /** Loads what was stored. Done once: the service is the only thing that writes. */
+    /**
+     * Loads what was stored. The load runs alongside the first looks at the
+     * screen, so a reel counted before it finished must survive it: of the two
+     * books for a screen the newer stretch wins, and a tie goes to the one in
+     * memory, which has only ever been written to since.
+     */
     fun load(stored: Map<String, ReelWindow>) {
-        books = stored.toMutableMap()
+        val merged = stored.toMutableMap()
+        for ((id, window) in books) {
+            val old = merged[id]
+            if (old == null || window.startMillis >= old.startMillis) merged[id] = window
+        }
+        books = merged
     }
 
     /**
@@ -52,9 +65,9 @@ class ReelCounter(
     ): State {
         val here = session
         val continuing = here != null && here.screenId == screenId &&
-            nowMillis - here.lastSeenAt <= sessionGapMillis
+            (here.leftAt == null || nowMillis - here.leftAt!! <= sessionGapMillis)
         if (continuing) {
-            here!!.lastSeenAt = nowMillis
+            here!!.leftAt = null
             val window = books[screenId]
             ReelQuotas.closedUntil(window, quota, nowMillis)?.let { return State.Closed(it) }
             // A block that has just lifted while somebody sat on it: what is on
@@ -64,7 +77,7 @@ class ReelCounter(
             }
             return State.Open(ReelQuotas.remaining(window, quota, nowMillis))
         }
-        session = Session(screenId, nowMillis)
+        session = Session(screenId)
         return enter(screenId, quota, nowMillis, persist)
     }
 
@@ -100,7 +113,8 @@ class ReelCounter(
     ): State.Closed? {
         val here = session ?: return null
         if (here.screenId != screenId) return null
-        here.lastSeenAt = nowMillis
+        here.leftAt = null
+        here.lastSwipeAt = nowMillis
         return when (val swipe = ReelQuotas.swipe(books[screenId], quota, nowMillis)) {
             is ReelQuotas.Swipe.Next -> {
                 store(screenId, swipe.window, persist)
@@ -111,6 +125,24 @@ class ReelCounter(
                 State.Closed(swipe.untilMillis)
             }
         }
+    }
+
+    /**
+     * The screen is no longer in front: another screen, another app, a locked
+     * phone. The visit lasts [sessionGapMillis] from here, and only from here.
+     */
+    fun onLeft(nowMillis: Long) {
+        session?.let { if (it.leftAt == null) it.leftAt = nowMillis }
+    }
+
+    /**
+     * True just after a counted swipe. One page turn raises scroll events until
+     * the pager has settled, and what is left of the page after the first one
+     * would otherwise read as the next swipe.
+     */
+    fun settling(nowMillis: Long): Boolean {
+        val at = session?.lastSwipeAt ?: return false
+        return nowMillis - at in 0 until SWIPE_REFRACTORY_MS
     }
 
     /** Where a screen stands, without counting anything. */
@@ -133,5 +165,18 @@ class ReelCounter(
     companion object {
         /** The same two minutes the single-reel allowance uses to tell a visit from a return. */
         const val DEFAULT_SESSION_GAP_MS = 2 * 60 * 1000L
+
+        /** Long enough for a pager to finish snapping, short enough for a quick second swipe. */
+        const val SWIPE_REFRACTORY_MS = 400L
+
+        /**
+         * A reel pager fills most of the screen; the list inside a comments or
+         * share sheet does not. Scrolls of anything smaller are reading.
+         */
+        private const val PAGER_MIN_PERCENT = 60
+
+        /** Whether a scroll came from a view big enough to be the pager. Unknown counts as big enough. */
+        fun isPagerSized(viewHeightPx: Int?, screenHeightPx: Int): Boolean =
+            viewHeightPx == null || viewHeightPx * 100 >= screenHeightPx * PAGER_MIN_PERCENT
     }
 }

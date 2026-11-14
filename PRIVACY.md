@@ -39,11 +39,18 @@ nowhere else.
   block or limit in them; time spent looking at a block is not counted. One
   row per day, kept for 70 days, then deleted. This feeds the weekly report and can be
   switched off in Settings → Weekly report, which also stops recording.
+- **Hard days and hard weeks**: which days you took a hard day, and when each
+  hard week started, so that the limits know what to allow. They are forgotten
+  after two years.
 - **A diagnostics report, only if you make one**: from Settings → "Doesn't
   work?", you can capture the structure of a screen to help fix a broken rule.
   All text and content descriptions are replaced with `<redacted>` before the
   file is written. Nothing is sent anywhere; the file exists so *you* can
   choose to share it. Read it before you do.
+
+Doorman asks Android which apps have a launcher icon, so you can pick one to
+hold and see its name. That list is read when you need it, is not stored, and
+never leaves the phone.
 
 Doorman used to keep a list of which apps it had seen you open, to offer them
 in a picker. It no longer does, and deletes that list from older installs.

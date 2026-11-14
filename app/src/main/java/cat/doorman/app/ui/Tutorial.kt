@@ -32,12 +32,12 @@ import cat.doorman.app.R
 /**
  * What somebody is shown once, the first time they open Doorman.
  *
- * Four pages, not a tour. A walkthrough that points at every switch is a
+ * Two pages, not a tour. A walkthrough that points at every switch is a
  * walkthrough nobody finishes, and Doorman's screens are already labelled; what
  * a newcomer cannot work out from the labels is the *shape* of the thing --
- * that it holds screens rather than apps, that loosening a limit is deliberately
- * slow, and that there is a way in when they really need one. Those are the
- * four pages.
+ * that it holds the feed and not the messages, and that loosening a limit is
+ * deliberately slow. Choosing what to hold and turning Doorman on are the
+ * setup card's job, on the screen where they happen.
  *
  * Skippable from the first page. An introduction that cannot be closed is a
  * toll gate, and Doorman is asking for a lot of trust on the very next screen.
@@ -105,7 +105,7 @@ fun Tutorial(
             }
 
             // The coffee, once, at the end, as a text button. Somebody who
-            // has read four pages about an app that will get in their way has
+            // has read two pages about an app that will get in their way has
             // earned being told how it is paid for, and being told exactly
             // once.
             if (last) {
@@ -150,13 +150,11 @@ fun Tutorial(
 
 private class TutorialPage(val title: Int, val body: Int, val icon: Int)
 
-// The door shut on the first page and ajar on the last: Doorman holds the
-// feed, and there is always a way in.
+// The door shut, then the hourglass: Doorman holds the feed, and letting go
+// of it takes time.
 private fun tutorialPages() = listOf(
     TutorialPage(R.string.tutorial_1_title, R.string.tutorial_1_body, R.drawable.ic_door_closed),
-    TutorialPage(R.string.tutorial_2_title, R.string.tutorial_2_body, R.drawable.ic_tune),
-    TutorialPage(R.string.tutorial_3_title, R.string.tutorial_3_body, R.drawable.ic_hourglass),
-    TutorialPage(R.string.tutorial_4_title, R.string.tutorial_4_body, R.drawable.ic_door_open),
+    TutorialPage(R.string.tutorial_2_title, R.string.tutorial_2_body, R.drawable.ic_hourglass),
 )
 
 @Composable

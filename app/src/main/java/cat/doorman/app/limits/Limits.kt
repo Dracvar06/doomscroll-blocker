@@ -1,6 +1,7 @@
 package cat.doorman.app.limits
 
 import java.time.DayOfWeek
+import java.time.LocalDate
 import java.time.LocalDateTime
 
 /** Which days of the week a limit applies on, held as a bitmask over Mon..Sun. */
@@ -24,11 +25,30 @@ value class Days(val mask: Int) {
     }
 }
 
-/** Minutes of use permitted in each [period], on the days in [days]. */
+/**
+ * Minutes of use permitted in each [period], on the days in [days].
+ *
+ * [minutes] is the level the allowance started at and stays that way: a
+ * [taper] lowers what it is worth from week to week without rewriting it. What
+ * it is worth on a given day is [Tapers.effectiveMinutes], and that is what
+ * anything deciding or displaying a limit has to ask.
+ */
 data class Allowance(
     val minutes: Int,
     val period: Period,
     val days: Days = Days.EVERY_DAY,
+    val taper: Taper? = null,
+)
+
+/**
+ * A limit that lowers itself by [stepMinutes] after each full week without a
+ * hard day, until it reaches [goalMinutes]. Counted from [startedOn]; see
+ * [Tapers] for exactly which weeks count.
+ */
+data class Taper(
+    val goalMinutes: Int,
+    val stepMinutes: Int,
+    val startedOn: LocalDate,
 )
 
 /**
@@ -155,11 +175,26 @@ fun Limits.blockedMinutesOfWeek(): BooleanArray {
  * allowance, or drops one -- and only a change that does none of those is
  * treated as tightening and applied at once.
  *
+ * A taper is judged on its path as well as its level today: taking it off,
+ * raising its goal or shrinking its step changes nothing today and still
+ * loosens everything after it. Adding one, or tightening it, is applied at once.
+ *
+ * [today] and [hard] only matter to tapers. The default for [today] reads the
+ * clock, for callers that have no date to hand.
+ *
  * Erring towards "this is loosening" is the safe direction: the cost of a wait
  * on a change that did not need one is a wait, and the cost of skipping it is
  * the impulse the whole mechanism exists to slow down.
  */
-fun isLoosening(from: Limits, to: Limits): Boolean {
+fun isLoosening(
+    from: Limits,
+    to: Limits,
+    today: LocalDate = LocalDate.now(),
+    hard: HardTimes = HardTimes.EMPTY,
+): Boolean {
+    if (Tapers.loosensAnyTaper(from, to)) return true
+    // Budgets are compared at today's level, not at the starting minutes: a
+    // taper that has already lowered is held to what it is worth now.
     val before = from.blockedMinutesOfWeek()
     val after = to.blockedMinutesOfWeek()
     for (i in before.indices) if (before[i] && !after[i]) return true
@@ -169,8 +204,10 @@ fun isLoosening(from: Limits, to: Limits): Boolean {
     if (!to.blocked && ReelQuotas.isLooser(from.reels, to.reels)) return true
 
     // Every day has to keep at least as tight a budget as it had.
+    val nowFrom = from.atLevel(hard, today)
+    val nowTo = to.atLevel(hard, today)
     DayOfWeek.entries.forEach { day ->
-        if (dailyBudget(to, day, after) > dailyBudget(from, day, before)) return true
+        if (dailyBudget(nowTo, day, after) > dailyBudget(nowFrom, day, before)) return true
     }
     return false
 }
@@ -210,3 +247,7 @@ val Allowance.dailyMinutes: Int
         Period.DAY -> minutes
         Period.WEEK -> maxOf(1, minutes / 7)
     }
+
+/** These limits with every allowance worth what it is on [today], for comparing. */
+private fun Limits.atLevel(hard: HardTimes, today: LocalDate): Limits =
+    copy(allowances = allowances.map { it.copy(minutes = Tapers.level(it, hard, today), taper = null) })

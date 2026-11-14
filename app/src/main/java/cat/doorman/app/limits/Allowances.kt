@@ -1,5 +1,6 @@
 package cat.doorman.app.limits
 
+import java.time.DayOfWeek
 import java.time.LocalDateTime
 
 /**
@@ -47,8 +48,18 @@ object Allowances {
     fun spentInCurrentPeriod(spent: Spent, period: Period, now: LocalDateTime): Long =
         if (spent.periodKey == periodKey(period, now)) spent.millis else 0L
 
-    fun remainingMillis(allowance: Allowance, spent: Spent, now: LocalDateTime): Long =
-        (allowance.minutes * 60_000L - spentInCurrentPeriod(spent, allowance.period, now))
+    /**
+     * What is left of [allowance]. Worth what it is on the day of [now], which
+     * is not always its starting minutes: see [Tapers.effectiveMinutes].
+     */
+    fun remainingMillis(
+        allowance: Allowance,
+        spent: Spent,
+        now: LocalDateTime,
+        hard: HardTimes = HardTimes.EMPTY,
+    ): Long =
+        (Tapers.effectiveMinutes(allowance, hard, now.toLocalDate()) * 60_000L -
+            spentInCurrentPeriod(spent, allowance.period, now))
             .coerceAtLeast(0L)
 
     /**
@@ -101,7 +112,11 @@ object Allowances {
      * then a spent allowance, and otherwise the clock runs on everything at
      * once.
      */
-    fun decide(targets: List<Target>, now: LocalDateTime): Outcome {
+    fun decide(
+        targets: List<Target>,
+        now: LocalDateTime,
+        hard: HardTimes = HardTimes.EMPTY,
+    ): Outcome {
         val day = now.dayOfWeek
         val minuteOfDay = now.hour * 60 + now.minute
 
@@ -118,7 +133,7 @@ object Allowances {
         if (running.isEmpty()) return Outcome.Allow
 
         running.firstOrNull { (target, allowance) ->
-            remainingMillis(allowance, target.spentFor(allowance.period), now) <= 0L
+            remainingMillis(allowance, target.spentFor(allowance.period), now, hard) <= 0L
         }?.let { (target, _) -> return Outcome.Block(target.id, Reason.ALLOWANCE_SPENT) }
 
         return Outcome.OnTheClock(
@@ -126,10 +141,23 @@ object Allowances {
                 ledgerKey(target.id, allowance.period)
             }.distinct(),
             remainingMillis = running.minOf { (target, allowance) ->
-                remainingMillis(allowance, target.spentFor(allowance.period), now)
+                remainingMillis(allowance, target.spentFor(allowance.period), now, hard)
             },
         )
     }
+
+    /**
+     * The ledger keys of every allowance running on [targets] on [day], whether
+     * or not it has been spent. For time that is counted but not enforced.
+     */
+    fun chargeKeys(targets: List<Target>, day: DayOfWeek): List<String> =
+        targets.flatMap { target ->
+            target.limits.allowancesOn(day).map { ledgerKey(target.id, it.period) }
+        }.distinct()
+
+    /** Whether any of [limits] depends on the time of day or on minutes spent. */
+    fun hasTimeLimit(limits: Collection<Limits>): Boolean =
+        limits.any { it.allowances.isNotEmpty() || it.windows.isNotEmpty() }
 
     /**
      * [ledger] with [pending] time counted in, as it will stand once written.
@@ -149,6 +177,45 @@ object Allowances {
                 .getOrNull() ?: return@mapNotNull null
             key to charge(ledger[key] ?: Spent.NOTHING, period, millis, now)
         }
+    }
+
+    /**
+     * [disk] with [deltas] added to the entries they name. The write path for
+     * the ledger: adding to what is stored, never replacing it with a total
+     * worked out elsewhere, so time added meanwhile is not overwritten.
+     */
+    fun applyDeltas(
+        disk: Map<String, Spent>,
+        deltas: Map<String, Long>,
+        now: LocalDateTime,
+    ): Map<String, Spent> = withPending(disk, deltas, now)
+
+    /**
+     * What memory should hold after the stored ledger changed to [disk].
+     *
+     * Memory is the one that has seen every flush; an emission can describe a
+     * moment before the latest one. So within the current period the larger
+     * total wins and time is never taken back. A record from an old period
+     * counts for nothing, so the one from the current period wins whichever
+     * side it is on.
+     */
+    fun merge(
+        memory: Map<String, Spent>,
+        disk: Map<String, Spent>,
+        now: LocalDateTime,
+    ): Map<String, Spent> {
+        val merged = memory.toMutableMap()
+        disk.forEach { (key, stored) ->
+            val held = memory[key]
+            val period = runCatching { Period.valueOf(key.substringAfterLast('|')) }.getOrNull()
+            merged[key] = when {
+                held == null || period == null -> stored
+                held.periodKey == stored.periodKey -> if (stored.millis > held.millis) stored else held
+                held.periodKey == periodKey(period, now) -> held
+                else -> stored
+            }
+        }
+        return merged
     }
 
     /** Adds [elapsedMillis] to a record, rolling it over if the period turned. */
@@ -171,12 +238,16 @@ object Allowances {
      * holds the moment before the phone was locked overnight, and counting that
      * would spend a whole day's allowance while the user slept. So a gap longer
      * than [MAX_CREDITED_GAP_MS] is treated as time away and contributes
-     * nothing.
+     * nothing -- unless both ends of it were on the same limited target
+     * ([sameTarget]), where the user was there the whole time and the main
+     * thread was merely stalled. That much is credited, no more: the stall is
+     * not known to have been all watching.
      */
-    fun creditableMillis(previousAtMillis: Long?, nowMillis: Long): Long {
+    fun creditableMillis(previousAtMillis: Long?, nowMillis: Long, sameTarget: Boolean = false): Long {
         if (previousAtMillis == null) return 0L
         val gap = nowMillis - previousAtMillis
-        if (gap <= 0L || gap > MAX_CREDITED_GAP_MS) return 0L
+        if (gap <= 0L) return 0L
+        if (gap > MAX_CREDITED_GAP_MS) return if (sameTarget) MAX_CREDITED_GAP_MS else 0L
         return gap
     }
 

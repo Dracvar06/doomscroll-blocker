@@ -29,8 +29,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import cat.doorman.app.R
+import cat.doorman.app.limits.Allowance
 import cat.doorman.app.limits.DayRecord
+import cat.doorman.app.limits.HardTimes
 import cat.doorman.app.limits.Journal
+import cat.doorman.app.limits.Tapers
 import cat.doorman.app.limits.WeekSummary
 import cat.doorman.app.report.WatchedUse
 import java.time.DayOfWeek
@@ -59,6 +62,9 @@ import java.time.format.TextStyle
  *   the only thing here Doorman is willing to call a run of good weeks -- it is
  *   a statement about keeping a decision, not about anybody's habits.
  */
+/** A time limit that lowers itself, with the name it goes by. */
+data class TaperNote(val name: String, val allowance: Allowance)
+
 @Composable
 fun WeeklyReport(
     days: List<DayRecord>,
@@ -70,6 +76,8 @@ fun WeeklyReport(
     onCoffee: () -> Unit = {},
     onNotNow: () -> Unit = {},
     appTimesFor: (WeekSummary) -> List<AppTime> = { emptyList() },
+    tapers: List<TaperNote> = emptyList(),
+    hard: HardTimes = HardTimes.EMPTY,
 ) {
     val weeks = Journal.recentWeeks(days, today, count = WEEKS_CHARTED)
     val justGone = weeks.last()
@@ -90,6 +98,7 @@ fun WeeklyReport(
     HeadlineCard(use, justGone, weekBefore, onAskForUsageAccess)
     StreakCard(Journal.weeksWithoutLoosening(days, today))
     if (justGone.loosenings > 0) LooseningCard(justGone.loosenings, onReviewLimits)
+    TaperCard(tapers, hard, today)
     ThisWeekCard(Journal.daysOf(days, thisWeek.monday), thisWeek, today)
     AppTimeCard(stringResource(R.string.report_app_time_this_week), appTimesFor(thisWeek))
     TrendCard(weeks)
@@ -380,6 +389,48 @@ private fun LooseningCard(loosenings: Int, onReviewLimits: () -> Unit) {
     }
 }
 
+/**
+ * What the Monday just gone did to each limit that lowers itself: it came
+ * down, or it was held and why. A limit with nothing to say is left out, and
+ * with none to say anything the card is too.
+ */
+@Composable
+private fun TaperCard(tapers: List<TaperNote>, hard: HardTimes, today: LocalDate) {
+    val res = LocalResources.current
+    val lines = tapers.mapNotNull { (name, allowance) ->
+        when (val last = Tapers.lastWeek(allowance, hard, today)) {
+            null -> null
+            is Tapers.LastWeek.Lowered -> res.getString(
+                R.string.report_taper_lowered,
+                name,
+                amountText(res, allowance.period, last.to),
+                durationText(res, last.from),
+            )
+            is Tapers.LastWeek.Held -> res.getString(
+                when (last.by) {
+                    Tapers.HeldBy.HARD_DAY -> R.string.report_taper_held_day
+                    Tapers.HeldBy.HARD_WEEK -> R.string.report_taper_held_week
+                },
+                name,
+                amountText(res, allowance.period, Tapers.level(allowance, hard, today)),
+            )
+        }
+    }
+    if (lines.isEmpty()) return
+    SurfaceCard {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                stringResource(R.string.report_taper_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            lines.forEach { Text(it, style = MaterialTheme.typography.bodyMedium) }
+        }
+    }
+}
+
 // ------------------------------------------------------------------ charts
 
 @Composable
@@ -596,32 +647,6 @@ private fun ThisWeekCard(days: List<DayRecord?>, week: WeekSummary, today: Local
                 )
             }
             Figure(stringResource(R.string.report_loosenings), week.loosenings.toString())
-        }
-    }
-}
-
-/**
- * Today, at a glance, on the tab people actually open.
- *
- * The report is weekly and lives a tab away; the question somebody has while
- * holding the phone is how today is going. One line per app, no charts -- it
- * is a glance, and anything more would push the blocks further down the page.
- */
-@Composable
-fun TodayCard(times: List<AppTime>) {
-    if (times.isEmpty()) return
-    SurfaceCard {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Text(
-                stringResource(R.string.today_title),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            times.forEach { app ->
-                Figure(app.label, durationLabel((app.millis / 60_000L).toInt()))
-            }
         }
     }
 }

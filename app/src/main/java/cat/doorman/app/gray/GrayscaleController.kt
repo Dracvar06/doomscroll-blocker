@@ -52,9 +52,11 @@ class GrayscaleController(private val context: Context) {
     fun restoreIfOurs() {
         applied = null
         if (!memory.getBoolean(KEY_OURS, false) || !canWrite) return
+        // Only a restore that worked is remembered as done; a failed one has to
+        // be tried again.
         runCatching { turnOff() }
+            .onSuccess { applied = false }
             .onFailure { Log.w(TAG, "could not restore the colour correction", it) }
-        applied = false
     }
 
     private fun turnOn() {

@@ -6,14 +6,16 @@
          disclosure Google Play requires before the permission is requested.
          It has to be true, specific, and readable by someone who is rightly
          suspicious of an app asking to read their screen. -->
-    <string name="accessibility_service_description">Doorman watches which screen is open in apps you choose, so it can cover endless feeds while leaving messages, searches and individual videos alone.\n\nIt reads only the structure of the screen — the names of the elements in front of you. It never reads your messages, passwords or account details. It keeps a count of how often it stopped you and how long you spend in the apps you hold, on your phone only. Nothing ever leaves your phone.</string>
+    <string name="accessibility_service_description">Doorman uses Android\'s Accessibility API to read which screen is showing in the apps you choose.\n\nIt sees window content from every app as events arrive, but it looks only for the screens you asked it to hold. It discards the rest. Doorman also sees which apps have a window open, to know which app is in front.\n\nWhen it finds a held screen, it draws a cover over it.\n\nIt keeps a small journal on your phone of what it held: how often it stopped you, and how long you spent in the apps you hold. The journal is kept for 70 days and feeds the weekly report.\n\nIf you turn on grayscale, Doorman changes your phone\'s colour-correction setting, and puts it back afterwards.\n\nNothing leaves your phone. The app has no internet permission.</string>
 
-    <string name="home_tagline">Messages get through. The feed does not.</string>
-    <string name="status_enabled">Doorman is on</string>
-    <string name="status_enabled_body">Blocking is active for the screens you have switched on.</string>
+    <string name="status_chip_on">On</string>
+    <string name="status_chip_off">Off. Tap to fix.</string>
     <string name="status_disabled">Doorman is off</string>
-    <string name="status_disabled_body">Doorman needs accessibility access to see which screen is open. Nothing you type or read is collected.</string>
-    <string name="action_open_accessibility_settings">Open accessibility settings</string>
+    <string name="status_disabled_body">Doorman needs accessibility access to see which screen is open.</string>
+    <string name="action_enable_doorman">Turn on Doorman</string>
+    <string name="access_dialog_title">Doorman needs accessibility access</string>
+    <string name="access_dialog_agree">Agree and open settings</string>
+    <string name="access_dialog_decline">Not now</string>
 
     <!-- %1$s is the name of the blocked screen, e.g. "Shorts" -->
     <string name="blocked_title">%1$s is blocked</string>
@@ -37,7 +39,7 @@
     <string name="preset_balanced">Balanced</string>
     <string name="preset_nothing">Nothing</string>
 
-    <string name="pass_explainer">A blocked screen offers no way past it. If you really need in, you come here, wait, and get a short pass.</string>
+    <string name="pass_explainer">Need in anyway? Wait a few seconds for a short pass.</string>
     <string name="action_get_pass">Get a pass</string>
     <string name="unlock_title">Wait for a pass</string>
     <string name="unlock_pick_app">Which app?</string>
@@ -70,17 +72,14 @@
     <string name="action_share_report">Share the report</string>
     <string name="screen_yt_single_short" tools:ignore="UnusedResources">Scrolling on from a single Short</string>
     <string name="section_change_delay">Changing these settings</string>
-    <string name="change_delay_explainer">Switching a block off waits before it takes effect, so a moment of impulse cannot undo a decision. Switching one on is immediate.</string>
     <string name="change_delay_instant">Immediate</string>
     <string name="change_delay_seconds">%1$d s</string>
     <string name="change_delay_minutes">%1$d min</string>
-    <string name="pending_change_screen">Switching off %1$s in %2$d s</string>
-    <string name="pending_change_preset">Applying in %1$d s</string>
+    <string name="pending_change_screen">%1$s changes in %2$d s</string>
     <string name="pending_change_hint">Leave this screen and the change is cancelled.</string>
     <string name="action_cancel_change">Cancel</string>
     <string name="pending_change_delay">Shortening the wait in %1$d s</string>
     <string name="screen_ig_stories" tools:ignore="UnusedResources">Opening stories</string>
-    <string name="screen_ig_home_stories_tray" tools:ignore="UnusedResources">Stories row on the home feed</string>
     <string name="app_tiktok" tools:ignore="UnusedResources">TikTok</string>
     <string name="screen_tt_feed" tools:ignore="UnusedResources">The video feed</string>
     <string name="screen_tt_shared_video" tools:ignore="UnusedResources">Keeping swiping from a video someone sent</string>
@@ -106,8 +105,10 @@
         <item quantity="one">%1$d minute</item>
         <item quantity="other">%1$d minutes</item>
     </plurals>
-    <string name="mode_off">Unblocked</string>
+    <string name="mode_off">Allowed</string>
     <string name="mode_blocked">Blocked</string>
+    <!-- %1$s is a stretch of the day, e.g. "21:00–09:00". -->
+    <string name="mode_blocked_hours">Blocked %1$s</string>
     <string name="mode_allowance_hour">%1$s an hour</string>
     <string name="mode_allowance_day">%1$s a day</string>
     <string name="remaining_left">%1$s left</string>
@@ -115,21 +116,27 @@
     <string name="remaining_not_today">No limit today</string>
     <!-- A limit and the days it holds on, e.g. "10 min an hour (weekdays)". -->
     <string name="mode_on_days">%1$s (%2$s)</string>
-    <string name="section_other_apps">Other apps</string>
-    <string name="section_other_apps_hint">Any app on your phone. Games, shops, anything. Holding one here covers the whole app, because Doorman knows nothing about its insides.</string>
-    <string name="other_apps_empty">Search for an app to hold. The ones you choose stay listed here.</string>
         <string name="whole_app_row">The whole app</string>
-            <string name="pending_change_mode">%1$s becomes “%2$s” in %3$d s</string>
     <string name="other_apps_search">Search apps</string>
     <string name="card_close">Hide</string>
     <string name="card_open">Show</string>
-    <string name="screens_held_none">Nothing held</string>
-    <plurals name="screens_held">
-        <item quantity="one">%1$d screen held</item>
-        <item quantity="other">%1$d screens held</item>
+    <string name="now_title">Right now</string>
+    <string name="now_blocked">Blocked now: %1$s</string>
+    <!-- %1$s is the apps listed, e.g. "YouTube (2), Instagram (3)". -->
+    <string name="now_blocked_more">%1$s and %2$d more</string>
+    <plurals name="now_blocked_apps_more">
+        <item quantity="one">%1$s and %2$d more app</item>
+        <item quantity="other">%1$s and %2$d more apps</item>
     </plurals>
+    <!-- An app with some of its screens blocked: the number is how many. -->
+    <string name="now_blocked_app_screens">%1$s (%2$d)</string>
+    <!-- %1$s is a screen, %2$s what is left of its time, e.g. "Instagram · Reels: 12 minutes left". -->
+    <string name="now_left">%1$s: %2$s</string>
+    <string name="now_nothing">Nothing is holding you right now. Set something below.</string>
+    <string name="apps_not_on_phone">Not on this phone</string>
+    <string name="screens_held_none">Nothing blocked</string>
     <string name="screen_ig_reel_viewer" tools:ignore="UnusedResources">Reels, wherever they open</string>
-    <string name="action_help">What does this block?</string>
+    <string name="action_help_for">About %1$s</string>
     <string name="help_whole_app" tools:ignore="UnusedResources">Covers the entire app, every screen of it, including messages. This is the limit that counts every minute you spend watching, videos you open and the small floating window included; a limit on a single screen counts only the time on that screen. Use it for an app Doorman has no detailed rules for, or when you want the whole thing shut rather than a part of it.</string>
     <string name="help_yt_single_short" tools:ignore="UnusedResources">When someone sends you a Short, it plays. The block lands when you swipe past it, and after two minutes in any case: YouTube does not always say when you have swiped. So a link stays watchable without turning into a feed. Switch this off and a Short someone sent is blocked like any other.</string>
     <string name="help_yt_shorts" tools:ignore="UnusedResources">The Shorts player itself, wherever you reach it from: the Shorts tab, a link, a channel. Videos you search for and ordinary videos are untouched.</string>
@@ -140,7 +147,6 @@
     <string name="help_ig_reels" tools:ignore="UnusedResources">The Reels tab only. A reel opened from somewhere else — a message, a profile, a story — still plays. For those, use “Reels, wherever they open”.</string>
     <string name="help_ig_reel_viewer" tools:ignore="UnusedResources">Any reel playing full screen, no matter where you opened it from. Stricter than the Reels tab on its own. If “keep swiping from a reel someone sent” is also on, a reel sent to you still plays once before the block.</string>
     <string name="help_ig_feed" tools:ignore="UnusedResources">The scrolling posts on the home tab. The stories row along the top stays reachable unless you also block that, and messages, search and your profile are untouched.</string>
-    <string name="help_ig_home_stories_tray" tools:ignore="UnusedResources">Hides the row of stories along the top of the home feed, without blocking stories themselves. For when the row is the temptation but you still want to open stories from a message or from search.</string>
     <string name="help_ig_explore" tools:ignore="UnusedResources">The Explore grid behind the search tab. The search bar itself stays usable, so you can still look people up.</string>
     <string name="help_tt_shared_video" tools:ignore="UnusedResources">When you open a TikTok link from another app, that video plays and the block lands on the first swipe. TikTok drops shared links straight into the For You feed, so without this there is no way to watch what someone sent you.</string>
     <string name="help_tt_feed" tools:ignore="UnusedResources">The scrolling video feed: For You, Following, all of it. Your inbox, your profile and search still work.</string>
@@ -155,8 +161,8 @@
     <string name="app_not_installed">Not installed</string>
     <string name="blocked_body_schedule">Not at this hour. You set this one aside.</string>
     <string name="mode_allowance_week">%1$s a week</string>
-    <string name="limits_usage_heading">Time budget</string>
-    <string name="limits_add_allowance">Add a budget</string>
+    <string name="limits_usage_heading">Time limit</string>
+    <string name="limits_add_allowance">Add a time limit</string>
     <string name="limits_hours_heading">Blocked hours</string>
     <string name="limits_hours_hint">Set the hours it is closed. A block that ends earlier than it starts runs through the night.</string>
     <string name="limits_add_window">Add blocked hours</string>
@@ -181,10 +187,7 @@
     <string name="dial_field_hours">hours</string>
     <string name="dial_field_minutes">minutes</string>
     <string name="dial_field_seconds">seconds</string>
-    <string name="section_behaviour">How Doorman behaves</string>
-    <string name="section_about">The app</string>
     <string name="preset_permissive">Permissive</string>
-    <string name="preset_permissive_hint">Permissive holds only the feeds that never end. Home pages, subscriptions and friends\' stories stay open.</string>
     <string name="tab_blocks">Blocks</string>
     <string name="tab_report">Report</string>
     <string name="tab_settings">Settings</string>
@@ -194,20 +197,20 @@
     <string name="report_this_week">This week so far</string>
     <string name="report_last_week">Last week</string>
     <string name="report_stops">Times you were stopped</string>
-    <string name="report_time">Time counted against a budget</string>
+    <string name="report_time">Time counted against a time limit</string>
     <string name="report_loosenings">Limits weakened</string>
     <string name="weekly_report_switch">Keep a weekly report</string>
-    <string name="weekly_report_help">Doorman counts how often it stopped you, how much time was counted against a budget, and how many limits you loosened. Switched off, it records nothing new and the report tab disappears. What is already recorded stays until it ages out.</string>
+    <string name="weekly_report_help">Doorman counts how often it stopped you, how much time was counted against a time limit, and how many limits you weakened. Switched off, it records nothing new and the report tab disappears. What is already recorded stays until it ages out.</string>
     <string name="notify_channel_weekly">Weekly report</string>
     <string name="notify_channel_weekly_help">One notification a week, on Monday morning.</string>
     <string name="notify_week_title">How the week went</string>
     <plurals name="notify_week_stops">
-        <item quantity="one">Doorman stopped you %1$d time last week, and counted %2$s against a budget.</item>
-        <item quantity="other">Doorman stopped you %1$d times last week, and counted %2$s against a budget.</item>
+        <item quantity="one">Doorman stopped you %1$d time last week, and counted %2$s against a time limit.</item>
+        <item quantity="other">Doorman stopped you %1$d times last week, and counted %2$s against a time limit.</item>
     </plurals>
     <plurals name="notify_week_loosenings">
-        <item quantity="one">You loosened one limit. Do you want to keep it that way?</item>
-        <item quantity="other">You loosened %1$d limits. Do you want to keep them that way?</item>
+        <item quantity="one">You weakened one limit. Do you want to keep it that way?</item>
+        <item quantity="other">You weakened %1$d limits. Do you want to keep them that way?</item>
     </plurals>
     <string name="notify_week_none">Doorman did not have to stop you once last week.</string>
     <string name="report_usage_title">Time in the apps you hold</string>
@@ -219,13 +222,27 @@
     <string name="tutorial_start">Start</string>
     <string name="tutorial_1_title">Messages get through. The feed does not.</string>
     <string name="tutorial_1_body">Doorman holds the screens that never end — reels, shorts, the endless feed — and leaves the rest of the app alone. Your messages, your searches and the video a friend sent you all still work.</string>
-    <string name="tutorial_2_title">You choose what is held</string>
-    <string name="tutorial_2_body">Doorman holds screens, not whole apps, so you can keep Instagram and lose Reels. Start from one of the quick settings and then turn any single screen back on. Nothing is decided for you.</string>
-    <string name="tutorial_3_title">Loosening a limit is slow on purpose</string>
-    <string name="tutorial_3_body">Weakening a block does not take effect straight away — there is a wait, and you choose how long it is. That wait is the whole idea: the moment you want to undo a limit is the moment you are least able to judge it.</string>
-    <string name="tutorial_4_title">There is always a way in</string>
-    <string name="tutorial_4_body">If you genuinely need a held screen, ask for a short pass: you wait a few seconds and it opens. Once a week Doorman tells you how the week went, and you can switch that off.</string>
+    <string name="tutorial_2_title">Weakening a limit is slow on purpose</string>
+    <string name="tutorial_2_body">Weakening a block does not take effect straight away — there is a wait, and you choose how long it is. That wait is the whole idea: the moment you want to undo a limit is the moment you are least able to judge it.</string>
     <string name="tutorial_replay">Show the introduction again</string>
+    <string name="setup_title">Set up Doorman</string>
+    <string name="setup_step_enable_hint">Find Doorman in the list, switch it on, and accept.</string>
+    <string name="setup_step_level">Choose where to start</string>
+    <string name="setup_level_strict_example">Every feed, Reels and Shorts.</string>
+    <string name="setup_level_balanced_example">The main feeds and short videos.</string>
+    <string name="setup_level_permissive_example">Only the ones that never end.</string>
+    <string name="setup_step_notify">Get a weekly note (optional)</string>
+    <string name="setup_dismiss">Do not show this again</string>
+    <string name="preset_custom">Custom</string>
+    <string name="quick_settings">Quick settings</string>
+    <string name="quick_settings_heading">Quick settings: set every screen at once</string>
+    <string name="preset_allow_everything">Allow everything</string>
+    <string name="quick_settings_confirm_title">Apply %1$s?</string>
+    <plurals name="quick_settings_confirm_body">
+        <item quantity="one">%1$d screen will change.</item>
+        <item quantity="other">%1$d screens will change.</item>
+    </plurals>
+    <string name="quick_settings_confirm_button">Apply</string>
     <string name="report_delta_down">↓ %1$s</string>
     <string name="report_delta_up">↑ %1$s</string>
     <string name="report_delta_against">vs the week before</string>
@@ -263,13 +280,12 @@
     <string name="notify_service_off_title">Doorman is off</string>
     <string name="notify_service_off_body">The update switched off Doorman\'s accessibility access, so nothing is being held right now. Tap to turn it back on.</string>
     <string name="report_per_day">%1$s a day on average</string>
-    <string name="report_this_week_caption">Times you were stopped each day so far. Today is the darker bar.</string>
+    <string name="report_this_week_caption">Times you were stopped each day so far. Today is the solid bar.</string>
     <string name="report_app_time_this_week">Time by app, this week</string>
     <string name="report_app_time_last_week">Time by app, last week</string>
     <string name="report_other_screens">other</string>
     <string name="report_app_time_caption">Time Doorman saw you in each app it holds something in, and which screens it could name. Time spent looking at a block is not counted — that is a stop.</string>
     <string name="notify_week_top_app">Most of it in %1$s: %2$s.</string>
-    <string name="today_title">Today, in the apps you hold</string>
     <string name="screen_ig_stories_brief">Stories</string>
     <string name="screen_ig_single_reel_brief">A single reel</string>
     <string name="screen_ig_reel_viewer_brief">Reels</string>
@@ -318,35 +334,130 @@
     <string name="redirect_button_app">Go to %1$s</string>
     <string name="redirect_button_chat">Write to %1$s</string>
     <string name="blocked_body_reels_spent">You have watched the reels you set aside. They come back at %1$s.</string>
-    <string name="limits_reels_heading">Reels</string>
-    <string name="limits_reels_hint">How many reels you can scroll through before the screen closes. It opens again when the time is up.</string>
-    <string name="limits_add_reels">Limit the reels</string>
-    <string name="limits_reels_label">Reels</string>
+    <string name="limits_reels_heading">Videos in a row</string>
+    <string name="limits_reels_hint">How many videos you can swipe through before the screen closes. It opens again when the time is up.</string>
+    <string name="limits_add_reels">Limit videos in a row</string>
+    <string name="limits_reels_label">Videos</string>
     <string name="limits_reels_every_label">Every</string>
     <string name="limits_reels_more">More</string>
     <string name="limits_reels_fewer">Fewer</string>
     <string name="limits_reels_longer">Longer</string>
     <string name="limits_reels_shorter">Shorter</string>
     <plurals name="mode_reels">
-        <item quantity="one">%1$d reel every %2$s</item>
-        <item quantity="other">%1$d reels every %2$s</item>
+        <item quantity="one">%1$d video every %2$s</item>
+        <item quantity="other">%1$d videos every %2$s</item>
     </plurals>
-    <string name="gray_title">Grayscale</string>
-    <string name="gray_explainer">Turn the screen grey while you are on a screen you pick. A feed is a lot less compelling without its colour, and it comes back the moment you leave.</string>
-    <string name="gray_ready">Ready. Doorman can switch the screen to grey.</string>
     <string name="gray_needs_permission">Android only lets an app change the screen\'s colours once it has been given a permission, from a computer. With your phone plugged in and USB debugging on, run this once:</string>
     <string name="gray_copy_command">Copy the command</string>
     <string name="gray_command_copied">Copied</string>
     <string name="gray_row_off">In colour</string>
-    <string name="gray_row_always">Grey</string>
-    <string name="gray_choice_colour">In colour</string>
-    <string name="gray_choice_grey">Grey</string>
-    <string name="gray_editor_help">Grey follows the screen you are on, not just the app: grey on the reels, in colour in your messages.</string>
-    <string name="gray_hours_heading">Only at these hours</string>
+    <string name="gray_editor_help">Grey here, in colour everywhere else.</string>
     <string name="gray_hours_hint">Leave this empty for grey all day. With hours, the screen is grey only inside them.</string>
     <string name="gray_add_hours">Add hours</string>
+    <string name="gray_title">Grayscale</string>
+    <string name="gray_editor_title">Grayscale: %1$s</string>
+    <string name="gray_none_yet">Not used yet</string>
     <plurals name="gray_on_count">
         <item quantity="one">Grey on %1$d screen</item>
         <item quantity="other">Grey on %1$d screens</item>
     </plurals>
+    <string name="gray_overview_explainer">Grayscale turns the display grey, which makes a screen less tempting to keep looking at. Set it for a whole app or for single screens, always or only at the hours you choose.</string>
+    <string name="gray_overview_other">Any other screen can be made grey from its own page: open an app in Blocks and choose the screen.</string>
+    <string name="limits_seg_limited">Limited</string>
+    <string name="limits_sentence_blocked">Blocked all the time.</string>
+    <string name="limits_sentence_allowed">Allowed all the time.</string>
+    <string name="limits_sentence_limit">%1$s.</string>
+    <string name="limits_sentence_join">%1$s. Otherwise %2$s.</string>
+    <string name="limits_applies_in">This takes effect in %1$d s.</string>
+    <string name="limits_discard_title">Discard changes?</string>
+    <string name="limits_discard_keep">Keep editing</string>
+    <string name="limits_section_none">Not set</string>
+    <string name="action_discard">Discard</string>
+    <string name="help_more">More</string>
+    <string name="help_less">Less</string>
+    <string name="pending_progress_desc">%1$d seconds left</string>
+    <string name="pending_change_keep">Don\'t change it</string>
+    <string name="pending_change_from_to">From %1$s to %2$s</string>
+    <string name="pending_cancelled_left">The change was cancelled because you left Doorman.</string>
+    <string name="pending_applied">Changed: %1$s</string>
+    <string name="preset_applying">Applying %1$s in %2$d s</string>
+    <string name="colour_heading">Colour</string>
+    <string name="colour_normal">Normal</string>
+    <string name="colour_grey">Grey</string>
+    <string name="colour_grey_hours">Grey at hours</string>
+    <string name="colour_summary_grey">Grey</string>
+    <string name="colour_summary_hours">Grey %1$s</string>
+    <string name="colour_setup_title">Grey needs a one-time setup</string>
+    <string name="colour_setup_how">Show me how</string>
+    <string name="ring_description">From %1$s to %2$s, %3$s</string>
+    <string name="ring_set_start">Set the start time</string>
+    <string name="ring_set_end">Set the end time</string>
+    <string name="settings_group_safety">Safety</string>
+    <string name="settings_group_behaviour">Behaviour</string>
+    <string name="settings_group_about">About and help</string>
+    <string name="delay_row_title">Wait before weakening a block</string>
+    <string name="delay_row_example">Example: changing Reels from Blocked to Allowed waits %1$s.</string>
+    <string name="delay_row_example_instant">Example: changing Reels from Blocked to Allowed happens at once.</string>
+    <string name="delay_custom">Custom</string>
+    <string name="support_row_line">Doorman is free. You can buy me a coffee if it helps.</string>
+    <string name="app_detail_whole_hint">Applies to every screen, including messages.</string>
+    <string name="apps_add">Block another app</string>
+    <plurals name="apps_blocked_count">
+        <item quantity="one">%1$d blocked</item>
+        <item quantity="other">%1$d blocked</item>
+    </plurals>
+
+    <!-- A limit that lowers itself. %1$s is what it is now, e.g. "55 minutes a day"; %2$s its goal. -->
+    <string name="mode_taper">%1$s, lowering to %2$s</string>
+    <string name="taper_title">Lower it gradually</string>
+    <string name="taper_off">Not lowering</string>
+    <!-- %1$s is the goal, %2$s the pace, e.g. "Down to 20 minutes, 2 minutes a week". -->
+    <string name="taper_summary">Down to %1$s, %2$s</string>
+    <string name="taper_hint">Each Monday after a week with no hard day, this limit drops a little, until it reaches a goal you choose.</string>
+    <string name="taper_set_goal">Set a goal</string>
+    <string name="taper_goal_label">Goal</string>
+    <string name="taper_goal_lower">Lower goal</string>
+    <string name="taper_goal_higher">Higher goal</string>
+    <string name="taper_pace_label">Pace</string>
+    <string name="taper_pace_gentle">Gentle</string>
+    <string name="taper_pace_steady">Steady</string>
+    <string name="taper_pace_quick">Quick</string>
+    <!-- %1$s is the step, %2$s the goal, %3$s a date in the phone's own format. -->
+    <string name="taper_live">Lowers by %1$s each Monday after a week with no hard day. Reaches %2$s on %3$s at the earliest.</string>
+    <string name="taper_live_done">It has reached %1$s and stays there.</string>
+    <string name="taper_restart_note">Changing the minutes above starts the lowering again from the new amount.</string>
+    <string name="taper_stop">Stop lowering</string>
+    <string name="hard_day_title">Hard day</string>
+    <string name="hard_day_no_daily">You have no daily limit that applies today.</string>
+    <plurals name="hard_days_left">
+        <item quantity="one">%1$d left this week</item>
+        <item quantity="other">%1$d left this week</item>
+    </plurals>
+    <string name="hard_days_none_left">None left this week</string>
+    <!-- %1$s is how many are left this week, e.g. "1 left this week". -->
+    <string name="hard_day_on">Hard day: about a quarter more on daily limits until midnight. %1$s.</string>
+    <!-- A limit and what it becomes, e.g. "Instagram · Reels: 25 minutes a day". -->
+    <string name="hard_item">%1$s: %2$s</string>
+    <string name="hard_day_confirm_title">Take a hard day?</string>
+    <string name="hard_day_confirm_more">Your daily limits get about a quarter more until midnight: %1$s.</string>
+    <string name="hard_day_confirm_cost">It uses one of the two hard days you have each week.</string>
+    <string name="hard_day_confirm_taper">Limits that are lowering will not lower next Monday.</string>
+    <string name="hard_day_confirm_other">Hourly and weekly limits stay as they are.</string>
+    <string name="hard_day_confirm_button">Take a hard day</string>
+    <string name="hard_cannot_undo">It cannot be undone.</string>
+    <string name="hard_week_title">Hard week</string>
+    <string name="hard_week_supporting">Limits that are lowering step back up for seven days. Possible once every four weeks.</string>
+    <!-- %1$s is the last day, in the phone's own date format. -->
+    <string name="hard_week_on">Hard week: limits that are lowering are one step higher until %1$s.</string>
+    <string name="hard_week_next">Another hard week is possible from %1$s.</string>
+    <string name="hard_week_confirm_title">Take a hard week?</string>
+    <string name="hard_week_confirm_rise">These limits go up one step: %1$s.</string>
+    <string name="hard_week_confirm_ends">It lasts until %1$s.</string>
+    <string name="hard_week_confirm_next">The next one will be possible from %1$s.</string>
+    <string name="hard_week_confirm_button">Take a hard week</string>
+    <string name="report_taper_title">Limits that lower</string>
+    <!-- %1$s is the screen or app, %2$s what it is now, %3$s what it was. -->
+    <string name="report_taper_lowered">%1$s: %2$s this week (was %3$s)</string>
+    <string name="report_taper_held_day">%1$s stays at %2$s: last week had a hard day.</string>
+    <string name="report_taper_held_week">%1$s stays at %2$s: last week was part of a hard week.</string>
 </resources>

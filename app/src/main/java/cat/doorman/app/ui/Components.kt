@@ -16,20 +16,25 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import cat.doorman.app.R
 
 /**
  * The small coloured label above a group of settings, as Android's own
@@ -44,6 +49,28 @@ fun SectionHeader(text: String, modifier: Modifier = Modifier) {
         color = MaterialTheme.colorScheme.primary,
         modifier = modifier.padding(top = 16.dp, bottom = 4.dp),
     )
+}
+
+/**
+ * The top of a page that sits inside a tab, with its way back. The bottom bar
+ * stays, so Back has to be on the page as well as on the gesture.
+ */
+@Composable
+fun SubPageHeader(title: String, onBack: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = onBack) {
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = stringResource(R.string.action_back),
+            )
+        }
+        Spacer(Modifier.width(4.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.weight(1f),
+        )
+    }
 }
 
 /**
@@ -82,6 +109,8 @@ fun AppAvatar(icon: ImageBitmap?, label: String, size: Dp, loading: Boolean = fa
     }
 }
 
+private const val DISABLED_ALPHA = 0.38f
+
 /**
  * A row that takes you somewhere or does one thing: icon, what it is, a line
  * saying why you would, and an arrow. The Settings tab's loose text buttons
@@ -93,12 +122,14 @@ fun NavRow(
     icon: ImageVector,
     title: String,
     supporting: String? = null,
+    enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
+            .alpha(if (enabled) 1f else DISABLED_ALPHA)
             .heightIn(min = 56.dp)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,

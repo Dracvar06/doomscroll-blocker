@@ -28,6 +28,7 @@ import cat.doorman.app.rules.ScreenEvaluator
 import cat.doorman.app.rules.OverlayBounds
 import cat.doorman.app.data.ScreenPreferences
 import cat.doorman.app.limits.Allowances
+import cat.doorman.app.limits.HardTimes
 import cat.doorman.app.gray.GrayPolicy
 import cat.doorman.app.gray.GraySetting
 import cat.doorman.app.gray.GrayscaleController
@@ -36,12 +37,16 @@ import cat.doorman.app.limits.ReelQuota
 import cat.doorman.app.limits.ReelWindow
 import java.time.LocalDateTime
 import cat.doorman.app.R
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -84,6 +89,7 @@ class DoormanAccessibilityService : AccessibilityService() {
     private var screenLimits: Map<String, Limits> = emptyMap()
     private var appLimits: Map<String, Limits> = emptyMap()
     private var ledger: Map<String, Allowances.Spent> = emptyMap()
+    private var hardTimes: HardTimes = HardTimes.EMPTY
 
     /** Where the screen goes grey, by target. See [updateGrayscale]. */
     private var graySettings: Map<String, GraySetting> = emptyMap()
@@ -97,8 +103,11 @@ class DoormanAccessibilityService : AccessibilityService() {
      * running, and a paused video emits none either; leaving the clock to be
      * advanced by events would hand out unlimited time on exactly the screens
      * an allowance is for.
+     *
+     * Gaps are measured on the monotonic clock; the wall clock is read only to
+     * name the period the time falls in.
      */
-    private val allowanceClock = AllowanceClock { System.currentTimeMillis() }
+    private val allowanceClock = AllowanceClock { SystemClock.elapsedRealtime() }
     private val clockTicker = ClockTicker(
         periodMillis = CLOCK_TICK_MS,
         post = { r, delay -> handler.postDelayed(r, delay) },
@@ -108,6 +117,20 @@ class DoormanAccessibilityService : AccessibilityService() {
     private var activePass: Prefs.Pass? = null
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    /**
+     * Where the time already counted is written. Apart from [serviceScope] on
+     * purpose: that one is cancelled as the service unbinds, and a write
+     * launched into it a line earlier is not certain to happen.
+     */
+    private val writeScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val writes = java.util.concurrent.ConcurrentHashMap.newKeySet<Job>()
+
+    private fun writeAsync(block: suspend () -> Unit) {
+        val job = writeScope.launch { block() }
+        writes += job
+        job.invokeOnCompletion { writes -= job }
+    }
 
     private val handler = Handler(Looper.getMainLooper())
     private val evaluate = Runnable { evaluateCurrentScreen() }
@@ -160,7 +183,29 @@ class DoormanAccessibilityService : AccessibilityService() {
                 evaluateCurrentScreen()
             }
         }
-        serviceScope.launch { prefs.spent.collectLatest { ledger = it } }
+        // Merged, never assigned: an emission can describe the disk from before
+        // the latest flush, and taking it as it stands would hand back time
+        // that has already been counted.
+        serviceScope.launch {
+            prefs.spent.collectLatest { disk ->
+                val now = LocalDateTime.now()
+                val merged = Allowances.merge(ledger, disk, now)
+                if (disk != ledger) {
+                    Log.i(
+                        TAG,
+                        "ledger from disk differs from memory: disk=${disk.mapValues { it.value.millis }} " +
+                            "memory=${ledger.mapValues { it.value.millis }}",
+                    )
+                }
+                ledger = merged
+            }
+        }
+        serviceScope.launch {
+            prefs.hardTimes.collectLatest {
+                hardTimes = it
+                evaluateCurrentScreen()
+            }
+        }
         serviceScope.launch {
             prefs.grayscale.collectLatest {
                 graySettings = it
@@ -169,8 +214,19 @@ class DoormanAccessibilityService : AccessibilityService() {
         }
         // Read once, not followed: this service is the only thing that writes
         // the reel books, and following them would let a slow echo of an older
-        // write put back a reel that has already been counted.
-        serviceScope.launch { reelCounter.load(prefs.reelBooks.first()) }
+        // write put back a reel that has already been counted. A failed read
+        // starts the books empty, which is the fail-open side of it.
+        serviceScope.launch {
+            val stored = try {
+                prefs.reelBooks.first()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "could not read the reel books", e)
+                emptyMap()
+            }
+            reelCounter.load(stored)
+        }
         serviceScope.launch {
             prefs.redirect.collectLatest {
                 redirect = it
@@ -189,6 +245,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         instance = this
         Log.i(TAG, "service connected; ime=$imePackage")
         registerDumpReceiver()
+        registerScreenReceiver()
     }
 
     /**
@@ -249,6 +306,14 @@ class DoormanAccessibilityService : AccessibilityService() {
             ContextCompat.RECEIVER_EXPORTED,
         )
         dumpReceiver = receiver
+    }
+
+    /**
+     * Screen off, on and unlocked, in every build: the lock check that takes
+     * the clock and the overlay down hangs on hearing about them.
+     */
+    private fun registerScreenReceiver() {
+        if (screenReceiver != null) return
         val screen = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 when (intent.action) {
@@ -299,7 +364,9 @@ class DoormanAccessibilityService : AccessibilityService() {
 
     override fun onUnbind(intent: Intent?): Boolean {
         instance = null
-        stopClock()
+        Log.i(TAG, "unbind: pendingMs=${allowanceClock.pendingMillis()}")
+        stopClock("unbind")
+        clockTicker.cancel()
         presenceClock.stop()
         flushPresence()
         handler.removeCallbacks(presenceTick)
@@ -315,6 +382,9 @@ class DoormanAccessibilityService : AccessibilityService() {
         budgetBlock = null
         if (::overlay.isInitialized) overlay.hideEntryCovers()
         serviceScope.cancel()
+        // The last of the time counted has to reach storage: waited for, but
+        // not for long, since this runs on the main thread.
+        runBlocking { withTimeoutOrNull(UNBIND_FLUSH_MS) { writes.toList().joinAll() } }
         handler.removeCallbacks(evaluate)
         handler.removeCallbacks(passExpiry)
         handler.removeCallbacks(allowanceExpiry)
@@ -400,6 +470,9 @@ class DoormanAccessibilityService : AccessibilityService() {
     private fun reconcileForeground() {
         val result = foregroundNow()
         handleFloatingWindows(result?.pip.orEmpty())
+        // Doorman's own windows move nothing in lastPackage, so a list that
+        // names no app is the one place to notice colour is due.
+        updateGrayscale()
         val pkg = result?.appPackage ?: return
         if (pkg == lastPackage) return
         logTransition(pkg, "window list")
@@ -679,7 +752,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         if (screenId !in enabledScreenIds) return false
         val limit = screenLimits[screenId] ?: Limits.BLOCKED
         if (limit.isOff) return false
-        return Allowances.decide(listOf(Allowances.Target(screenId, limit, spent)), now) is Allowances.Outcome.Block
+        return Allowances.decide(listOf(Allowances.Target(screenId, limit, spent)), now, hardTimes) is Allowances.Outcome.Block
     }
 
     // ---------------------------------------------------------------- redirect
@@ -807,7 +880,7 @@ class DoormanAccessibilityService : AccessibilityService() {
             if (overlay.isCoverShowing) overlay.hideCover()
             if (pipCharging) {
                 pipCharging = false
-                stopClock()
+                stopClock("floating window gone")
             }
             return
         }
@@ -816,13 +889,17 @@ class DoormanAccessibilityService : AccessibilityService() {
         val appOutcome = if (appLimit.isOff) {
             null
         } else {
-            Allowances.decide(listOf(Allowances.Target(canonical, appLimit, ledgerNow())), LocalDateTime.now())
+            Allowances.decide(
+                listOf(Allowances.Target(canonical, appLimit, ledgerNow())),
+                LocalDateTime.now(),
+                hardTimes,
+            )
         }
         when (val action = PipPolicy.decide(blockedWhenLeft == canonical, appOutcome)) {
             PipPolicy.Action.Cover -> {
                 if (pipCharging) {
                     pipCharging = false
-                    stopClock()
+                    stopClock("floating window covered")
                 }
                 val canClose = canonical !in closeFailed
                 overlay.showCover(
@@ -850,7 +927,7 @@ class DoormanAccessibilityService : AccessibilityService() {
                     flushClock()
                 } else if (pipCharging) {
                     pipCharging = false
-                    stopClock()
+                    stopClock("floating window, screen off")
                 }
             }
 
@@ -1147,6 +1224,10 @@ class DoormanAccessibilityService : AccessibilityService() {
     }
 
     private fun clearReels() {
+        // Leaving a counting screen starts the clock on how long the visit
+        // lasts; clearing again with nothing armed must not restart it.
+        if (reelScreenId != null) reelCounter.onLeft(System.currentTimeMillis())
+        reelSwipes.reset()
         reelKey = null
         reelPackage = null
         reelScreenId = null
@@ -1169,6 +1250,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         verdict: ScreenEvaluator.Verdict,
         snapshot: cat.doorman.app.model.ScreenSnapshot?,
         pkg: String,
+        underSheet: Boolean,
     ): Boolean {
         val screenId = verdict.screenId
         val rule = screenId?.let { id -> rules.appFor(pkg)?.screens?.firstOrNull { it.id == id } }
@@ -1183,7 +1265,10 @@ class DoormanAccessibilityService : AccessibilityService() {
         }
         val now = System.currentTimeMillis()
         val key = "${snapshot.packageName ?: pkg}/$screenId"
-        reelKey = key
+        // A comments or share sheet over the reel scrolls too, and that is
+        // reading. The reel still counts as being on screen, but nothing is
+        // listening for swipes until the reel itself is back in front.
+        reelKey = if (underSheet) null else key
         reelPackage = rules.canonicalPackage(pkg) ?: pkg
         reelScreenId = screenId
         reelQuota = quota
@@ -1191,7 +1276,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         // the single-reel block is: reading the tree mid-swipe is slow.
         val band = bandFor(snapshot, screenId)
         reelBlock = BudgetBlock(key, screenId, labelFor(rule.labelKey), band)
-        reelSwipes.begin(key, 1, now)
+        if (underSheet) reelSwipes.reset() else reelSwipes.begin(key, 1, now)
         handler.removeCallbacks(reelReopen)
 
         val state = reelCounter.onScreen(screenId, quota, now, ::saveReelBook)
@@ -1217,6 +1302,14 @@ class DoormanAccessibilityService : AccessibilityService() {
         val eventPackage = event.packageName?.toString()
         if (eventPackage != null && (rules.canonicalPackage(eventPackage) ?: eventPackage) != reelPackage) return
         val now = System.currentTimeMillis()
+        val pass = activePass
+        if (pass != null && (rules.canonicalPackage(pass.packageName) ?: pass.packageName) == reelPackage &&
+            pass.isActiveAt(now)
+        ) {
+            return
+        }
+        if (reelCounter.settling(now)) return
+        if (!ReelCounter.isPagerSized(scrolledViewHeight(event), resources.displayMetrics.heightPixels)) return
         val swiped = reelSwipes.onScroll(
             key = key,
             deltaX = event.scrollDeltaX,
@@ -1278,6 +1371,9 @@ class DoormanAccessibilityService : AccessibilityService() {
     /** What the rules call the current screen, held or not. Null when nothing matches. */
     private var lastRecognisedScreenId: String? = null
 
+    /** Where the user was before the screen in front, inside the app in front. */
+    private val navigation = NavigationTracker()
+
     /** The app the user was in just before the one in front of them. */
     private var arrivedFromPackage: String? = null
 
@@ -1322,6 +1418,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         // Whatever was decided -- blocked, allowed, not recognised -- is the
         // state the presence clock should be timing from here on.
         notePresence()
+        syncWatchdog()
     }
 
     /**
@@ -1335,16 +1432,25 @@ class DoormanAccessibilityService : AccessibilityService() {
      */
     private fun updateGrayscale() {
         if (!::grayscale.isInitialized) return
-        val want = graySettings.isNotEmpty() && !screenLocked() && grayDesired()
+        val want = if (graySettings.isEmpty() || screenLocked()) false else grayDesired() ?: return
         if (!grayscale.set(want) && want) {
             Log.w(TAG, "grayscale wanted but Doorman has not been given WRITE_SECURE_SETTINGS")
         }
     }
 
-    private fun grayDesired(): Boolean {
+    /** Null when the window list cannot say, which leaves the screen as it is. */
+    private fun grayDesired(): Boolean? {
         val pkg = lastPackage ?: return false
         val app = rules.canonicalPackage(pkg) ?: return false
-        return GrayPolicy.shouldBeGray(graySettings, app, lastRecognisedScreenId, LocalDateTime.now())
+        if (!GrayPolicy.shouldBeGray(graySettings, app, lastRecognisedScreenId, LocalDateTime.now())) return false
+        // lastPackage does not follow Doorman's own windows, so it can still name
+        // a grey app while Doorman is what is in front. The window list knows.
+        // A list naming no app at all is the shade or a transition, not an answer:
+        // colour there flickered the screen on every app change.
+        val facts = windowFacts() ?: return true
+        if (Foreground.resolve(facts, ignoredPackages()).appPackage != null) return true
+        val doormanInFront = facts.any { it.isApplication && it.active && it.packageName == packageName }
+        return if (doormanInFront) false else null
     }
 
     private fun evaluateCurrentScreenNow() {
@@ -1359,7 +1465,8 @@ class DoormanAccessibilityService : AccessibilityService() {
             overlay.hideEntryCovers()
             arrivalCover = false
             tabCoverActive = false
-            stopClock()
+            clearReels()
+            stopClock("screen locked")
             return
         }
         val snapshot = SnapshotCapture.capture(this, preferPackage = lastPackage)
@@ -1369,7 +1476,8 @@ class DoormanAccessibilityService : AccessibilityService() {
         val pkg = snapshot?.packageName ?: lastPackage
         if (pkg == null || pkg !in watchedPackages()) {
             Log.d(TAG, "evaluate: skip pkg=$pkg nodes=${snapshot?.nodes?.size}")
-            stopClock()
+            stopClock("app not watched")
+            clearReels()
             overlay.hideEntryCovers()
             if (overlay.isShowing || overlay.isCardCoverShowing) {
                 // On a real Home the launcher's tree is read a moment before
@@ -1413,7 +1521,8 @@ class DoormanAccessibilityService : AccessibilityService() {
             rules.canonicalPackage(pass.packageName) == rules.canonicalPackage(pkg) &&
             pass.isActiveAt(System.currentTimeMillis())
         ) {
-            stopClock()
+            stopClock("pass active")
+            clearReels()
             // Nothing is being counted under a pass, so no swipe can spend it.
             // Nor is anything blocked, so nothing seen before it may carry over.
             held = null
@@ -1474,6 +1583,9 @@ class DoormanAccessibilityService : AccessibilityService() {
         val verdict = cover.verdict
         val underSheet = verdict !== ruleVerdict
         if (underSheet) lastRecognisedScreenId = verdict.screenId
+        if (snapshot != null && rules.appFor(pkg) != null) {
+            navigation.record(pkg, lastRecognisedScreenId, SystemClock.uptimeMillis())
+        }
         Log.i(
             TAG,
             "evaluate: pkg=$pkg nodes=${snapshot?.nodes?.size} " +
@@ -1494,7 +1606,7 @@ class DoormanAccessibilityService : AccessibilityService() {
             // scrolls, and that is reading, not the feed. What decides is only
             // whether the item still had its allowance: comments on the reel
             // someone sent stay open, comments on the one past it do not.
-            stopClock()
+            if (singleVideoClosedByTime(pkg, verdict.screenId, snapshot)) return
             budgetKey = null
             val key = "${pkg}/${verdict.screenId}"
             if (scrollBudget.hasBudget(key, System.currentTimeMillis())) {
@@ -1513,7 +1625,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         if (verdict.outcome == ScreenEvaluator.Outcome.ALLOW_ONCE &&
             verdict.screenId != null && snapshot != null
         ) {
-            stopClock()
+            if (singleVideoClosedByTime(pkg, verdict.screenId, snapshot)) return
             val key = "${snapshot.packageName}/${verdict.screenId}"
             val arrivedFromElsewhere = ScrollSession.startsFresh(
                 session, snapshot.packageName ?: pkg, verdict.screenId,
@@ -1573,7 +1685,7 @@ class DoormanAccessibilityService : AccessibilityService() {
             }
         }
 
-        val outcome = Allowances.decide(targets, LocalDateTime.now())
+        val outcome = Allowances.decide(targets, LocalDateTime.now(), hardTimes)
         screenBlockedNow = if (outcome is Allowances.Outcome.Block) verdict.screenId else null
         // The line above logs what the *rules* made of the screen. This logs
         // what actually happens to it, which since allowances arrived is a
@@ -1588,11 +1700,11 @@ class DoormanAccessibilityService : AccessibilityService() {
             clearReels()
             false
         } else {
-            applyReelQuota(verdict, snapshot, pkg)
+            applyReelQuota(verdict, snapshot, pkg, underSheet)
         }
         when (outcome) {
             is Allowances.Outcome.Allow -> {
-                stopClock()
+                stopClock("allowed")
                 if (!reelsClosed) {
                     stoppedTarget = null
                     if (blockedWhenLeft == canonical) blockedWhenLeft = null
@@ -1601,7 +1713,7 @@ class DoormanAccessibilityService : AccessibilityService() {
             }
 
             is Allowances.Outcome.Block -> {
-                stopClock()
+                stopClock("blocked")
                 // Counted once per encounter, not once per evaluation. The
                 // service re-decides on every content event, so counting here
                 // without the guard would score one glance at a blocked feed as
@@ -1621,7 +1733,12 @@ class DoormanAccessibilityService : AccessibilityService() {
                     if (blockedWhenLeft == canonical) blockedWhenLeft = null
                     if (overlay.isShowing) overlay.hide()
                 }
-                startClock(outcome)
+                val charge = ClockPlan.afterDecision(outcome, reelsClosed)
+                if (charge.isEmpty()) {
+                    stopClock("reels closed")
+                } else {
+                    startClock(charge, outcome.remainingMillis)
+                }
             }
         }
     }
@@ -1682,37 +1799,152 @@ class DoormanAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * Starts or continues counting time against a running allowance.
+     * Starts or continues counting time against [charge], ledger keys.
      *
      * The ticker is what actually advances the clock; the evaluation only says
      * what to charge. Its period is short enough that the block lands within a
      * second or so of the allowance running out.
      */
-    private fun startClock(outcome: Allowances.Outcome.OnTheClock) {
-        allowanceClock.tick(outcome.charge)
+    private fun startClock(charge: List<String>, remainingMillis: Long? = null) {
+        val at = SystemClock.elapsedRealtime()
+        if (remainingMillis != null && at - lastClockLogAt >= LOG_EVERY_MS) {
+            lastClockLogAt = at
+            Log.i(TAG, "clock on: charge=$charge remainingMs=$remainingMillis")
+        }
+        allowanceClock.tick(charge)
         clockRunning = true
         clockTicker.ensure()
     }
 
-    private fun stopClock() {
+    /**
+     * A single video is let through once, whatever the app's own limit says,
+     * and the time on it is still counted against the app and its own screen.
+     * Counted only: whether those were spent or hours are on makes no
+     * difference here, as it makes none to a hard block.
+     *
+     * Opened from a screen the user limits by time, it is that screen carrying
+     * on instead: the origin's allowances are charged as if still there, and
+     * if the origin is out of time or in its blocked hours the video gets the
+     * block the origin would. Returns true when it did, so the caller stops.
+     */
+    private fun singleVideoClosedByTime(
+        pkg: String,
+        screenId: String,
+        snapshot: cat.doorman.app.model.ScreenSnapshot?,
+    ): Boolean {
+        val canonical = rules.canonicalPackage(pkg) ?: pkg
+        val appLimit = appLimits[canonical] ?: Limits.OFF
+        val screenLimit = screenLimits[screenId] ?: Limits.OFF
+        val spent = ledgerNow()
+        val counted = buildList {
+            if (!appLimit.isOff) add(Allowances.Target(canonical, appLimit, spent))
+            if (screenLimit.allowances.isNotEmpty()) add(Allowances.Target(screenId, screenLimit, spent))
+        }
+        val origin = ClockPlan.originOf(
+            navigation.entryFor(pkg, lastRecognisedScreenId), enabledScreenIds, screenLimits, spent,
+        )
+        val now = LocalDateTime.now()
+        when (val plan = ClockPlan.onSingleVideo(origin, counted, now, hardTimes)) {
+            is ClockPlan.SingleVideo.Closed -> {
+                stopClock("single video, ${plan.block.targetId} is out of time")
+                screenBlockedNow = plan.block.targetId
+                // The video's own one-reel allowance has nothing left to say
+                // while time has closed it.
+                budgetKey = null
+                budgetBlock = null
+                handler.removeCallbacks(allowanceExpiry)
+                if (stoppedTarget != plan.block.targetId) {
+                    stoppedTarget = plan.block.targetId
+                    serviceScope.launch {
+                        Prefs(this@DoormanAccessibilityService).recordToday(stops = 1)
+                    }
+                }
+                showBlock(plan.block, snapshot, pkg)
+                return true
+            }
+
+            is ClockPlan.SingleVideo.Counted -> {
+                if (plan.charge.isEmpty()) {
+                    stopClock("allow-once, nothing to count")
+                    return false
+                }
+                val at = SystemClock.elapsedRealtime()
+                if (at - lastAllowOnceLogAt >= LOG_EVERY_MS) {
+                    lastAllowOnceLogAt = at
+                    Log.i(
+                        TAG,
+                        "allow-once counted: pkg=$pkg screen=$screenId origin=${origin?.id} charge=${plan.charge}",
+                    )
+                }
+                startClock(plan.charge)
+                return false
+            }
+        }
+    }
+
+    private var lastClockLogAt = -LOG_EVERY_MS
+    private var lastAllowOnceLogAt = -LOG_EVERY_MS
+    private var lastClockTickAt = 0L
+
+    private fun stopClock(why: String) {
         if (!clockRunning && allowanceClock.pendingMillis() == 0L) return
-        clockTicker.cancel()
+        Log.i(TAG, "clock stop: why=$why pendingMs=${allowanceClock.pendingMillis()}")
         clockRunning = false
         allowanceClock.stop()
         flushClock()
     }
 
     /**
-     * One tick of a running allowance.
+     * Whether something should be looking at the screen every second even with
+     * the clock stopped: an app in front that has an allowance or hours, on the
+     * app or on one of its screens. A video playing in silence raises no event,
+     * so without this a block would wait for the next one, and one frame the
+     * rules could not read would end the checking for good.
+     */
+    private fun watchdogWanted(): Boolean {
+        val pkg = lastPackage ?: return false
+        if (pkg !in watchedPackages() || screenLocked()) return false
+        val canonical = rules.canonicalPackage(pkg) ?: pkg
+        val limits = buildList {
+            appLimits[canonical]?.let(::add)
+            rules.apps[canonical]?.screens?.forEach { screen ->
+                if (screen.id in enabledScreenIds) screenLimits[screen.id]?.let(::add)
+            }
+        }
+        return Allowances.hasTimeLimit(limits)
+    }
+
+    /**
+     * The same ticker as the clock's, kept going or let go. One ticker, so there
+     * is never a second one stacked on it.
+     */
+    private fun syncWatchdog() {
+        if (watchdogWanted()) {
+            clockTicker.ensure()
+        } else if (!clockRunning) {
+            clockTicker.cancel()
+            lastClockTickAt = 0L
+        }
+    }
+
+    /**
+     * One tick: the screen is looked at again whatever was decided last, and a
+     * running allowance is advanced by that evaluation.
      *
      * Time spent while the screen is off is not time spent: a phone face down
      * on a table with a game open would otherwise burn through the day's
      * allowance without anyone looking at it.
      */
     private fun onClockTick() {
+        val at = SystemClock.elapsedRealtime()
+        if (lastClockTickAt != 0L && at - lastClockTickAt > TICK_GAP_WARN_MS) {
+            Log.i(TAG, "tick gap: ${at - lastClockTickAt}ms")
+        }
+        lastClockTickAt = at
         val power = getSystemService(android.os.PowerManager::class.java)
         if (power?.isInteractive == false) {
-            stopClock()
+            stopClock("screen off")
+            lastClockTickAt = 0L
             return
         }
         evaluateCurrentScreen()
@@ -1725,6 +1957,9 @@ class DoormanAccessibilityService : AccessibilityService() {
      * Not on every tick: the ledger is written at a human pace, because the
      * cost of losing the last few seconds to a crash is a few seconds, and the
      * cost of writing every second forever is the battery.
+     *
+     * What is written is the time added since the last write, to be added to
+     * what is stored; memory takes it at once, so decisions do not wait.
      */
     private fun flushClock() {
         val now = System.currentTimeMillis()
@@ -1733,18 +1968,22 @@ class DoormanAccessibilityService : AccessibilityService() {
         val pending = allowanceClock.drain()
         if (pending.isEmpty()) return
         lastFlushAt = now
-        // Only the entries that changed, so the write is a merge, not the ledger.
-        val charges = Allowances.withPending(ledger, pending, LocalDateTime.now())
+        val written = Allowances.withPending(ledger, pending, LocalDateTime.now())
             .filterKeys { it in pending }
-        if (charges.isEmpty()) return
-        ledger = ledger + charges
+        Log.i(
+            TAG,
+            "flush: pending=$pending before=${ledger.filterKeys { it in pending }.mapValues { it.value.millis }} " +
+                "written=${written.mapValues { it.value.millis }}",
+        )
+        ledger = ledger + written
         // The largest of the charges, not their sum: one stretch of watching is
         // charged to every budget that applies to it, so adding them would
         // report an hour of Reels as two or three.
         val watched = pending.values.maxOrNull() ?: 0L
-        serviceScope.launch {
+        val stamp = LocalDateTime.now()
+        writeAsync {
             Prefs(this@DoormanAccessibilityService).let {
-                it.chargeSpent(charges)
+                it.addSpent(pending, stamp)
                 if (watched > 0L) it.recordToday(spentMillis = watched)
             }
         }
@@ -1829,7 +2068,7 @@ class DoormanAccessibilityService : AccessibilityService() {
             .mapKeys { it.key.substringAfter('|') }
         val screens = pending.filterKeys { it.startsWith("$PRESENCE_SCREEN|") }
             .mapKeys { it.key.substringAfter('|') }
-        serviceScope.launch {
+        writeAsync {
             Prefs(this@DoormanAccessibilityService).recordToday(apps = apps, screens = screens)
         }
     }
@@ -1910,11 +2149,15 @@ class DoormanAccessibilityService : AccessibilityService() {
         }
         // Leaving the app ends whatever was on the clock, and the time belongs
         // to the app being left rather than the one being entered.
-        stopClock()
+        stopClock("left app")
         if (pkg !in launcherPackages) overlay.hideRecentsCover()
         lastPackage = pkg
         lastRecognisedScreenId = null
+        // What came before in another app says nothing about how this screen
+        // was reached, and a link is exactly that.
+        navigation.clear()
         notePresence()
+        syncWatchdog()
         // Back from the home screen or recents into an app that was left with
         // a block standing: the app is on screen a few hundred milliseconds
         // before its screen can be read. Covered meanwhile; the evaluation that
@@ -1944,18 +2187,28 @@ class DoormanAccessibilityService : AccessibilityService() {
     ): OverlayBounds.Band {
         val app = rules.appFor(snapshot.packageName)
         val rule = app?.screens?.firstOrNull { it.id == screenId }
+        val followed = rule?.keepVisibleTopFollows
+        val top = OverlayBounds.topPlanFor(
+            rule = rule,
+            appLevelAnchors = app?.keepVisibleTopViewIds.orEmpty(),
+            enabledScreenIds = enabledScreenIds,
+            blockedScreenIds = if (followed != null &&
+                screenBlockedNow(followed, ledgerNow(), LocalDateTime.now())
+            ) {
+                setOf(followed)
+            } else {
+                emptySet()
+            },
+        )
         return OverlayBounds.compute(
             snapshot = snapshot,
-            keepVisibleTopViewIds = OverlayBounds.topAnchorsFor(
-                rule = rule,
-                appLevelAnchors = app?.keepVisibleTopViewIds.orEmpty(),
-                enabledScreenIds = enabledScreenIds,
-            ),
+            keepVisibleTopViewIds = top.keepClear,
             keepVisibleViewIds = app?.keepVisibleViewIds.orEmpty(),
             keepVisibleBelowViewIds = app?.keepVisibleBelowViewIds.orEmpty(),
             keepVisibleBottomPx = ((app?.keepVisibleBottomDp ?: 0) *
                 resources.displayMetrics.density).toInt(),
             screenHeightPx = resources.displayMetrics.heightPixels,
+            coverFromViewIds = top.coverFrom,
         )
     }
 
@@ -2040,6 +2293,15 @@ class DoormanAccessibilityService : AccessibilityService() {
 
         /** How often accumulated time reaches storage. */
         private const val FLUSH_INTERVAL_MS = 10_000L
+
+        /** The longest the main thread waits for the last writes as the service unbinds. */
+        private const val UNBIND_FLUSH_MS = 2_000L
+
+        /** A tick this late means the main thread was stalled. */
+        private const val TICK_GAP_WARN_MS = 3_000L
+
+        /** How often the busier clock log lines may repeat. */
+        private const val LOG_EVERY_MS = 60_000L
 
         // Phase 5 should replace this with a window-type check
         // (AccessibilityWindowInfo.TYPE_APPLICATION), which catches every

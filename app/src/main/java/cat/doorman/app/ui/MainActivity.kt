@@ -18,13 +18,16 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.ButtonDefaults
@@ -34,8 +37,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -44,6 +49,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Lock
@@ -51,8 +58,10 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -68,10 +77,12 @@ import cat.doorman.app.report.UsageAccess
 import cat.doorman.app.report.WatchedUse
 import cat.doorman.app.report.WeeklyReportNotifier
 import cat.doorman.app.data.Prefs
+import cat.doorman.app.data.SetupStage
 import cat.doorman.app.gray.GrayPolicy
 import cat.doorman.app.gray.GraySetting
 import cat.doorman.app.gray.GrayscaleController
 import cat.doorman.app.limits.Allowances
+import cat.doorman.app.limits.HardTimes
 import cat.doorman.app.limits.Limits
 import cat.doorman.app.limits.isLoosening
 import cat.doorman.app.rules.RuleLoader
@@ -120,11 +131,28 @@ private fun tabLabel(tab: Tab) = when (tab) {
 
 /** A settings change that has been asked for but has not taken effect yet. */
 private sealed interface PendingChange {
-    data class Mode(val id: String, val limits: Limits) : PendingChange
-    data class Preset(val ids: Set<String>) : PendingChange
+    /** [from] is kept for the dialog to say what is being left behind. */
+    data class Mode(val id: String, val from: Limits, val limits: Limits) : PendingChange
+
+    /** [name] is the preset's own, for the dialog and for the note once it lands. */
+    data class Preset(val name: String, val ids: Set<String>) : PendingChange
 
     /** Grey switched off or cut back for a screen or app; null is "in colour". */
-    data class Gray(val id: String, val setting: GraySetting?) : PendingChange
+    data class Gray(val id: String, val from: GraySetting?, val setting: GraySetting?) :
+        PendingChange
+
+    /**
+     * One save that loosens the limits and the grey together. One countdown and
+     * one dialog rather than two in a row: both land when it ends and both are
+     * dropped if it is cancelled.
+     */
+    data class Both(
+        val id: String,
+        val fromLimits: Limits,
+        val limits: Limits,
+        val fromGray: GraySetting?,
+        val setting: GraySetting?,
+    ) : PendingChange
 
     /**
      * Shortening the wait is itself a way of weakening the app, and the most
@@ -144,7 +172,9 @@ class MainActivity : ComponentActivity() {
      * means "do not interrupt me", not "do not keep this".
      */
     private val notificationPermission =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+            notificationsGranted = it || Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
+        }
 
     private lateinit var prefs: Prefs
 
@@ -154,8 +184,8 @@ class MainActivity : ComponentActivity() {
     private var screenLimits by mutableStateOf(emptyMap<String, Limits>())
     private var appLimits by mutableStateOf(emptyMap<String, Limits>())
     private var spent by mutableStateOf(emptyMap<String, Allowances.Spent>())
+    private var hardTimes by mutableStateOf(HardTimes.EMPTY)
     private val appIcons by lazy { AppIcons(this) }
-    private var openCards by mutableStateOf(emptyMap<String, Boolean>())
 
     /** Package names of everything with a launcher icon, for the "is it here?" check. */
     private val installedPackages: Set<String> by lazy {
@@ -167,6 +197,19 @@ class MainActivity : ComponentActivity() {
 
     private var screen by mutableStateOf(Screen.HOME)
     private var tab by mutableStateOf(Tab.BLOCKS)
+
+    /**
+     * The app whose page is open on the Blocks tab, or null for the list. A
+     * page inside a tab rather than a screen of its own: the bottom bar stays,
+     * and the list underneath keeps its place.
+     */
+    private var openApp by mutableStateOf<String?>(null)
+
+    /** The diagnostics page inside Settings, likewise. */
+    private var showDiagnostics by mutableStateOf(false)
+
+    /** The Grayscale page on the Blocks tab, likewise. */
+    private var showGrayscale by mutableStateOf(false)
     private var journal by mutableStateOf(emptyList<cat.doorman.app.limits.DayRecord>())
     private var weeklyReport by mutableStateOf(true)
     private var redirect by mutableStateOf<cat.doorman.app.data.Redirect?>(null)
@@ -182,6 +225,12 @@ class MainActivity : ComponentActivity() {
      * walkthrough at every returning user for the length of one disk read.
      */
     private var tutorialSeen by mutableStateOf<Boolean?>(null)
+
+    /** Closed until read, so an install past setup never sees the card flash. */
+    private var setupStage by mutableStateOf(SetupStage.CLOSED)
+
+    /** Always true before Android 13, where notifications need no permission. */
+    private var notificationsGranted by mutableStateOf(true)
     private var coffeeNudgedOn by mutableStateOf<String?>(null)
 
     /** So opening the report twice in one sitting is not two prompts. */
@@ -199,12 +248,20 @@ class MainActivity : ComponentActivity() {
     private var changeDelaySeconds by mutableIntStateOf(Prefs.DEFAULT_CHANGE_DELAY_SECONDS)
     private var pendingChange by mutableStateOf<PendingChange?>(null)
     private var pendingSeconds by mutableIntStateOf(0)
+    private var pendingTotalSeconds by mutableIntStateOf(0)
     private var pendingCountdown: Job? = null
+    private val snackbar = SnackbarHostState()
+
+    /** Set when leaving dropped a pending change, so coming back can say so. */
+    private var droppedWhileAway = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         prefs = Prefs(this)
+        // Read before the first frame: starting at false drew the red "off"
+        // card on every launch until onResume corrected it.
+        serviceEnabled = isAccessibilityServiceEnabled(this)
         rules = RuleLoader.load(this)
         screenDefaults = RuleLoader.screenDefaults(rules)
         openReportIfAsked(intent)
@@ -214,7 +271,7 @@ class MainActivity : ComponentActivity() {
         }
         lifecycleScope.launch { prefs.appLimits.collectLatest { appLimits = it } }
         lifecycleScope.launch { prefs.spent.collectLatest { spent = it } }
-        lifecycleScope.launch { prefs.openCards.collectLatest { openCards = it } }
+        lifecycleScope.launch { prefs.hardTimes.collectLatest { hardTimes = it } }
         // Deletes the record of watched apps kept by earlier versions.
         lifecycleScope.launch { prefs.forgetWatchedApps() }
         lifecycleScope.launch {
@@ -227,6 +284,7 @@ class MainActivity : ComponentActivity() {
         }
         lifecycleScope.launch { prefs.journal.collectLatest { journal = it } }
         lifecycleScope.launch { prefs.tutorialSeen.collectLatest { tutorialSeen = it } }
+        lifecycleScope.launch { prefs.setupStage.collectLatest { setupStage = it } }
         lifecycleScope.launch { prefs.coffeeNudgedOn.collectLatest { coffeeNudgedOn = it } }
         lifecycleScope.launch { prefs.redirect.collectLatest { redirect = it } }
         lifecycleScope.launch { prefs.grayscale.collectLatest { graySettings = it } }
@@ -246,135 +304,159 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            DoormanTheme {
-                Scaffold(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    bottomBar = {
-                        // Hidden while getting a pass. That flow is a decision
-                        // with a countdown running, and offering a way to wander
-                        // off mid-way would be offering a way to lose it.
-                        // Hidden during the walkthrough too: four pages with
-                        // a Next button are not a place to be offered three
-                        // other places to be.
-                        if (screen == Screen.HOME && tutorialSeen == true) {
-                            NavigationBar {
-                                Tab.entries.filter { it != Tab.REPORT || weeklyReport }
-                                    .forEach { entry ->
-                                    NavigationBarItem(
-                                        selected = tab == entry,
-                                        onClick = {
-                                            tab = entry
-                                            // Asked here rather than at first
-                                            // launch. The report is on by
-                                            // default, so the switch is often
-                                            // never touched, and a permission
-                                            // dialog on the very first screen
-                                            // is a dialog about nothing. Here
-                                            // the user is looking at the thing
-                                            // being offered.
-                                            if (entry == Tab.REPORT) {
-                                                askToNotify()
-                                                refreshUsage()
-                                            }
-                                        },
-                                        icon = { Icon(iconFor(entry), contentDescription = null) },
-                                        label = { Text(stringResource(tabLabel(entry))) },
-                                    )
-                                }
-                            }
-                        }
-                    },
-                ) { insets ->
-                    PendingChangeDialog(
-                        seconds = pendingSeconds,
-                        isDelayChange = pendingChange is PendingChange.Delay,
-                        targetLabel = when (val change = pendingChange) {
-                            is PendingChange.Mode -> labelKeyFor(change.id).let(::labelFor)
-                                .ifEmpty { appLabelFor(change.id) }
-                            is PendingChange.Gray -> grayTargetLabel(change.id)
-                            else -> null
-                        },
-                        modeLabel = when (val change = pendingChange) {
-                            is PendingChange.Mode -> summaryText(change.limits)
-                            is PendingChange.Gray -> graySummaryText(resources, change.setting)
-                            else -> null
-                        },
-                        onCancel = { cancelPendingChange() },
-                    )
-                    // System Back on the pass screen goes back to Doorman, the
-                    // way the Back button on it does. Without this the gesture
-                    // closed the whole app.
-                    BackHandler(enabled = screen == Screen.UNLOCK) { leaveUnlock() }
-                    Box(modifier = Modifier.fillMaxSize().padding(insets)) {
-                        when (screen) {
-                            Screen.HOME -> if (tutorialSeen == false) {
-                                run {
-                                    Tutorial(
-                                        languageSupported =
-                                            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU,
-                                        languageTag = appLocaleTag(),
-                                        onPickLanguage = { tag -> setAppLocale(tag) },
-                                        onCoffee = { openCoffee() },
-                                        onDone = {
-                                            lifecycleScope.launch {
-                                                // Stamped now so the first seasonal
-                                                // reminder is a season after install,
-                                                // not the first time the report opens.
-                                                prefs.setCoffeeNudgedOn(java.time.LocalDate.now().toString())
-                                                prefs.setTutorialSeen(true)
-                                            }
-                                        },
-                                    )
-                                }
-                            } else if (tutorialSeen == true) Crossfade(
-                                targetState = tab,
-                                label = "tab",
-                            ) { shown ->
-                                // One scroll position per tab, and a fresh one
-                                // each visit. A single scroll shared by all
-                                // three tabs opened the report at whatever
-                                // depth the blocks list had been left at --
-                                // usually its last card, with the headline
-                                // somewhere off the top.
-                                key(shown) {
-                                    Page {
-                                        when (shown) {
-                                            Tab.BLOCKS -> BlocksTab()
-                                            Tab.REPORT -> WeeklyReport(
-                                                days = journal,
-                                                today = java.time.LocalDate.now(),
-                                                use = watchedUse,
-                                                onAskForUsageAccess = { askForUsageAccess() },
-                                                onReviewLimits = { tab = Tab.BLOCKS },
-                                                appTimesFor = { week -> appTimes(week.apps, week.screens) },
-                                                coffeeNudge = coffeeNudgeDue(),
-                                                onCoffee = { openCoffee() },
-                                                onNotNow = { stampCoffeeNudge() },
-                                            )
-                                            Tab.SETTINGS -> SettingsTab()
-                                        }
+            CompositionLocalProvider(LocalHardTimes provides hardTimes) {
+                DoormanTheme {
+                    Scaffold(
+                        containerColor = MaterialTheme.colorScheme.background,
+                        snackbarHost = { SnackbarHost(snackbar) },
+                        bottomBar = {
+                            // Hidden while getting a pass. That flow is a decision
+                            // with a countdown running, and offering a way to wander
+                            // off mid-way would be offering a way to lose it.
+                            // Hidden during the walkthrough too: four pages with
+                            // a Next button are not a place to be offered three
+                            // other places to be.
+                            if (screen == Screen.HOME && tutorialSeen == true) {
+                                NavigationBar {
+                                    Tab.entries.filter { it != Tab.REPORT || weeklyReport }
+                                        .forEach { entry ->
+                                        NavigationBarItem(
+                                            selected = tab == entry,
+                                            onClick = {
+                                                // Tapping the tab already open goes
+                                                // back to its top, as on every
+                                                // other app with a bar.
+                                                if (tab == entry) {
+                                                    openApp = null
+                                                    showDiagnostics = false
+                                                    showGrayscale = false
+                                                }
+                                                tab = entry
+                                                // Asked here rather than at first
+                                                // launch. The report is on by
+                                                // default, so the switch is often
+                                                // never touched, and a permission
+                                                // dialog on the very first screen
+                                                // is a dialog about nothing. Here
+                                                // the user is looking at the thing
+                                                // being offered.
+                                                if (entry == Tab.REPORT) {
+                                                    askToNotify()
+                                                    refreshUsage()
+                                                }
+                                            },
+                                            icon = { Icon(iconFor(entry), contentDescription = null) },
+                                            label = { Text(stringResource(tabLabel(entry))) },
+                                        )
                                     }
                                 }
                             }
-                            Screen.UNLOCK -> Page {
-                                UnlockScreen(
-                                    rules = rules,
-                                    icons = appIcons,
-                                    installedPackages = installedPackages,
-                                    selectedPackage = selectedPackage,
-                                    secondsRemaining = secondsRemaining,
-                                    totalSeconds = waitSeconds,
-                                    passMinutes = passMinutes,
-                                    wasReset = wasReset,
-                                    onSelectPackage = { pkg ->
-                                        selectedPackage = pkg
-                                        wasReset = false
-                                        startCountdown()
-                                    },
-                                    onGrant = { grantPass() },
-                                    onBack = { leaveUnlock() },
-                                    labelFor = ::labelFor,
-                                )
+                        },
+                    ) { insets ->
+                        pendingChange?.let { change ->
+                            PendingChangeDialog(
+                                seconds = pendingSeconds,
+                                totalSeconds = pendingTotalSeconds,
+                                title = pendingTitle(change, pendingSeconds),
+                                details = pendingDetails(change),
+                                onCancel = { cancelPendingChange() },
+                            )
+                        }
+                        // System Back on the pass screen goes back to Doorman, the
+                        // way the Back button on it does. Without this the gesture
+                        // closed the whole app.
+                        BackHandler(enabled = screen == Screen.UNLOCK) { leaveUnlock() }
+                        // Back from a page inside a tab goes to that tab's list.
+                        BackHandler(
+                            enabled = screen == Screen.HOME &&
+                                ((tab == Tab.BLOCKS && (openApp != null || showGrayscale)) ||
+                                    (tab == Tab.SETTINGS && showDiagnostics)),
+                        ) {
+                            openApp = null
+                            showDiagnostics = false
+                            showGrayscale = false
+                        }
+                        Box(modifier = Modifier.fillMaxSize().padding(insets)) {
+                            when (screen) {
+                                Screen.HOME -> if (tutorialSeen == false) {
+                                    run {
+                                        Tutorial(
+                                            languageSupported =
+                                                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU,
+                                            languageTag = appLocaleTag(),
+                                            onPickLanguage = { tag -> setAppLocale(tag) },
+                                            onCoffee = { openCoffee() },
+                                            onDone = {
+                                                lifecycleScope.launch {
+                                                    // Stamped now so the first seasonal
+                                                    // reminder is a season after install,
+                                                    // not the first time the report opens.
+                                                    prefs.setCoffeeNudgedOn(java.time.LocalDate.now().toString())
+                                                    prefs.finishTutorial()
+                                                }
+                                            },
+                                        )
+                                    }
+                                } else if (tutorialSeen == true) Crossfade(
+                                    targetState = tab,
+                                    label = "tab",
+                                ) { shown ->
+                                    // One scroll position per tab, and a fresh one
+                                    // each visit. A single scroll shared by all
+                                    // three tabs opened the report at whatever
+                                    // depth the blocks list had been left at --
+                                    // usually its last card, with the headline
+                                    // somewhere off the top.
+                                    key(shown) {
+                                        // Made here, above the choice between the
+                                        // list and a page, so opening an app and
+                                        // coming back finds the list where it was
+                                        // left.
+                                        val listScroll = rememberScrollState()
+                                        val onPage = (shown == Tab.BLOCKS && (openApp != null || showGrayscale)) ||
+                                            (shown == Tab.SETTINGS && showDiagnostics)
+                                        val body: @Composable ColumnScope.() -> Unit = {
+                                            when (shown) {
+                                                Tab.BLOCKS -> BlocksTab()
+                                                Tab.REPORT -> WeeklyReport(
+                                                    days = journal,
+                                                    today = java.time.LocalDate.now(),
+                                                    use = watchedUse,
+                                                    onAskForUsageAccess = { askForUsageAccess() },
+                                                    onReviewLimits = { tab = Tab.BLOCKS },
+                                                    appTimesFor = { week -> appTimes(week.apps, week.screens) },
+                                                    coffeeNudge = coffeeNudgeDue(),
+                                                    onCoffee = { openCoffee() },
+                                                    onNotNow = { stampCoffeeNudge() },
+                                                    tapers = taperNotes(),
+                                                    hard = hardTimes,
+                                                )
+                                                Tab.SETTINGS -> SettingsTab()
+                                            }
+                                        }
+                                        if (onPage) Page(content = body) else Page(listScroll, body)
+                                    }
+                                }
+                                Screen.UNLOCK -> Page {
+                                    UnlockScreen(
+                                        rules = rules,
+                                        icons = appIcons,
+                                        installedPackages = installedPackages,
+                                        selectedPackage = selectedPackage,
+                                        secondsRemaining = secondsRemaining,
+                                        totalSeconds = waitSeconds,
+                                        passMinutes = passMinutes,
+                                        wasReset = wasReset,
+                                        onSelectPackage = { pkg ->
+                                            selectedPackage = pkg
+                                            wasReset = false
+                                            startCountdown()
+                                        },
+                                        onGrant = { grantPass() },
+                                        onBack = { leaveUnlock() },
+                                        labelFor = ::labelFor,
+                                    )
+                                }
                             }
                         }
                     }
@@ -385,11 +467,14 @@ class MainActivity : ComponentActivity() {
 
     /** A tab's worth of content, scrolling on its own. */
     @Composable
-    private fun Page(content: @Composable ColumnScope.() -> Unit) {
+    private fun Page(
+        scroll: ScrollState = rememberScrollState(),
+        content: @Composable ColumnScope.() -> Unit,
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scroll)
                 .padding(horizontal = 16.dp, vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
             content = content,
@@ -398,16 +483,117 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun BlocksTab() {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium)
-            Text(
-                stringResource(R.string.home_tagline),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+        val app = openApp
+        if (showGrayscale) {
+            GrayscaleOverview(
+                rules = rules,
+                icons = appIcons,
+                installedPackages = installedPackages,
+                graySettings = graySettings,
+                grayCanWrite = grayCanWrite,
+                changeDelaySeconds = changeDelaySeconds,
+                suggestions = knownWindows(screenLimits, appLimits, graySettings),
+                onChange = { id, setting -> requestGrayChange(id, setting) },
+                onBack = { showGrayscale = false },
+                labelFor = ::labelFor,
+            )
+        } else if (app == null) {
+            BlocksList()
+        } else {
+            AppDetail(
+                packageName = app,
+                rules = rules,
+                screenLimits = screenLimits,
+                appLimits = appLimits,
+                graySettings = graySettings,
+                grayCanWrite = grayCanWrite,
+                changeDelaySeconds = changeDelaySeconds,
+                otherApps = otherApps(),
+                remainingFor = ::remainingLabelFor,
+                onChosen = { id, limits, gray -> requestEditorChange(id, limits, gray) },
+                onGrayChosen = { id, setting -> requestGrayChange(id, setting) },
+                onBack = { openApp = null },
+                labelFor = ::labelFor,
+                helpFor = ::helpFor,
             )
         }
+    }
 
-        StatusCard()
+    @Composable
+    private fun BlocksList() {
+        var showDisclosure by remember { mutableStateOf(false) }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                stringResource(R.string.app_name),
+                style = MaterialTheme.typography.headlineMedium,
+            )
+            Spacer(Modifier.width(12.dp))
+            // The chip may wrap, so that a long word beside the name at a large
+            // font size pushes onto a second line instead of squeezing the name.
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(modifier = Modifier.weight(1f, fill = false)) {
+                    StatusChip(onFix = { showDisclosure = true })
+                }
+                QuickSettingsMenu(
+                    rules = rules,
+                    screenLimits = screenLimits,
+                    onPreset = { name, ids -> requestPreset(name, ids) },
+                )
+            }
+        }
+
+        // The card's first item is the same way in as the red one, so the red
+        // one steps aside while the card is up.
+        val setupOpen = setupStage != SetupStage.CLOSED
+        // Done once Doorman is on and a level has been chosen; from then on the
+        // card has nothing left to say.
+        LaunchedEffect(serviceEnabled, setupStage) {
+            if (serviceEnabled && setupStage == SetupStage.LEVEL_CHOSEN) {
+                prefs.setSetupStage(SetupStage.CLOSED)
+            }
+        }
+        if (setupOpen) {
+            SetupCard(
+                rules = rules,
+                screenLimits = screenLimits,
+                serviceOn = serviceEnabled,
+                stage = setupStage,
+                notificationsOn = notificationsGranted,
+                onEnable = { showDisclosure = true },
+                onPickLevel = { name, ids -> requestPreset(name, ids) },
+                onNotify = {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                },
+                onDismiss = { lifecycleScope.launch { prefs.setSetupStage(SetupStage.CLOSED) } },
+            )
+        } else if (!serviceEnabled) {
+            DisabledCard(onEnable = { showDisclosure = true })
+        }
+        if (showDisclosure) {
+            DisclosureDialog(
+                onAgree = {
+                    showDisclosure = false
+                    // NEW_TASK matters: without it the settings screen
+                    // lands inside Doorman's own task, and tapping the
+                    // launcher icon afterwards reopens Android settings.
+                    startActivity(
+                        Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    )
+                },
+                onDecline = { showDisclosure = false },
+            )
+        }
 
         activePass?.let { pass ->
             val minutesLeft =
@@ -441,126 +627,147 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        TodayCard(todayTimes())
+        // Nothing is being held while the service is off, so a card saying what
+        // is blocked now would be telling people something untrue.
+        if (serviceEnabled) {
+            RightNowCard(
+                state = rightNow(heldTargets(), spent, java.time.LocalDateTime.now(), hardTimes),
+                onGetPass = { openUnlock() },
+                actions = {
+                    HardTimeActions(
+                        targets = heldTargets(),
+                        hard = hardTimes,
+                        today = java.time.LocalDate.now(),
+                        onTakeDay = { lifecycleScope.launch { prefs.takeHardDay(java.time.LocalDate.now()) } },
+                        onTakeWeek = { lifecycleScope.launch { prefs.takeHardWeek(java.time.LocalDate.now()) } },
+                    )
+                },
+            )
+        }
 
-        BlockingSettings(
+        GrayscaleRow(count = graySettings.size, onClick = { showGrayscale = true })
+
+        AppList(
             rules = rules,
             screenLimits = screenLimits,
             appLimits = appLimits,
+            graySettings = graySettings,
             otherApps = otherApps(),
             icons = appIcons,
             installedPackages = installedPackages,
-            openCards = openCards,
-            onCardOpenChanged = { pkg, open ->
-                lifecycleScope.launch { prefs.setCardOpen(pkg, open) }
-            },
             remainingFor = ::remainingLabelFor,
-            onLimitsChosen = { id, limits -> requestLimitsChange(id, limits) },
-            onPreset = { ids -> requestPreset(ids) },
+            onOpen = { pkg -> openApp = pkg },
             labelFor = ::labelFor,
-            helpFor = ::helpFor,
         )
-
     }
 
     /**
-     * Whether Doorman is working, and the way in when it is.
+     * Whether Doorman is working, at a glance, beside its name.
+     *
+     * A word as well as a colour: a green dot and a red one are the same dot to
+     * somebody who cannot tell them apart. Off is a button, because the thing to
+     * do about it is the first thing anyone will want.
+     */
+    @Composable
+    private fun StatusChip(onFix: () -> Unit) {
+        val on = serviceEnabled
+        val colour = if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+        Row(
+            modifier = Modifier
+                .heightIn(min = 48.dp)
+                .then(if (on) Modifier else Modifier.clickable(role = Role.Button, onClick = onFix))
+                .padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                if (on) Icons.Filled.CheckCircle else Icons.Filled.Warning,
+                contentDescription = null,
+                tint = colour,
+                modifier = Modifier.size(20.dp),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                stringResource(if (on) R.string.status_chip_on else R.string.status_chip_off),
+                style = MaterialTheme.typography.labelLarge,
+                color = colour,
+            )
+        }
+    }
+
+    /**
+     * The way in when Doorman is off.
      *
      * The only alarm colour in the app is here, and it is the only thing that
      * deserves one: with the service off Doorman is a settings screen that
      * blocks nothing, and a card the same colour as every other card is a card
      * people scroll past.
-     *
-     * The pass lives here too. The block screen tells people to open Doorman
-     * for a pass, and Doorman opens on this tab; it used to be in Settings,
-     * under the delay dial, where somebody told "open Doorman" had to go
-     * looking. Finding the door is not the friction -- the wait behind it is.
      */
     @Composable
-    private fun StatusCard() {
-        if (!serviceEnabled) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                ),
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Warning, contentDescription = null)
-                        Spacer(Modifier.width(12.dp))
-                        Text(
-                            stringResource(R.string.status_disabled),
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                    }
-                    Text(
-                        stringResource(R.string.status_disabled_body),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    // Also the prominent disclosure Google Play requires before
-                    // an accessibility service is requested.
-                    Text(
-                        stringResource(R.string.accessibility_service_description),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    Button(
-                        onClick = {
-                            // NEW_TASK matters: without it the settings screen
-                            // lands inside Doorman's own task, and tapping the
-                            // launcher icon afterwards reopens Android settings.
-                            startActivity(
-                                Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            )
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error,
-                            contentColor = MaterialTheme.colorScheme.onError,
-                        ),
-                    ) {
-                        Text(stringResource(R.string.action_open_accessibility_settings))
-                    }
-                }
-            }
-            return
-        }
-        SurfaceCard {
-            Row(
+    private fun DisabledCard(onEnable: () -> Unit) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.errorContainer,
+                contentColor = MaterialTheme.colorScheme.onErrorContainer,
+            ),
+        ) {
+            Column(
                 modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Icon(
-                    Icons.Filled.CheckCircle,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(28.dp),
-                )
-                Spacer(Modifier.width(16.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.Warning, contentDescription = null)
+                    Spacer(Modifier.width(12.dp))
                     Text(
-                        stringResource(R.string.status_enabled),
+                        stringResource(R.string.status_disabled),
                         style = MaterialTheme.typography.titleMedium,
                     )
-                    Text(
-                        stringResource(R.string.status_enabled_body),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                }
+                Text(
+                    stringResource(R.string.status_disabled_body),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Button(
+                    onClick = onEnable,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError,
+                    ),
+                ) {
+                    Text(stringResource(R.string.action_enable_doorman))
                 }
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            NavRow(
-                icon = Icons.Outlined.Lock,
-                title = stringResource(R.string.action_get_pass),
-                supporting = stringResource(R.string.pass_explainer),
-                onClick = { openUnlock() },
-            )
         }
+    }
+
+    /**
+     * The prominent disclosure Google Play requires before an accessibility
+     * service is requested. Only the agree button goes on to Android's
+     * settings; declining leaves everything as it was.
+     */
+    @Composable
+    private fun DisclosureDialog(onAgree: () -> Unit, onDecline: () -> Unit) {
+        AlertDialog(
+            onDismissRequest = onDecline,
+            title = { Text(stringResource(R.string.access_dialog_title)) },
+            text = {
+                Text(
+                    stringResource(R.string.accessibility_service_description),
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = onAgree) {
+                    Text(stringResource(R.string.access_dialog_agree))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDecline) {
+                    Text(stringResource(R.string.access_dialog_decline))
+                }
+            },
+        )
     }
 
     private fun openUnlock() {
@@ -573,44 +780,37 @@ class MainActivity : ComponentActivity() {
     /**
      * How Doorman behaves and what it is, which is not what it blocks.
      *
-     * Both settings here are set once and then lived with. They were in the way
-     * of the thing people change often, and now they are one tap away instead.
+     * Everything here is set once and then lived with. It was in the way of the
+     * thing people change often, and now it is one tap away instead.
      */
     @Composable
     private fun SettingsTab() {
+        if (showDiagnostics) {
+            SubPageHeader(
+                title = stringResource(R.string.section_diagnostics),
+                onBack = { showDiagnostics = false },
+            )
+            DiagnosticsSection(
+                lastSeen = lastSeen,
+                countdown = reportCountdown,
+                reportReady = reportFile != null,
+                captureFailed = reportFailed,
+                onCapture = { captureReport() },
+                onShare = { shareReport() },
+            )
+            return
+        }
         Text(
             stringResource(R.string.tab_settings),
             style = MaterialTheme.typography.headlineMedium,
         )
 
-        SectionHeader(stringResource(R.string.section_behaviour))
+        // The one setting that decides whether the others mean anything, so
+        // it comes first and says what it will do.
+        SectionHeader(stringResource(R.string.settings_group_safety))
         SurfaceCard {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(
-                    stringResource(R.string.section_change_delay),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Text(
-                    stringResource(R.string.change_delay_explainer),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    DelayDial(
-                        seconds = changeDelaySeconds,
-                        onChange = { seconds -> requestDelayChange(seconds) },
-                    )
-                }
-            }
-        }
-        // Kept with the behaviour group rather than with language and
-        // diagnostics: this one is about the user's week, not about the app,
-        // and it belongs beside the other things that change what Doorman
-        // does to them.
-        SurfaceCard {
+            DelayRow(seconds = changeDelaySeconds, onChange = { seconds -> requestDelayChange(seconds) })
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Box(modifier = Modifier.padding(start = 16.dp, end = 16.dp)) {
                 SwitchRow(
                     label = stringResource(R.string.weekly_report_switch),
@@ -623,7 +823,8 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
-        // With the behaviour group: it changes what a block does to you.
+
+        SectionHeader(stringResource(R.string.settings_group_behaviour))
         SurfaceCard {
             RedirectSection(
                 current = redirect,
@@ -631,44 +832,17 @@ class MainActivity : ComponentActivity() {
                 icons = appIcons,
                 onPick = { choice -> lifecycleScope.launch { prefs.setRedirect(choice) } },
             )
-        }
-
-        // Grey is another thing a feed can be made to feel like, so it sits with
-        // the behaviour group and not with the app's own settings.
-        SurfaceCard {
-            GrayscaleSection(
-                rules = rules,
-                settings = graySettings,
-                canWrite = grayCanWrite,
-                suggestions = remember(screenLimits, appLimits, graySettings) {
-                    (
-                        screenLimits.values.flatMap { it.windows } +
-                            appLimits.values.flatMap { it.windows } +
-                            graySettings.values.flatMap { it.windows }
-                        ).distinct()
-                },
-                labelFor = ::labelFor,
-                onChange = { id, setting -> requestGrayChange(id, setting) },
-            )
-        }
-
-        // The app itself: which language it speaks and what to do when a rule
-        // stops matching. Neither is about anybody's phone habits.
-        SectionHeader(stringResource(R.string.section_about))
-        SurfaceCard {
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             LanguageSection(
                 supported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU,
                 currentTag = appLocaleTag(),
                 onPick = { tag -> setAppLocale(tag) },
             )
         }
+
+        SectionHeader(stringResource(R.string.settings_group_about))
         SurfaceCard {
-            NavRow(
-                icon = Icons.Outlined.FavoriteBorder,
-                title = stringResource(R.string.support_title),
-                supporting = stringResource(R.string.support_body),
-                onClick = { openCoffee() },
-            )
+            SupportRow(onCoffee = { openCoffee() })
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             // The walkthrough explains the change delay and the pass, which
             // are the two things people forget how to use. Somewhere to find
@@ -678,16 +852,13 @@ class MainActivity : ComponentActivity() {
                 title = stringResource(R.string.tutorial_replay),
                 onClick = { lifecycleScope.launch { prefs.setTutorialSeen(false) } },
             )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            NavRow(
+                icon = Icons.Outlined.Build,
+                title = stringResource(R.string.section_diagnostics),
+                onClick = { showDiagnostics = true },
+            )
         }
-
-        DiagnosticsSection(
-            lastSeen = lastSeen,
-            countdown = reportCountdown,
-            reportReady = reportFile != null,
-            captureFailed = reportFailed,
-            onCapture = { captureReport() },
-            onShare = { shareReport() },
-        )
     }
 
     /**
@@ -701,7 +872,7 @@ class MainActivity : ComponentActivity() {
      */
     private fun requestLimitsChange(targetId: String, limits: Limits) {
         val current = screenLimits[targetId] ?: appLimits[targetId] ?: Limits.OFF
-        val loosening = isLoosening(current, limits)
+        val loosening = isLoosening(current, limits, java.time.LocalDate.now(), hardTimes)
         if (!loosening || changeDelaySeconds <= 0) {
             lifecycleScope.launch {
                 prefs.setLimits(targetId, limits)
@@ -713,7 +884,30 @@ class MainActivity : ComponentActivity() {
             }
             return
         }
-        startPending(PendingChange.Mode(targetId, limits))
+        startPending(PendingChange.Mode(targetId, current, limits))
+    }
+
+    /**
+     * What the editor saves: limits and grey together, as the user saw them.
+     *
+     * Each half is judged on its own, as it always was: tightening lands at
+     * once and loosening waits. Only when both would wait do they share one
+     * countdown, since two dialogs in a row is two waits for one decision.
+     */
+    private fun requestEditorChange(targetId: String, limits: Limits, gray: GraySetting?) {
+        val currentLimits = screenLimits[targetId] ?: appLimits[targetId] ?: Limits.OFF
+        val currentGray = graySettings[targetId]
+        val limitsChanged = limits != currentLimits
+        val grayChanged = gray != currentGray
+        val waits = changeDelaySeconds > 0 &&
+            limitsChanged && isLoosening(currentLimits, limits, java.time.LocalDate.now(), hardTimes) &&
+            grayChanged && GrayPolicy.isLoosening(currentGray, gray)
+        if (waits) {
+            startPending(PendingChange.Both(targetId, currentLimits, limits, currentGray, gray))
+            return
+        }
+        if (limitsChanged) requestLimitsChange(targetId, limits)
+        if (grayChanged) requestGrayChange(targetId, gray)
     }
 
     /**
@@ -729,11 +923,11 @@ class MainActivity : ComponentActivity() {
             }
             return
         }
-        startPending(PendingChange.Gray(targetId, setting))
+        startPending(PendingChange.Gray(targetId, graySettings[targetId], setting))
     }
 
-    /** What a grey setting's target is called: its screen's label, or its app's. */
-    private fun grayTargetLabel(targetId: String): String {
+    /** What a limit's or a grey setting's target is called: its screen's label, or its app's. */
+    private fun targetLabelFor(targetId: String): String {
         val screenLabel = labelKeyFor(targetId).let(::labelFor)
         return if (screenLabel.isNotEmpty() && screenLabel != targetId) {
             screenLabel
@@ -742,16 +936,26 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun requestPreset(ids: Set<String>) {
+    /**
+     * Ticks the setup card's second item. Recorded where a preset lands rather
+     * than where it is tapped, so one that is still waiting out the change delay
+     * has not been chosen yet.
+     */
+    private suspend fun noteLevelChosen() {
+        if (setupStage == SetupStage.OPEN) prefs.setSetupStage(SetupStage.LEVEL_CHOSEN)
+    }
+
+    private fun requestPreset(name: String, ids: Set<String>) {
         val weakens = screenLimits.any { (id, limits) -> !limits.isOff && id !in ids }
         if (!weakens || changeDelaySeconds <= 0) {
             lifecycleScope.launch {
                 prefs.setEnabledScreens(ids, screenDefaults.keys)
                 if (weakens) prefs.recordToday(loosenings = 1)
+                noteLevelChosen()
             }
             return
         }
-        startPending(PendingChange.Preset(ids))
+        startPending(PendingChange.Preset(name, ids))
     }
 
     /**
@@ -817,6 +1021,7 @@ class MainActivity : ComponentActivity() {
         pendingCountdown?.cancel()
         pendingChange = change
         pendingSeconds = changeDelaySeconds
+        pendingTotalSeconds = changeDelaySeconds
         pendingCountdown = lifecycleScope.launch {
             while (pendingSeconds > 0) {
                 delay(1_000)
@@ -839,6 +1044,14 @@ class MainActivity : ComponentActivity() {
                 lifecycleScope.launch {
                     prefs.setEnabledScreens(change.ids, screenDefaults.keys)
                     prefs.recordToday(loosenings = 1)
+                    noteLevelChosen()
+                }
+            is PendingChange.Both ->
+                lifecycleScope.launch {
+                    prefs.setLimits(change.id, change.limits)
+                    prefs.setGrayscale(change.id, change.setting)
+                    // Two loosenings, as two saves would have been.
+                    prefs.recordToday(loosenings = 2)
                 }
             is PendingChange.Gray ->
                 lifecycleScope.launch {
@@ -849,8 +1062,51 @@ class MainActivity : ComponentActivity() {
                 lifecycleScope.launch { prefs.setChangeDelaySeconds(change.seconds) }
             null -> Unit
         }
+        pendingChange?.let { change ->
+            lifecycleScope.launch {
+                snackbar.showSnackbar(getString(R.string.pending_applied, pendingTargetName(change)))
+            }
+        }
         pendingChange = null
         pendingSeconds = 0
+    }
+
+    /** What the countdown is for, said in a line. */
+    private fun pendingTitle(change: PendingChange, seconds: Int): String = when (change) {
+        is PendingChange.Mode -> getString(R.string.pending_change_screen, targetLabelFor(change.id), seconds)
+        is PendingChange.Gray -> getString(R.string.pending_change_screen, targetLabelFor(change.id), seconds)
+        is PendingChange.Both -> getString(R.string.pending_change_screen, targetLabelFor(change.id), seconds)
+        is PendingChange.Preset -> getString(R.string.preset_applying, change.name, seconds)
+        is PendingChange.Delay -> getString(R.string.pending_change_delay, seconds)
+    }
+
+    /** From what to what, one line for each thing that is changing. */
+    private fun pendingDetails(change: PendingChange): List<String> = when (change) {
+        is PendingChange.Mode -> listOf(limitsFromTo(change.from, change.limits))
+        is PendingChange.Gray -> listOf(grayFromTo(change.from, change.setting))
+        is PendingChange.Both -> listOf(
+            limitsFromTo(change.fromLimits, change.limits),
+            grayFromTo(change.fromGray, change.setting),
+        )
+        is PendingChange.Preset, is PendingChange.Delay -> emptyList()
+    }
+
+    private fun limitsFromTo(from: Limits, to: Limits): String =
+        getString(R.string.pending_change_from_to, summaryText(from), summaryText(to))
+
+    private fun grayFromTo(from: GraySetting?, to: GraySetting?): String = getString(
+        R.string.pending_change_from_to,
+        graySummaryText(resources, from),
+        graySummaryText(resources, to),
+    )
+
+    /** What changed, for the note that says it has. */
+    private fun pendingTargetName(change: PendingChange): String = when (change) {
+        is PendingChange.Mode -> targetLabelFor(change.id)
+        is PendingChange.Gray -> targetLabelFor(change.id)
+        is PendingChange.Both -> targetLabelFor(change.id)
+        is PendingChange.Preset -> change.name
+        is PendingChange.Delay -> getString(R.string.section_change_delay)
     }
 
     private fun cancelPendingChange() {
@@ -858,6 +1114,30 @@ class MainActivity : ComponentActivity() {
         pendingCountdown = null
         pendingChange = null
         pendingSeconds = 0
+    }
+
+    /**
+     * Everything that can be holding something, named for a sentence: "Instagram
+     * · Reels", or "YouTube" for a whole app.
+     */
+    private fun heldTargets(): List<HeldTarget> {
+        val screens = rules.apps.flatMap { (packageName, app) ->
+            val appName = labelFor(app.labelKey)
+            listOf(HeldTarget(packageName, appName, appLimits[packageName] ?: Limits.OFF)) +
+                app.screens.map {
+                    HeldTarget(
+                        it.id,
+                        "$appName · ${briefLabelFor(it.labelKey)}",
+                        screenLimits[it.id] ?: Limits.OFF,
+                        app = appName,
+                        screen = true,
+                    )
+                }
+        }
+        val others = otherApps().map {
+            HeldTarget(it.packageName, it.label, appLimits[it.packageName] ?: Limits.OFF)
+        }
+        return screens + others
     }
 
     private fun remainingLabelFor(targetId: String): String? {
@@ -875,6 +1155,7 @@ class MainActivity : ComponentActivity() {
                 spent[cat.doorman.app.limits.Allowances.ledgerKey(targetId, allowance.period)]
                     ?: cat.doorman.app.limits.Allowances.Spent.NOTHING,
                 today,
+                hardTimes,
             )
         }
         if (left <= 0L) return getString(R.string.remaining_none)
@@ -886,7 +1167,13 @@ class MainActivity : ComponentActivity() {
      * What a set of limits says, outside a composable, for the pending-change
      * dialog. Deliberately terse: the dialog is a countdown, not a manual.
      */
-    private fun summaryText(limits: Limits): String = limitsSummaryText(resources, limits)
+    private fun summaryText(limits: Limits): String =
+        limitsSummaryText(resources, limits, hardTimes, withRelief = false)
+
+    /** Every limit that lowers itself, with the screen or app it belongs to, for the report. */
+    private fun taperNotes(): List<TaperNote> = heldTargets().flatMap { target ->
+        target.limits.allowances.filter { it.taper != null }.map { TaperNote(target.name, it) }
+    }
 
     private fun labelKeyFor(screenId: String): String =
         rules.apps.values.flatMap { it.screens }.firstOrNull { it.id == screenId }?.labelKey ?: ""
@@ -983,7 +1270,9 @@ class MainActivity : ComponentActivity() {
         countdown?.cancel()
         countdown = null
         // Walking away abandons a pending change rather than letting it land
-        // while you are elsewhere.
+        // while you are elsewhere. Coming back says so: the dialog is simply
+        // gone, and nothing else would tell anyone the change did not happen.
+        if (pendingChange != null) droppedWhileAway = true
         cancelPendingChange()
         if (screen == Screen.UNLOCK && selectedPackage != null && secondsRemaining > 0) {
             wasReset = true
@@ -1062,15 +1351,8 @@ class MainActivity : ComponentActivity() {
                     .map { (label, times) -> label to times.sum() }
                     .filter { it.second >= REPORTABLE_MILLIS }
                     .sortedByDescending { it.second }
-                AppTime(label = appLabelFor(pkg), millis = millis, screens = named)
+                AppTime(label = rules.appFor(pkg)?.let { labelFor(it.labelKey) } ?: appLabelFor(pkg), millis = millis, screens = named)
             }
-
-    /** Time in an app today, for the glance on the Blocks tab. */
-    private fun todayTimes(): List<AppTime> {
-        val today = java.time.LocalDate.now().toString()
-        val row = journal.firstOrNull { it.date == today } ?: return emptyList()
-        return appTimes(row.apps, row.screens)
-    }
 
     /**
      * A screen's name as a noun, for a report.
@@ -1106,8 +1388,20 @@ class MainActivity : ComponentActivity() {
         // Doorman is the only moment it can have changed.
         refreshUsage()
         serviceEnabled = isAccessibilityServiceEnabled(this)
+        notificationsGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
         // Granted from a computer, so coming back to Doorman is when it shows.
-        grayCanWrite = GrayscaleController(this).canWrite
+        val grayscale = GrayscaleController(this)
+        grayCanWrite = grayscale.canWrite
+        // With the service off nothing is left to put colour back when grey's
+        // hours end, and a force stop leaves the screen grey with nobody to
+        // blame. Doorman is open now, so it does it.
+        if (!serviceEnabled && grayCanWrite) grayscale.restoreIfOurs()
+        if (droppedWhileAway) {
+            droppedWhileAway = false
+            lifecycleScope.launch { snackbar.showSnackbar(getString(R.string.pending_cancelled_left)) }
+        }
         lastSeen = DoormanAccessibilityService.instance?.lastSeen()
         watchServiceState()
         if (screen == Screen.UNLOCK && selectedPackage != null && secondsRemaining > 0) {

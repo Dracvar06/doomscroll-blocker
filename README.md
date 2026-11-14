@@ -80,7 +80,7 @@ Reddit and RedNote.** Everything below is an individual switch; nothing is all-o
   anywhere. Off until you choose somewhere.
 
 Every screen is an individual switch in the app, with Strict / Balanced /
-Nothing presets. Switching a block **off** waits a configurable delay (30 s by
+Permissive / Nothing presets. Switching a block **off** waits a configurable delay (30 s by
 default) and is cancelled if you leave the app; switching one **on** is
 immediate, because friction belongs on the decision you would regret. To get into a blocked screen you open Doorman, wait out a
 countdown that restarts if you walk away, and take a short timed pass.
@@ -126,6 +126,30 @@ Two features ask for a little more, and both are optional:
 A screen that is an endless run of short videos (Reels, Shorts, TikTok's feed,
 Spotlight) can also be limited by count: *N reels every X minutes*. When the
 reels are spent, the screen closes and says when it opens again.
+
+### Limits that lower themselves
+
+A time limit can be given a goal and a step, and then lowers itself towards the
+goal: each Monday after a week with no hard day it drops by the step, until it
+reaches the goal and stops. A week with a hard day in it, or a hard week, does
+not count, so the limit waits where it is. Changing the goal or the step starts
+the count again from what the limit is worth that day, so nothing jumps.
+
+### Hard days and hard weeks
+
+Some days are bad ones, and a limit that cannot bend gets switched off. A **hard
+day** gives a daily limit about a quarter more until midnight -- never less than two
+minutes extra or more than fifteen. You get two a week, Monday to Sunday. A
+**hard week** puts every lowering limit back one step for seven days, and can be
+taken once every four weeks. Both are taken inside Doorman, from the Blocks
+tab, and never from the block itself: the screen that is holding you has no
+button that makes it let go.
+
+### Checked every second
+
+While an app with a time limit is in front, Doorman re-checks the limit every
+second, so the screen closes when the time is up and not at the next event the
+app happens to send.
 
 ### When it stops working
 

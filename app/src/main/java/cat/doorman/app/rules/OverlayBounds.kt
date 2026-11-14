@@ -47,6 +47,30 @@ object OverlayBounds {
         return rule?.keepVisibleTopViewIds ?: appLevelAnchors
     }
 
+    /** What the top of a block is measured from: views to stay clear of, or views to start at. */
+    data class TopPlan(val keepClear: List<String>, val coverFrom: List<String>)
+
+    /**
+     * The top of the block for [rule], once the screen it follows is known to
+     * be blocked or not ([blockedScreenIds] are the screens blocked right now).
+     *
+     * While that screen is blocked the rule's own anchors stop being kept
+     * clear and become where the block starts, so the row is covered and the
+     * bar above it is not; the app-wide anchors still apply.
+     */
+    fun topPlanFor(
+        rule: ScreenRule?,
+        appLevelAnchors: List<String>,
+        enabledScreenIds: Set<String>,
+        blockedScreenIds: Set<String>,
+    ): TopPlan {
+        val followed = rule?.keepVisibleTopFollows
+        if (followed != null && followed in blockedScreenIds) {
+            return TopPlan(appLevelAnchors, rule.keepVisibleTopViewIds.orEmpty())
+        }
+        return TopPlan(topAnchorsFor(rule, appLevelAnchors, enabledScreenIds), emptyList())
+    }
+
     /** [heightPx] of null means "cover everything below [topPx]". */
     data class Band(val topPx: Int, val heightPx: Int?)
 
@@ -57,8 +81,22 @@ object OverlayBounds {
         keepVisibleBelowViewIds: List<String> = emptyList(),
         keepVisibleBottomPx: Int = 0,
         screenHeightPx: Int = 0,
+        coverFromViewIds: List<String> = emptyList(),
     ): Band {
-        val top = keepVisibleTopViewIds
+        // Views being covered rather than kept clear: the block starts at their
+        // own top edge, so the bar above them stays reachable. Where they are
+        // not on screen there is nothing to start from, and the ordinary anchors
+        // decide -- which can only cover more, never less.
+        val coverFrom = coverFromViewIds
+            .takeIf { it.isNotEmpty() }
+            ?.let { wanted ->
+                snapshot.nodes
+                    .filter { node -> node.visible && wanted.any(node::viewIdMatches) }
+                    .mapNotNull { it.topPx() }
+                    .minOrNull()
+            }
+            ?.takeIf { it > 0 }
+        val top = coverFrom ?: keepVisibleTopViewIds
             .takeIf { it.isNotEmpty() }
             ?.let { wanted ->
                 snapshot.nodes

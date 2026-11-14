@@ -9,6 +9,9 @@ import cat.doorman.app.limits.Allowances
  * that the fiddly parts have tests: time belongs to what was on screen *before*
  * the tick that noticed the change, not after, and a gap that spans the phone
  * being put down is not time spent at all.
+ *
+ * [nowMillis] must be monotonic: a gap measured on the wall clock is wrong, or
+ * negative, whenever someone or the network moves it.
  */
 class AllowanceClock(private val nowMillis: () -> Long) {
 
@@ -26,7 +29,8 @@ class AllowanceClock(private val nowMillis: () -> Long) {
      */
     fun tick(targets: List<String>) {
         val now = nowMillis()
-        val credit = Allowances.creditableMillis(lastTickAt, now)
+        val sameTarget = targets.isNotEmpty() && targets.toSet() == charging.toSet()
+        val credit = Allowances.creditableMillis(lastTickAt, now, sameTarget)
         if (credit > 0L) {
             charging.forEach { id -> pending[id] = (pending[id] ?: 0L) + credit }
         }

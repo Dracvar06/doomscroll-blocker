@@ -9,6 +9,9 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import cat.doorman.app.limits.Allowances
+import cat.doorman.app.limits.HardTimes
+import cat.doorman.app.limits.HardTimesCodec
+import cat.doorman.app.limits.Tapers
 import cat.doorman.app.limits.Limits
 import cat.doorman.app.limits.DayRecord
 import cat.doorman.app.limits.Journal
@@ -21,8 +24,16 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.Json
 import org.json.JSONObject
+import java.time.LocalDateTime
 
 private val Context.dataStore by preferencesDataStore(name = "doorman")
+
+/**
+ * How far the first-run checklist has got. It is kept, not worked out, because
+ * which starting level somebody chose cannot be read back from the limits they
+ * ended up with, and because the checklist has to stay gone once it is.
+ */
+enum class SetupStage { OPEN, LEVEL_CHOSEN, CLOSED }
 
 /**
  * Everything the user has decided. Nothing here leaves the device.
@@ -55,6 +66,9 @@ class Prefs(private val context: Context) {
         /** Target id -> {"w":[hours]}: where the screen goes grey. See GrayCodec. */
         val GRAYSCALE = stringPreferencesKey("grayscale")
 
+        /** Hard days and hard weeks taken, as [HardTimesCodec] writes them. */
+        val HARD_TIMES = stringPreferencesKey("hard_times")
+
         /** One row per day of what actually happened. See [Journal]. */
         val JOURNAL = stringPreferencesKey("journal")
 
@@ -66,6 +80,9 @@ class Prefs(private val context: Context) {
 
         /** Whether the first-run walkthrough has been finished or skipped. */
         val TUTORIAL_SEEN = booleanPreferencesKey("tutorial_seen")
+
+        /** Where the first-run setup card stands, as a [SetupStage] name. */
+        val SETUP = stringPreferencesKey("setup")
 
         /** ISO date the coffee reminder was last shown or dismissed. */
         val COFFEE_NUDGED_ON = stringPreferencesKey("coffee_nudged_on")
@@ -124,31 +141,6 @@ class Prefs(private val context: Context) {
         }
     }
 
-    /**
-     * Which app cards the user has opened or closed.
-     *
-     * Only explicit choices are stored. An app with no entry falls back to
-     * whether it is installed, so a phone without TikTok does not open on a
-     * screenful of TikTok settings, and one with it does not hide them.
-     */
-    val openCards: Flow<Map<String, Boolean>> =
-        context.dataStore.data.map { prefs ->
-            val raw = prefs[Keys.CARDS_OPEN] ?: return@map emptyMap()
-            runCatching {
-                val json = JSONObject(raw)
-                json.keys().asSequence().associateWith { json.optBoolean(it) }
-            }.getOrDefault(emptyMap())
-        }
-
-    suspend fun setCardOpen(packageName: String, open: Boolean) {
-        context.dataStore.edit { prefs ->
-            val json = runCatching { JSONObject(prefs[Keys.CARDS_OPEN] ?: "{}") }
-                .getOrDefault(JSONObject())
-            json.put(packageName, open)
-            prefs[Keys.CARDS_OPEN] = json.toString()
-        }
-    }
-
     /** Time already spent, per target. */
     val spent: Flow<Map<String, Allowances.Spent>> =
         context.dataStore.data.map { prefs -> decodeSpent(prefs[Keys.SPENT]) }
@@ -198,6 +190,48 @@ class Prefs(private val context: Context) {
 
     /** Adds time to the ledger for several targets at once. */
     /**
+     * Hard days and hard weeks taken so far, for [Tapers] to ease the limits by.
+     */
+    val hardTimes: Flow<HardTimes> =
+        context.dataStore.data.map { HardTimesCodec.decode(it[Keys.HARD_TIMES]) }
+
+    /**
+     * Takes [today] as a hard day. Eligibility is checked again inside the
+     * edit, against what is stored, so a double tap cannot take two. False when
+     * it was not allowed.
+     */
+    suspend fun takeHardDay(today: java.time.LocalDate): Boolean {
+        var taken = false
+        context.dataStore.edit { prefs ->
+            val hard = HardTimesCodec.decode(prefs[Keys.HARD_TIMES])
+            if (!Tapers.canTakeHardDay(hard, today)) return@edit
+            taken = true
+            prefs[Keys.HARD_TIMES] = HardTimesCodec.encode(
+                Tapers.pruned(hard.copy(hardDays = hard.hardDays + today), today),
+            )
+        }
+        return taken
+    }
+
+    /**
+     * Starts a hard week on [today]. Checked again inside the edit, against the
+     * stored hard times and the stored limits. False when it was not allowed.
+     */
+    suspend fun takeHardWeek(today: java.time.LocalDate): Boolean {
+        var taken = false
+        context.dataStore.edit { prefs ->
+            val hard = HardTimesCodec.decode(prefs[Keys.HARD_TIMES])
+            val limits = decodeModes(prefs[Keys.MODES]).values
+            if (!Tapers.canTakeHardWeek(limits, hard, today)) return@edit
+            taken = true
+            prefs[Keys.HARD_TIMES] = HardTimesCodec.encode(
+                Tapers.pruned(hard.copy(hardWeeks = hard.hardWeeks + today), today),
+            )
+        }
+        return taken
+    }
+
+    /**
      * What actually happened, day by day, for the weekly report.
      *
      * Separate from [spent], which is a live budget that resets every hour, day
@@ -239,6 +273,33 @@ class Prefs(private val context: Context) {
 
     suspend fun setTutorialSeen(seen: Boolean) {
         context.dataStore.edit { it[Keys.TUTORIAL_SEEN] = seen }
+    }
+
+    /**
+     * Ends the walkthrough and, the first time only, opens the setup card.
+     *
+     * The key being absent is what tells a new install from one that is
+     * replaying the walkthrough, or that predates the card: neither of them
+     * wants a "set up Doorman" card for something they set up long ago.
+     */
+    suspend fun finishTutorial() {
+        context.dataStore.edit {
+            if (Keys.TUTORIAL_SEEN !in it && Keys.SETUP !in it) {
+                it[Keys.SETUP] = SetupStage.OPEN.name
+            }
+            it[Keys.TUTORIAL_SEEN] = true
+        }
+    }
+
+    /** Installs from before the card have no stage, and are past it. */
+    val setupStage: Flow<SetupStage> =
+        context.dataStore.data.map { prefs ->
+            prefs[Keys.SETUP]?.let { name -> SetupStage.entries.firstOrNull { it.name == name } }
+                ?: SetupStage.CLOSED
+        }
+
+    suspend fun setSetupStage(stage: SetupStage) {
+        context.dataStore.edit { it[Keys.SETUP] = stage.name }
     }
 
     suspend fun setWeeklyReport(on: Boolean) {
@@ -305,10 +366,17 @@ class Prefs(private val context: Context) {
             .getOrDefault(emptyList())
     }
 
-    suspend fun chargeSpent(charges: Map<String, Allowances.Spent>) {
-        if (charges.isEmpty()) return
+    /**
+     * Adds time to what is stored. A delta, not a total: the stored ledger is
+     * read inside the edit, so whatever was added since the caller last looked
+     * is kept, and a caller holding an older picture cannot write it back.
+     */
+    suspend fun addSpent(deltas: Map<String, Long>, now: LocalDateTime = LocalDateTime.now()) {
+        if (deltas.isEmpty()) return
         context.dataStore.edit { prefs ->
-            prefs[Keys.SPENT] = encodeSpent(decodeSpent(prefs[Keys.SPENT]) + charges)
+            prefs[Keys.SPENT] = encodeSpent(
+                Allowances.applyDeltas(decodeSpent(prefs[Keys.SPENT]), deltas, now),
+            )
         }
     }
 
@@ -377,11 +445,8 @@ class Prefs(private val context: Context) {
         context.dataStore.edit { prefs ->
             prefs[Keys.DECIDED_SCREENS] = allScreenIds
             prefs[Keys.ENABLED_SCREENS] = screenIds
-            val kept = decodeModes(prefs[Keys.MODES]).filterKeys { it !in allScreenIds }
             prefs[Keys.MODES] = encodeModes(
-                kept + allScreenIds.associateWith {
-                    if (it in screenIds) Limits.BLOCKED else Limits.OFF
-                },
+                ScreenPreferences.presetLimits(screenIds, allScreenIds, decodeModes(prefs[Keys.MODES])),
             )
         }
     }

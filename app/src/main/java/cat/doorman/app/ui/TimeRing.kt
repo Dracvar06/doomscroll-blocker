@@ -41,8 +41,15 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cat.doorman.app.R
@@ -95,10 +102,28 @@ fun TimeRing(
     val strokePx = with(LocalDensity.current) { 26.dp.toPx() }
     val handlePx = with(LocalDensity.current) { 11.dp.toPx() }
 
+    // A handle cannot be dragged with a screen reader, so the two times are
+    // offered as actions that open the exact picker instead. One node for the
+    // whole ring: its numbers and its labels read as one sentence.
+    val ringDescription = stringResource(
+        R.string.ring_description,
+        formatMinute(window.fromMinute),
+        formatMinute(window.toMinute),
+        durationLabel(window.lengthMinutes),
+    )
+    val setStart = stringResource(R.string.ring_set_start)
+    val setEnd = stringResource(R.string.ring_set_end)
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .aspectRatio(1f),
+            .aspectRatio(1f)
+            .clearAndSetSemantics {
+                contentDescription = ringDescription
+                customActions = listOf(
+                    CustomAccessibilityAction(setStart) { onPickExactly(true); true },
+                    CustomAccessibilityAction(setEnd) { onPickExactly(false); true },
+                )
+            },
         contentAlignment = Alignment.Center,
     ) {
         Canvas(
@@ -280,6 +305,7 @@ fun MinutesDial(
         value = minutes,
         positions = remember(period) { DialScale.positions(period) },
         centreTextFor = { dialLabel(it) },
+        label = stringResource(R.string.limits_usage_heading),
         description = durationLabel(minutes),
         colourAt = { budgetColour(it.toFloat() / DialScale.maxMinutes(period)) },
         onType = { typing = true },
@@ -319,6 +345,7 @@ fun DelayDial(seconds: Int, onChange: (Int) -> Unit, modifier: Modifier = Modifi
         value = seconds,
         positions = remember { (0..MAX_DELAY_SECONDS step DELAY_STEP_SECONDS).toList() },
         centreTextFor = { delayLabel(it) },
+        label = stringResource(R.string.delay_row_title),
         description = delayLabel(seconds),
         colourAt = { waitColour(it) },
         onType = { typing = true },
@@ -341,7 +368,7 @@ fun DelayDial(seconds: Int, onChange: (Int) -> Unit, modifier: Modifier = Modifi
 }
 
 @Composable
-private fun delayLabel(seconds: Int): String = when {
+internal fun delayLabel(seconds: Int): String = when {
     seconds == 0 -> stringResource(R.string.change_delay_instant)
     seconds < 60 -> stringResource(R.string.change_delay_seconds, seconds)
     seconds % 60 == 0 -> stringResource(R.string.change_delay_minutes, seconds / 60)
@@ -363,6 +390,7 @@ private fun RotaryDial(
     value: Int,
     positions: List<Int>,
     centreTextFor: @Composable (Int) -> String,
+    label: String,
     description: String,
     colourAt: (Int) -> Color,
     onType: () -> Unit,
@@ -405,11 +433,29 @@ private fun RotaryDial(
     val shown = if (draggingTurn == null) value else valueAtTurn(positions, shownTurn)
     val colourStops = remember(positions, colourAt) { colourStopsFor(positions, colourAt) }
     val typeLabel = stringResource(R.string.dial_type_action)
+    // Adjustable by a screen reader's swipe up and down, a rung at a time. The
+    // finger is not the only way to turn it. A value that is not on a rung (a
+    // typed 5 h 04) reads as itself and steps from the nearest one.
+    val lastRung = positions.lastIndex.coerceAtLeast(0)
+    val nearestRung = positions.indices.minByOrNull { kotlin.math.abs(positions[it] - value) } ?: 0
 
     Box(
         modifier = modifier
             .size(DIAL_SIZE)
-            .semantics { contentDescription = description },
+            .semantics {
+                contentDescription = label
+                stateDescription = description
+                progressBarRangeInfo = ProgressBarRangeInfo(
+                    current = nearestRung.toFloat(),
+                    range = 0f..lastRung.toFloat(),
+                    steps = (lastRung - 1).coerceAtLeast(0),
+                )
+                setProgress { target ->
+                    val rung = Math.round(target).coerceIn(0, lastRung)
+                    if (positions[rung] != current) onChange(positions[rung])
+                    true
+                }
+            },
         contentAlignment = Alignment.Center,
     ) {
         Canvas(

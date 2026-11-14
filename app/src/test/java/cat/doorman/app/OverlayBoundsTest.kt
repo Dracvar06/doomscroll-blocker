@@ -88,31 +88,67 @@ class OverlayBoundsTest {
     }
 
     /**
-     * Two different wants, two switches. Hiding the row on the home feed must
-     * not decide whether a story opened from a message or a search plays, and
-     * blocking stories must not decide whether the row is visible.
+     * The row of stories is covered because stories are blocked, and only then.
+     * Covering it starts at the row itself, so the notifications heart and the
+     * app's name above it stay reachable.
      */
     @Test
-    fun `the stories row switch covers the row without touching stories themselves`() {
+    fun `the stories row follows whether stories are blocked`() {
         val app = rules().apps["com.instagram.android"]!!
         val feedRule = app.screens.first { it.id == "ig_feed" }
         val snapshot = fixture("instagram-home-with-stories")
-        val trayBottom = snapshot.nodes
-            .filter { it.viewIdMatches("outer_container") && it.visible }
-            .mapNotNull { it.bottomPx() }.maxOrNull()!!
+        val trayNodes = snapshot.nodes.filter { it.viewIdMatches("outer_container") && it.visible }
+        val trayTop = trayNodes.mapNotNull { it.topPx() }.minOrNull()!!
+        val trayBottom = trayNodes.mapNotNull { it.bottomPx() }.maxOrNull()!!
+        val heartBottom = snapshot.nodes.first { it.viewIdMatches("notification") }.bottomPx()!!
 
-        fun band(enabled: Set<String>) = OverlayBounds.compute(
-            snapshot,
-            OverlayBounds.topAnchorsFor(feedRule, app.keepVisibleTopViewIds, enabled),
-            app.keepVisibleViewIds,
+        fun band(blocked: Set<String>): OverlayBounds.Band {
+            val top = OverlayBounds.topPlanFor(feedRule, app.keepVisibleTopViewIds, setOf("ig_feed"), blocked)
+            return OverlayBounds.compute(
+                snapshot, top.keepClear, app.keepVisibleViewIds, coverFromViewIds = top.coverFrom,
+            )
+        }
+
+        // Stories open: the row survives the block.
+        assertEquals(trayBottom, band(emptySet()).topPx)
+        // Stories blocked, however it came about: the block takes in the row...
+        assertEquals(trayTop, band(setOf("ig_stories")).topPx)
+        // ...but not the bar above it.
+        assertTrue(band(setOf("ig_stories")).topPx >= heartBottom)
+        // Some other screen being blocked says nothing about the row.
+        assertEquals(trayBottom, band(setOf("ig_reels")).topPx)
+    }
+
+    @Test
+    fun `a rule can say which screen's block its anchors follow`() {
+        val parsed: RuleSet = json.decodeFromString(
+            """
+            {"version": 1, "apps": {"a.b": {"labelKey": "k", "screens": [
+              {"id": "feed", "labelKey": "k", "keepVisibleTopViewIds": ["row"], "keepVisibleTopFollows": "stories"},
+              {"id": "stories", "labelKey": "k"}
+            ]}}}
+            """.trimIndent(),
         )
+        assertEquals("stories", parsed.apps["a.b"]!!.screens.first { it.id == "feed" }.keepVisibleTopFollows)
 
-        // Off: the row survives the block.
-        assertEquals(trayBottom, band(setOf("ig_feed")).topPx)
-        // On: the block extends over it.
-        assertEquals(0, band(setOf("ig_feed", "ig_home_stories_tray")).topPx)
-        // Blocking stories outright is a separate matter and moves nothing.
-        assertEquals(trayBottom, band(setOf("ig_feed", "ig_stories")).topPx)
+        // And the shipped Instagram feed names a screen that exists.
+        val ig = rules().apps["com.instagram.android"]!!
+        val followed = ig.screens.first { it.id == "ig_feed" }.keepVisibleTopFollows
+        assertTrue(ig.screens.any { it.id == followed && it.match != null })
+    }
+
+    /** Where the row is not in the tree there is nothing to start from: cover more, not less. */
+    @Test
+    fun `a covered row that is not on screen falls back to the app's anchors`() {
+        val app = rules().apps["com.instagram.android"]!!
+        val feedRule = app.screens.first { it.id == "ig_feed" }
+        val snapshot = fixture("instagram-home-with-stories")
+        val withoutRow = snapshot.copy(nodes = snapshot.nodes.filterNot { it.viewIdMatches("outer_container") })
+        val top = OverlayBounds.topPlanFor(feedRule, app.keepVisibleTopViewIds, setOf("ig_feed"), setOf("ig_stories"))
+        val band = OverlayBounds.compute(
+            withoutRow, top.keepClear, app.keepVisibleViewIds, coverFromViewIds = top.coverFrom,
+        )
+        assertEquals(0, band.topPx)
     }
 
     /** Anchors are per screen: Explore's search bar must not move the feed block. */

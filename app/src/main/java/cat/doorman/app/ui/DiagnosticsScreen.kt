@@ -31,61 +31,57 @@ fun DiagnosticsSection(
     onCapture: () -> Unit,
     onShare: () -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionHeader(stringResource(R.string.section_diagnostics))
-        // Full width like every other card. Sized to its contents it sat
-        // narrower than the cards above it and looked like a different kind
-        // of thing.
-        SurfaceCard {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.diagnostics_explainer),
-                    style = MaterialTheme.typography.bodyMedium,
+    // Full width like every other card. Sized to its contents it sat narrower
+    // than the cards above it and looked like a different kind of thing.
+    SurfaceCard {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.diagnostics_explainer),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Text(
+                text = if (lastSeen.isNullOrBlank()) {
+                    stringResource(R.string.diagnostics_last_seen_none)
+                } else {
+                    stringResource(R.string.diagnostics_last_seen, lastSeen)
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            when {
+                countdown > 0 -> Text(
+                    text = stringResource(R.string.diagnostics_capturing, countdown),
+                    style = MaterialTheme.typography.titleMedium,
                 )
-                Text(
-                    text = if (lastSeen.isNullOrBlank()) {
-                        stringResource(R.string.diagnostics_last_seen_none)
-                    } else {
-                        stringResource(R.string.diagnostics_last_seen, lastSeen)
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                when {
-                    countdown > 0 -> Text(
-                        text = stringResource(R.string.diagnostics_capturing, countdown),
-                        style = MaterialTheme.typography.titleMedium,
+                reportReady -> {
+                    Text(
+                        text = stringResource(R.string.diagnostics_captured),
+                        style = MaterialTheme.typography.bodyMedium,
                     )
-                    reportReady -> {
-                        Text(
-                            text = stringResource(R.string.diagnostics_captured),
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                        Button(onClick = onShare) {
-                            Text(stringResource(R.string.action_share_report))
-                        }
-                        TextButton(onClick = onCapture) {
-                            Text(stringResource(R.string.action_capture_report))
-                        }
+                    Button(onClick = onShare) {
+                        Text(stringResource(R.string.action_share_report))
                     }
-                    else -> {
-                        if (captureFailed) {
-                            Text(
-                                text = stringResource(R.string.diagnostics_failed),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.error,
-                            )
-                        }
+                    TextButton(onClick = onCapture) {
+                        Text(stringResource(R.string.action_capture_report))
+                    }
+                }
+                else -> {
+                    if (captureFailed) {
                         Text(
-                            text = stringResource(R.string.diagnostics_capture_hint),
-                            style = MaterialTheme.typography.bodySmall,
+                            text = stringResource(R.string.diagnostics_failed),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
                         )
-                        Button(onClick = onCapture) {
-                            Text(stringResource(R.string.action_capture_report))
-                        }
+                    }
+                    Text(
+                        text = stringResource(R.string.diagnostics_capture_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Button(onClick = onCapture) {
+                        Text(stringResource(R.string.action_capture_report))
                     }
                 }
             }

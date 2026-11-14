@@ -167,14 +167,8 @@
           "keepVisibleTopViewIds": [
             "outer_container"
           ],
-          "keepVisibleTopSuppressedBy": "ig_home_stories_tray",
+          "keepVisibleTopFollows": "ig_stories",
           "helpKey": "help_ig_feed"
-        },
-        {
-          "id": "ig_home_stories_tray",
-          "labelKey": "screen_ig_home_stories_tray",
-          "defaultEnabled": false,
-          "helpKey": "help_ig_home_stories_tray"
         },
         {
           "id": "ig_explore",

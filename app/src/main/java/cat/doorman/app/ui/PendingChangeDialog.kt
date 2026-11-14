@@ -2,12 +2,17 @@ package cat.doorman.app.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import cat.doorman.app.R
 
@@ -29,39 +34,38 @@ import cat.doorman.app.R
 @Composable
 fun PendingChangeDialog(
     seconds: Int,
-    isDelayChange: Boolean,
-    targetLabel: String?,
-    modeLabel: String?,
+    totalSeconds: Int,
+    title: String,
+    /** What is changing, one line each: "From Blocked to 20 minutes a day". */
+    details: List<String>,
     onCancel: () -> Unit,
 ) {
     if (seconds <= 0) return
     AlertDialog(
         onDismissRequest = { },
-        title = {
-            Text(
-                text = when {
-                    isDelayChange -> stringResource(R.string.pending_change_delay, seconds)
-                    targetLabel != null && modeLabel != null -> stringResource(
-                        R.string.pending_change_mode, targetLabel, modeLabel, seconds,
-                    )
-                    targetLabel != null ->
-                        stringResource(R.string.pending_change_screen, targetLabel, seconds)
-                    else -> stringResource(R.string.pending_change_preset, seconds)
-                },
-                style = MaterialTheme.typography.titleMedium,
-            )
-        },
+        title = { Text(text = title, style = MaterialTheme.typography.titleMedium) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // The bar empties as the wait runs out, so how long is left
+                // can be seen from across the room rather than read.
+                val left = stringResource(R.string.pending_progress_desc, seconds)
+                LinearProgressIndicator(
+                    progress = { seconds.toFloat() / totalSeconds.coerceAtLeast(1) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics { contentDescription = left },
+                )
+                details.forEach { Text(text = it, style = MaterialTheme.typography.bodyMedium) }
                 Text(
                     text = stringResource(R.string.pending_change_hint),
                     style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         },
         confirmButton = {
             TextButton(onClick = onCancel) {
-                Text(stringResource(R.string.action_cancel_change))
+                Text(stringResource(R.string.pending_change_keep))
             }
         },
     )

@@ -229,6 +229,24 @@ data class ScreenRule(
      */
     val keepVisibleTopSuppressedBy: String? = null,
     /**
+     * The id of a screen whose block this one's [keepVisibleTopViewIds] follow:
+     * while that screen is blocked, the views are covered with the rest, and
+     * while it is open they are left alone.
+     *
+     * Instagram's home feed shows the row of stories, and stories are a screen
+     * of their own with their own switch, limit and hours. Keeping a second
+     * switch for the row meant it could be on while stories were open, or off
+     * while they were held. The row is covered because stories are blocked, so
+     * it asks stories rather than the user. "Blocked" is the screen's state
+     * right now -- its switch, its hours, a spent allowance -- not merely
+     * whether its switch is on.
+     *
+     * What is covered starts at the top of those views, not at the top of the
+     * screen: the bar above them (notifications, the app's name) is not part of
+     * the row.
+     */
+    val keepVisibleTopFollows: String? = null,
+    /**
      * Null means this entry is not a screen at all: it is a switch that changes
      * how another block behaves, and it must never match anything by itself.
      */

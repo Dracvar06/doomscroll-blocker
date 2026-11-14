@@ -3,6 +3,13 @@ package cat.doorman.app.limits
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonObject
+import java.time.LocalDate
 
 /**
  * Turns limits into stored text and back.
@@ -26,6 +33,12 @@ object LimitsCodec {
         @SerialName("m") val minutes: Int,
         @SerialName("p") val period: String,
         @SerialName("d") val days: Int = Days.ALL_MASK,
+        /**
+         * Held as raw JSON so that a taper this version cannot read costs the
+         * taper and nothing else: typed, one bad field would fail the whole
+         * allowance, and with it the limit.
+         */
+        @SerialName("t") val taper: JsonElement? = null,
     )
 
     @Serializable
@@ -53,7 +66,7 @@ object LimitsCodec {
         Stored(
             blocked = limits.blocked,
             allow = limits.allowances.map {
-                StoredAllowance(it.minutes, it.period.name, it.days.mask)
+                StoredAllowance(it.minutes, it.period.name, it.days.mask, it.taper?.let(::encodeTaper))
             },
             windows = limits.windows.map {
                 StoredWindow(it.fromMinute, it.toMinute, it.days.mask)
@@ -78,7 +91,7 @@ object LimitsCodec {
                     val period = runCatching { Period.valueOf(entry.period) }.getOrNull()
                         ?: return@mapNotNull null
                     if (entry.minutes <= 0) return@mapNotNull null
-                    Allowance(entry.minutes, period, daysOf(entry.days))
+                    Allowance(entry.minutes, period, daysOf(entry.days), decodeTaper(entry.taper, entry.minutes))
                 },
                 windows = stored.windows.mapNotNull { entry ->
                     if (entry.from !in 0 until MINUTES_PER_DAY ||
@@ -93,6 +106,30 @@ object LimitsCodec {
                     ?.takeIf { it.reels > 0 && it.minutes > 0 }
                     ?.let { ReelQuota(it.reels, it.minutes) },
             )
+        }.getOrNull()
+    }
+
+    private fun encodeTaper(taper: Taper): JsonElement = JsonObject(
+        mapOf(
+            "g" to JsonPrimitive(taper.goalMinutes),
+            "s" to JsonPrimitive(taper.stepMinutes),
+            "o" to JsonPrimitive(taper.startedOn.toString()),
+        ),
+    )
+
+    /**
+     * Null for a taper that is missing or does not make sense, which leaves the
+     * plain limit at its starting minutes -- never a stricter one.
+     */
+    private fun decodeTaper(raw: JsonElement?, minutes: Int): Taper? {
+        if (raw == null) return null
+        return runCatching {
+            val fields = raw.jsonObject
+            val goal = (fields["g"] as JsonPrimitive).intOrNull ?: return null
+            val step = (fields["s"] as JsonPrimitive).intOrNull ?: return null
+            val startedOn = LocalDate.parse((fields["o"] as JsonPrimitive).contentOrNull ?: return null)
+            if (goal < 1 || goal >= minutes || step < 1) return null
+            Taper(goal, step, startedOn)
         }.getOrNull()
     }
 

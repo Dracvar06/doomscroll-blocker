@@ -70,8 +70,79 @@ class ReelCounterTest {
     fun `a gap of more than two minutes is a new visit`() {
         val counter = counter()
         counter.onScreen("ig_reels", tenAnHour, 0L, persist)
-        counter.onScreen("ig_reels", tenAnHour, 3 * minute, persist)
+        counter.onLeft(1 * minute)
+        counter.onScreen("ig_reels", tenAnHour, 4 * minute, persist)
         assertEquals(2, saved["ig_reels"]!!.count)
+    }
+
+    @Test
+    fun `a gap of under two minutes away is the same visit`() {
+        val counter = counter()
+        counter.onScreen("ig_reels", tenAnHour, 0L, persist)
+        counter.onLeft(10 * minute)
+        counter.onScreen("ig_reels", tenAnHour, 11 * minute, persist)
+        assertEquals(1, saved["ig_reels"]!!.count)
+    }
+
+    @Test
+    fun `one reel watched for a long time is not counted twice`() {
+        val counter = counter()
+        counter.onScreen("ig_reels", tenAnHour, 0L, persist)
+        // Nothing raises an event for ten minutes, then a tap to pause.
+        counter.onScreen("ig_reels", tenAnHour, 10 * minute, persist)
+        assertEquals(1, saved["ig_reels"]!!.count)
+    }
+
+    @Test
+    fun `coming back clears the time away`() {
+        val counter = counter()
+        counter.onScreen("ig_reels", tenAnHour, 0L, persist)
+        counter.onLeft(1 * minute)
+        counter.onScreen("ig_reels", tenAnHour, 2 * minute, persist)
+        // Back on the screen for a long while: the earlier trip does not count against it.
+        counter.onScreen("ig_reels", tenAnHour, 20 * minute, persist)
+        assertEquals(1, saved["ig_reels"]!!.count)
+    }
+
+    @Test
+    fun `scroll events right after a counted swipe belong to it`() {
+        val counter = counter()
+        counter.onScreen("ig_reels", tenAnHour, 0L, persist)
+        assertEquals(false, counter.settling(1_000L))
+        counter.onSwipe("ig_reels", tenAnHour, 1_000L, persist)
+        assertEquals(true, counter.settling(1_000L))
+        assertEquals(true, counter.settling(1_399L))
+        assertEquals(false, counter.settling(1_400L))
+    }
+
+    @Test
+    fun `books loaded late do not replace a reel counted before they arrived`() {
+        val counter = ReelCounter()
+        counter.onScreen("ig_reels", tenAnHour, 10 * minute, persist)
+        counter.load(
+            mapOf(
+                "ig_reels" to ReelWindow(0L, 4),
+                "yt_shorts" to ReelWindow(0L, 2),
+            ),
+        )
+        assertEquals(ReelWindow(10 * minute, 1), counter.window("ig_reels"))
+        assertEquals(ReelWindow(0L, 2), counter.window("yt_shorts"))
+    }
+
+    @Test
+    fun `a stretch stored as newer than the one in memory wins the load`() {
+        val counter = ReelCounter()
+        counter.onScreen("ig_reels", tenAnHour, 0L, persist)
+        counter.load(mapOf("ig_reels" to ReelWindow(5 * minute, 3)))
+        assertEquals(ReelWindow(5 * minute, 3), counter.window("ig_reels"))
+    }
+
+    @Test
+    fun `only a view that fills most of the screen can be the pager`() {
+        assertTrue(ReelCounter.isPagerSized(2062, 2424))
+        assertTrue(ReelCounter.isPagerSized(null, 2424))
+        // A comments list.
+        assertEquals(false, ReelCounter.isPagerSized(1200, 2424))
     }
 
     @Test

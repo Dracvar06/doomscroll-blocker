@@ -1,5 +1,6 @@
 package cat.doorman.app.ui
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -22,6 +23,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,11 +31,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import cat.doorman.app.R
+import cat.doorman.app.gray.GraySetting
 import cat.doorman.app.limits.Limits
 import cat.doorman.app.limits.Window
 
@@ -45,69 +48,68 @@ import cat.doorman.app.limits.Window
  * a budget and two blocked stretches on different days is not a preset, and
  * laying every possibility out as chips would be a wall. Tapping opens an
  * editor instead, and the row itself says only what is true right now.
+ *
+ * Every screen is this one row, including the ones that cannot have a time
+ * limit; they open an editor with only Allowed and Blocked in it. The state is
+ * a line of words under the name, with a dot beside it that differs in shape
+ * and not only in colour. Words in a column of their own beside the name
+ * fought it for the width in Catalan at a large font, and the name lost.
  */
 @Composable
 fun LimitRow(
     label: String,
     limits: Limits,
     remaining: String?,
-    onLimitsChosen: (Limits) -> Unit,
+    onSaved: (Limits, GraySetting?) -> Unit,
     icon: ImageBitmap? = null,
     hasIcon: Boolean = false,
     help: String? = null,
     suggestions: List<Window> = emptyList(),
     reelsAllowed: Boolean = false,
+    supportsAllowance: Boolean = true,
+    gray: GraySetting? = null,
+    supportsGrey: Boolean = false,
+    grayCanWrite: Boolean = false,
+    changeDelaySeconds: Int = 0,
 ) {
     var editing by remember { mutableStateOf(false) }
+    val res = LocalResources.current
+    // Grey is said in words after the limit, not left to a colour: it is a
+    // second thing holding the screen and the row has to name both.
+    val summary = listOfNotNull(
+        limitsSummary(limits).let { text ->
+            if (remaining == null || limits.isOff) text else "$text · $remaining"
+        },
+        gray?.let { graySummaryText(res, it) },
+    ).joinToString(" · ")
     Row(
+        // One node for a screen reader: the name, then what it is doing.
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 56.dp)
-            .clickable { editing = true },
-        horizontalArrangement = Arrangement.SpaceBetween,
+            .clickable(role = Role.Button) { editing = true }
+            .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Both sides are weighted, and neither fills: a short label and a short
-        // summary take only what they need, but a long summary -- two schedules
-        // with their days, in Catalan -- wraps inside its half instead of taking
-        // the whole row. Unweighted, it was measured first and left the label
-        // one letter wide, running down the screen.
-        Row(
-            modifier = Modifier.weight(1f, fill = false),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            // The space is held from the start, before the icon has finished
-            // loading. Drawing it only once it arrives would make every row in
-            // a long list slide sideways under the user's thumb.
-            if (hasIcon) {
-                AppAvatar(icon = icon, label = label, size = 40.dp, loading = icon == null)
-                Spacer(Modifier.width(12.dp))
-            }
+        // The space is held from the start, before the icon has finished
+        // loading. Drawing it only once it arrives would make every row in
+        // a long list slide sideways under the user's thumb.
+        if (hasIcon) {
+            AppAvatar(icon = icon, label = label, size = 40.dp, loading = icon == null)
+            Spacer(Modifier.width(12.dp))
+        }
+        StatusDot(limits)
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(text = label, style = MaterialTheme.typography.bodyLarge)
             Text(
-                text = label,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.weight(1f, fill = false),
+                text = summary,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            HelpButton(label, help)
         }
         Spacer(Modifier.width(8.dp))
-        // Same rule as the cards above: accent for a row that is holding
-        // something, quiet for one that is not. A list of twenty rows should
-        // answer "what is on?" at a glance rather than by being read.
-        Text(
-            text = remaining ?: limitsSummary(limits),
-            style = MaterialTheme.typography.labelLarge,
-            textAlign = TextAlign.End,
-            modifier = Modifier.weight(1f, fill = false),
-            color = if (limits.isOff) {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            } else {
-                MaterialTheme.colorScheme.primary
-            },
-        )
-        // The arrow is what says "this opens something". Without it a row of
-        // the list and a row with a switch looked like the same kind of thing,
-        // and the only way to learn that one opens an editor was to tap it.
+        // The arrow is what says "this opens something".
         Icon(
             Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,
@@ -121,9 +123,14 @@ fun LimitRow(
             help = help,
             suggestions = suggestions,
             reelsAllowed = reelsAllowed,
+            supportsAllowance = supportsAllowance,
+            gray = gray,
+            supportsGrey = supportsGrey,
+            grayCanWrite = grayCanWrite,
+            changeDelaySeconds = changeDelaySeconds,
             onDismiss = { editing = false },
-            onSave = {
-                onLimitsChosen(it)
+            onSave = { chosen, chosenGray ->
+                onSaved(chosen, chosenGray)
                 editing = false
             },
         )
@@ -131,11 +138,35 @@ fun LimitRow(
 }
 
 /**
- * A plain switch, for the things an allowance makes no sense of.
- *
- * "Keep swiping from a video someone sent" is a behaviour, not a place you
- * spend minutes in, and neither is "the stories row on the home feed". Offering
- * to allow either of them for five minutes a day would be offering nonsense.
+ * Whether something is held, in the shape of a dot: full when blocked, half
+ * when something limits it, empty when it is allowed. Decorative, because the
+ * words beside it say the same.
+ */
+@Composable
+private fun StatusDot(limits: Limits) {
+    val colour = if (limits.isOff) {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    } else {
+        MaterialTheme.colorScheme.primary
+    }
+    Canvas(Modifier.size(12.dp)) {
+        val stroke = 1.5.dp.toPx()
+        drawCircle(colour, radius = (size.minDimension - stroke) / 2, style = Stroke(stroke))
+        when {
+            limits.blocked -> drawCircle(colour)
+            !limits.isOff -> drawArc(
+                colour,
+                startAngle = 90f,
+                sweepAngle = 180f,
+                useCenter = true,
+            )
+        }
+    }
+}
+
+/**
+ * A plain switch, for a setting that is simply on or off and has no screen of
+ * limits behind it.
  */
 @Composable
 fun SwitchRow(
@@ -197,7 +228,7 @@ private fun HelpButton(label: String, help: String?) {
             Icons.Outlined.Info,
             // Named, because an app built on the accessibility framework
             // should not ship a control a screen reader announces as nothing.
-            contentDescription = stringResource(R.string.action_help),
+            contentDescription = stringResource(R.string.action_help_for, label),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(20.dp),
         )
