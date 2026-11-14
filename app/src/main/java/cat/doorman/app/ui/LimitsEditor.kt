@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -69,6 +72,7 @@ import cat.doorman.app.limits.Days
 import cat.doorman.app.limits.DialScale
 import cat.doorman.app.limits.Limits
 import cat.doorman.app.limits.Period
+import cat.doorman.app.limits.ReelQuota
 import cat.doorman.app.limits.Window
 import java.time.DayOfWeek
 import java.time.format.TextStyle
@@ -111,6 +115,16 @@ fun limitsSummaryText(res: Resources, limits: Limits): String = when {
         limits.windows.forEach { window ->
             add(withDays(res, "${formatMinute(window.fromMinute)}–${formatMinute(window.toMinute)}", window.days))
         }
+        limits.reels?.let { quota ->
+            add(
+                res.getQuantityString(
+                    R.plurals.mode_reels,
+                    quota.reels,
+                    quota.reels,
+                    durationText(res, quota.minutes),
+                ),
+            )
+        }
     }.joinToString(" · ")
 }
 
@@ -144,215 +158,97 @@ fun LimitsEditor(
     limits: Limits,
     help: String?,
     suggestions: List<Window> = emptyList(),
+    /** Whether this is a screen of single videos, where a reel quota makes sense. */
+    reelsAllowed: Boolean = false,
     onDismiss: () -> Unit,
     onSave: (Limits) -> Unit,
 ) {
     var draft by remember { mutableStateOf(limits) }
-    val context = LocalContext.current
 
-    // Full screen, not a pop-up. A budget with its dial, a period, the days,
-    // and a set of blocked hours with its own ring will never fit a dialog;
-    // squeezed into one, every section was a card inside a card inside a
-    // scrolling box, and Save sat at the bottom of something you could not
-    // see the bottom of. Close and Save live in the bar at the top, where
-    // they stay put however far down the editor goes.
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false,
-        ),
-    ) {
-        // A dialog is a window of its own, drawn edge to edge here, and it
-        // does not inherit the activity's status-bar icon colour: on the
-        // light theme the clock and battery came out white on white.
-        val window = (LocalView.current.parent as? DialogWindowProvider)?.window
-        val dark = isSystemInDarkTheme()
-        SideEffect {
-            window?.let {
-                WindowCompat.getInsetsController(it, it.decorView).apply {
-                    isAppearanceLightStatusBars = !dark
-                    isAppearanceLightNavigationBars = !dark
-                }
-            }
+    EditorDialog(title = title, onDismiss = onDismiss, onSave = { onSave(draft) }) {
+        if (!help.isNullOrBlank()) {
+            Text(
+                help,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
-        Scaffold(
-            containerColor = MaterialTheme.colorScheme.surface,
-            topBar = {
-                TopAppBar(
-                    title = {
-                        Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onDismiss) {
-                            Icon(
-                                Icons.Filled.Close,
-                                contentDescription = stringResource(R.string.action_cancel_change),
-                            )
-                        }
-                    },
-                    actions = {
-                        TextButton(onClick = { onSave(draft) }) {
-                            Text(stringResource(R.string.action_save))
-                        }
-                    },
-                )
-            },
-        ) { padding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                if (!help.isNullOrBlank()) {
-                    Text(
-                        help,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
 
-                // The two absolutes first, because most people want one of
-                // them and should not have to read about minutes to find out.
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
-                        selected = draft.isOff,
-                        onClick = { draft = Limits.OFF },
-                        label = { Text(stringResource(R.string.mode_off)) },
-                    )
-                    FilterChip(
-                        selected = draft.blocked,
-                        onClick = { draft = Limits.BLOCKED },
-                        label = { Text(stringResource(R.string.mode_blocked)) },
-                    )
-                }
+        // The two absolutes first, because most people want one of
+        // them and should not have to read about minutes to find out.
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = draft.isOff,
+                onClick = { draft = Limits.OFF },
+                label = { Text(stringResource(R.string.mode_off)) },
+            )
+            FilterChip(
+                selected = draft.blocked,
+                onClick = { draft = Limits.BLOCKED },
+                label = { Text(stringResource(R.string.mode_blocked)) },
+            )
+        }
 
-                EditorHeading(stringResource(R.string.limits_usage_heading))
-                draft.allowances.forEachIndexed { index, allowance ->
-                    AllowanceRow(
-                        allowance = allowance,
-                        onChange = { updated ->
-                            draft = draft.copy(
-                                blocked = false,
-                                allowances = draft.allowances.toMutableList()
-                                    .also { it[index] = updated },
-                            )
-                        },
-                        onRemove = {
-                            draft = draft.copy(
-                                allowances = draft.allowances.filterIndexed { i, _ -> i != index },
-                            )
-                        },
-                    )
-                }
-                AddButton(stringResource(R.string.limits_add_allowance)) {
+        EditorHeading(stringResource(R.string.limits_usage_heading))
+        draft.allowances.forEachIndexed { index, allowance ->
+            AllowanceRow(
+                allowance = allowance,
+                onChange = { updated ->
                     draft = draft.copy(
                         blocked = false,
-                        allowances = draft.allowances + Allowance(20, Period.DAY),
+                        allowances = draft.allowances.toMutableList()
+                            .also { it[index] = updated },
                     )
-                }
-
-                EditorHeading(stringResource(R.string.limits_hours_heading))
-                Text(
-                    stringResource(R.string.limits_hours_hint),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                draft.windows.forEachIndexed { index, window ->
-                    WindowRow(
-                        window = window,
-                        onChange = { updated ->
-                            draft = draft.copy(
-                                blocked = false,
-                                windows = draft.windows.toMutableList()
-                                    .also { it[index] = updated },
-                            )
-                        },
-                        onPick = { isStart ->
-                            val current = if (isStart) window.fromMinute else window.toMinute
-                            TimePickerDialog(
-                                context,
-                                { _, hour, minute ->
-                                    val value = hour * 60 + minute
-                                    val updated = if (isStart) {
-                                        window.copy(fromMinute = value)
-                                    } else {
-                                        window.copy(toMinute = value)
-                                    }
-                                    draft = draft.copy(
-                                        blocked = false,
-                                        windows = draft.windows.toMutableList()
-                                            .also { it[index] = updated },
-                                    )
-                                },
-                                current / 60,
-                                current % 60,
-                                true,
-                            ).show()
-                        },
-                        onDaysChange = { days ->
-                            draft = draft.copy(
-                                windows = draft.windows.toMutableList()
-                                    .also { it[index] = window.copy(days = days) },
-                            )
-                        },
-                        onRemove = {
-                            draft = draft.copy(
-                                windows = draft.windows.filterIndexed { i, _ -> i != index },
-                            )
-                        },
-                    )
-                }
-                // Whatever hours the user has already set somewhere else, one
-                // tap away. Someone closing five apps overnight was picking the
-                // same two times out of a clock face five times over, which is
-                // the sort of tedium that ends with three of them half done.
-                val reusable = suggestions.filter { it !in draft.windows }
-                if (reusable.isNotEmpty()) {
-                    Text(
-                        stringResource(R.string.limits_reuse),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        reusable.forEach { window ->
-                            AssistChip(
-                                onClick = {
-                                    draft = draft.copy(
-                                        blocked = false,
-                                        windows = draft.windows + window,
-                                    )
-                                },
-                                label = {
-                                    Text(
-                                        "${formatMinute(window.fromMinute)}\u2013" +
-                                            formatMinute(window.toMinute),
-                                    )
-                                },
-                            )
-                        }
-                    }
-                }
-                AddButton(stringResource(R.string.limits_add_window)) {
+                },
+                onRemove = {
                     draft = draft.copy(
-                        blocked = false,
-                        // Nine in the evening to nine in the morning: the
-                        // rule most people are reaching for, already
-                        // crossing midnight so the wrap explains itself.
-                        windows = draft.windows + Window(21 * 60, 9 * 60),
+                        allowances = draft.allowances.filterIndexed { i, _ -> i != index },
                     )
-                }
+                },
+            )
+        }
+        AddButton(stringResource(R.string.limits_add_allowance)) {
+            draft = draft.copy(
+                blocked = false,
+                allowances = draft.allowances + Allowance(20, Period.DAY),
+            )
+        }
 
-                if (draft.windows.isNotEmpty() || draft.blocked) {
-                    EditorHeading(stringResource(R.string.limits_week_heading))
-                    WeekTimeline(draft)
+        if (reelsAllowed) {
+            EditorHeading(stringResource(R.string.limits_reels_heading))
+            Text(
+                stringResource(R.string.limits_reels_hint),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            val quota = draft.reels
+            if (quota == null) {
+                AddButton(stringResource(R.string.limits_add_reels)) {
+                    draft = draft.copy(blocked = false, reels = ReelQuota.DEFAULT)
                 }
-                Spacer(Modifier.height(24.dp))
+            } else {
+                ReelQuotaRow(
+                    quota = quota,
+                    onChange = { draft = draft.copy(blocked = false, reels = it) },
+                    onRemove = { draft = draft.copy(reels = null) },
+                )
             }
         }
+
+        WindowsEditor(
+            windows = draft.windows,
+            heading = stringResource(R.string.limits_hours_heading),
+            hint = stringResource(R.string.limits_hours_hint),
+            addLabel = stringResource(R.string.limits_add_window),
+            suggestions = suggestions,
+            onChange = { draft = draft.copy(blocked = false, windows = it) },
+        )
+
+        if (draft.windows.isNotEmpty() || draft.blocked) {
+            EditorHeading(stringResource(R.string.limits_week_heading))
+            WeekTimeline(draft)
+        }
+        Spacer(Modifier.height(24.dp))
     }
 }
 
@@ -442,6 +338,105 @@ private fun AllowanceRow(
                 }
             }
             DayPicker(allowance.days) { onChange(allowance.copy(days = it)) }
+        }
+    }
+}
+
+/** The stretches a reel quota can be set over, in minutes, shortest first. */
+private val REEL_STRETCHES = listOf(5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240)
+
+private const val MAX_REELS = 50
+
+/**
+ * "__ reels every __": two steppers rather than a dial. A reel count and a
+ * handful of stretches are small numbers a person steps through, and a dial
+ * would make "one reel every fifteen minutes" a matter of aim.
+ */
+@Composable
+private fun ReelQuotaRow(
+    quota: ReelQuota,
+    onChange: (ReelQuota) -> Unit,
+    onRemove: () -> Unit,
+) {
+    val res = LocalResources.current
+    // The nearest stretch to whatever is stored, so a value from outside the
+    // list still has somewhere to step from.
+    val stretchIndex = REEL_STRETCHES.indices.minByOrNull {
+        kotlin.math.abs(REEL_STRETCHES[it] - quota.minutes)
+    } ?: 0
+    SurfaceCard {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Stepper(
+                    label = stringResource(R.string.limits_reels_label),
+                    value = quota.reels.toString(),
+                    lessDescription = stringResource(R.string.limits_reels_fewer),
+                    moreDescription = stringResource(R.string.limits_reels_more),
+                    canLess = quota.reels > 1,
+                    canMore = quota.reels < MAX_REELS,
+                    onLess = { onChange(quota.copy(reels = quota.reels - 1)) },
+                    onMore = { onChange(quota.copy(reels = quota.reels + 1)) },
+                )
+                Stepper(
+                    label = stringResource(R.string.limits_reels_every_label),
+                    value = durationText(res, REEL_STRETCHES[stretchIndex]),
+                    lessDescription = stringResource(R.string.limits_reels_shorter),
+                    moreDescription = stringResource(R.string.limits_reels_longer),
+                    canLess = stretchIndex > 0,
+                    canMore = stretchIndex < REEL_STRETCHES.lastIndex,
+                    onLess = { onChange(quota.copy(minutes = REEL_STRETCHES[stretchIndex - 1])) },
+                    onMore = { onChange(quota.copy(minutes = REEL_STRETCHES[stretchIndex + 1])) },
+                )
+            }
+            Box(modifier = Modifier.align(Alignment.TopEnd).padding(4.dp)) {
+                RemoveButton(onRemove)
+            }
+        }
+    }
+}
+
+@Composable
+private fun Stepper(
+    label: String,
+    value: String,
+    lessDescription: String,
+    moreDescription: String,
+    canLess: Boolean,
+    canMore: Boolean,
+    onLess: () -> Unit,
+    onMore: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(end = 48.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f),
+        )
+        IconButton(
+            onClick = onLess,
+            enabled = canLess,
+            modifier = Modifier.semantics { contentDescription = lessDescription },
+        ) {
+            Text("−", style = MaterialTheme.typography.titleLarge)
+        }
+        Text(
+            value,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.widthIn(min = 72.dp),
+            textAlign = TextAlign.Center,
+        )
+        IconButton(
+            onClick = onMore,
+            enabled = canMore,
+            modifier = Modifier.semantics { contentDescription = moreDescription },
+        ) {
+            Text("+", style = MaterialTheme.typography.titleLarge)
         }
     }
 }
@@ -568,3 +563,163 @@ private fun periodLabel(period: Period): String = stringResource(
         Period.WEEK -> R.string.period_week
     },
 )
+
+
+/**
+ * The full-screen shell every editor sits in: Close and Save in the bar at the
+ * top, the content scrolling underneath.
+ *
+ * Full screen, not a pop-up. A budget with its dial, a period, the days, and a
+ * set of blocked hours with its own ring will never fit a dialog; squeezed into
+ * one, every section was a card inside a card inside a scrolling box, and Save
+ * sat at the bottom of something you could not see the bottom of. Close and Save
+ * live in the bar at the top, where they stay put however far down the editor
+ * goes.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun EditorDialog(
+    title: String,
+    onDismiss: () -> Unit,
+    onSave: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false,
+        ),
+    ) {
+        // A dialog is a window of its own, drawn edge to edge here, and it
+        // does not inherit the activity's status-bar icon colour: on the
+        // light theme the clock and battery came out white on white.
+        val window = (LocalView.current.parent as? DialogWindowProvider)?.window
+        val dark = isSystemInDarkTheme()
+        SideEffect {
+            window?.let {
+                WindowCompat.getInsetsController(it, it.decorView).apply {
+                    isAppearanceLightStatusBars = !dark
+                    isAppearanceLightNavigationBars = !dark
+                }
+            }
+        }
+        Scaffold(
+            containerColor = MaterialTheme.colorScheme.surface,
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onDismiss) {
+                            Icon(
+                                Icons.Filled.Close,
+                                contentDescription = stringResource(R.string.action_cancel_change),
+                            )
+                        }
+                    },
+                    actions = {
+                        TextButton(onClick = onSave) {
+                            Text(stringResource(R.string.action_save))
+                        }
+                    },
+                )
+            },
+        ) { padding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                content = content,
+            )
+        }
+    }
+}
+
+/**
+ * A list of hours with its clock faces, the hours already used elsewhere one tap
+ * away, and a button to add more. Shared by the limits and by grayscale, which
+ * both speak of the hours of a week in exactly the same way.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun WindowsEditor(
+    windows: List<Window>,
+    heading: String,
+    hint: String,
+    addLabel: String,
+    suggestions: List<Window>,
+    onChange: (List<Window>) -> Unit,
+) {
+    val context = LocalContext.current
+    EditorHeading(heading)
+    Text(
+        hint,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    windows.forEachIndexed { index, window ->
+        WindowRow(
+            window = window,
+            onChange = { updated ->
+                onChange(windows.toMutableList().also { it[index] = updated })
+            },
+            onPick = { isStart ->
+                val current = if (isStart) window.fromMinute else window.toMinute
+                TimePickerDialog(
+                    context,
+                    { _, hour, minute ->
+                        val value = hour * 60 + minute
+                        val updated = if (isStart) {
+                            window.copy(fromMinute = value)
+                        } else {
+                            window.copy(toMinute = value)
+                        }
+                        onChange(windows.toMutableList().also { it[index] = updated })
+                    },
+                    current / 60,
+                    current % 60,
+                    true,
+                ).show()
+            },
+            onDaysChange = { days ->
+                onChange(windows.toMutableList().also { it[index] = window.copy(days = days) })
+            },
+            onRemove = { onChange(windows.filterIndexed { i, _ -> i != index }) },
+        )
+    }
+    // Whatever hours the user has already set somewhere else, one tap away.
+    // Someone closing five apps overnight was picking the same two times out of
+    // a clock face five times over, which is the sort of tedium that ends with
+    // three of them half done.
+    val reusable = suggestions.filter { it !in windows }
+    if (reusable.isNotEmpty()) {
+        Text(
+            stringResource(R.string.limits_reuse),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            reusable.forEach { window ->
+                AssistChip(
+                    onClick = { onChange(windows + window) },
+                    label = {
+                        Text(
+                            "${formatMinute(window.fromMinute)}\u2013" +
+                                formatMinute(window.toMinute),
+                        )
+                    },
+                )
+            }
+        }
+    }
+    AddButton(addLabel) {
+        // Nine in the evening to nine in the morning: the rule most people are
+        // reaching for, already crossing midnight so the wrap explains itself.
+        onChange(windows + Window(21 * 60, 9 * 60))
+    }
+}

@@ -317,4 +317,36 @@
     <string name="redirect_save">Save</string>
     <string name="redirect_button_app">Go to %1$s</string>
     <string name="redirect_button_chat">Write to %1$s</string>
+    <string name="blocked_body_reels_spent">You have watched the reels you set aside. They come back at %1$s.</string>
+    <string name="limits_reels_heading">Reels</string>
+    <string name="limits_reels_hint">How many reels you can scroll through before the screen closes. It opens again when the time is up.</string>
+    <string name="limits_add_reels">Limit the reels</string>
+    <string name="limits_reels_label">Reels</string>
+    <string name="limits_reels_every_label">Every</string>
+    <string name="limits_reels_more">More</string>
+    <string name="limits_reels_fewer">Fewer</string>
+    <string name="limits_reels_longer">Longer</string>
+    <string name="limits_reels_shorter">Shorter</string>
+    <plurals name="mode_reels">
+        <item quantity="one">%1$d reel every %2$s</item>
+        <item quantity="other">%1$d reels every %2$s</item>
+    </plurals>
+    <string name="gray_title">Grayscale</string>
+    <string name="gray_explainer">Turn the screen grey while you are on a screen you pick. A feed is a lot less compelling without its colour, and it comes back the moment you leave.</string>
+    <string name="gray_ready">Ready. Doorman can switch the screen to grey.</string>
+    <string name="gray_needs_permission">Android only lets an app change the screen\'s colours once it has been given a permission, from a computer. With your phone plugged in and USB debugging on, run this once:</string>
+    <string name="gray_copy_command">Copy the command</string>
+    <string name="gray_command_copied">Copied</string>
+    <string name="gray_row_off">In colour</string>
+    <string name="gray_row_always">Grey</string>
+    <string name="gray_choice_colour">In colour</string>
+    <string name="gray_choice_grey">Grey</string>
+    <string name="gray_editor_help">Grey follows the screen you are on, not just the app: grey on the reels, in colour in your messages.</string>
+    <string name="gray_hours_heading">Only at these hours</string>
+    <string name="gray_hours_hint">Leave this empty for grey all day. With hours, the screen is grey only inside them.</string>
+    <string name="gray_add_hours">Add hours</string>
+    <plurals name="gray_on_count">
+        <item quantity="one">Grey on %1$d screen</item>
+        <item quantity="other">Grey on %1$d screens</item>
+    </plurals>
 </resources>

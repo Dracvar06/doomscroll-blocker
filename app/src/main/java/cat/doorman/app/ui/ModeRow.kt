@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import cat.doorman.app.R
 import cat.doorman.app.limits.Limits
@@ -55,6 +56,7 @@ fun LimitRow(
     hasIcon: Boolean = false,
     help: String? = null,
     suggestions: List<Window> = emptyList(),
+    reelsAllowed: Boolean = false,
 ) {
     var editing by remember { mutableStateOf(false) }
     Row(
@@ -65,8 +67,13 @@ fun LimitRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // Both sides are weighted, and neither fills: a short label and a short
+        // summary take only what they need, but a long summary -- two schedules
+        // with their days, in Catalan -- wraps inside its half instead of taking
+        // the whole row. Unweighted, it was measured first and left the label
+        // one letter wide, running down the screen.
         Row(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f, fill = false),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // The space is held from the start, before the icon has finished
@@ -90,6 +97,8 @@ fun LimitRow(
         Text(
             text = remaining ?: limitsSummary(limits),
             style = MaterialTheme.typography.labelLarge,
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(1f, fill = false),
             color = if (limits.isOff) {
                 MaterialTheme.colorScheme.onSurfaceVariant
             } else {
@@ -111,6 +120,7 @@ fun LimitRow(
             limits = limits,
             help = help,
             suggestions = suggestions,
+            reelsAllowed = reelsAllowed,
             onDismiss = { editing = false },
             onSave = {
                 onLimitsChosen(it)

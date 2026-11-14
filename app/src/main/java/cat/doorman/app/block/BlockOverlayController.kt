@@ -141,6 +141,8 @@ class BlockOverlayController(private val service: AccessibilityService) {
         screenLabel: String,
         band: OverlayBounds.Band = OverlayBounds.Band(0, null),
         bodyRes: Int = R.string.blocked_body,
+        /** A sentence of its own in place of [bodyRes], for one that carries a time. */
+        bodyText: CharSequence? = null,
     ): Boolean {
         if (debugSuppress) return false
         if (shownForScreenId == screenId && shownBand == band && overlay != null) return false
@@ -153,7 +155,9 @@ class BlockOverlayController(private val service: AccessibilityService) {
         val view = LayoutInflater.from(service).inflate(R.layout.overlay_block, null)
         view.findViewById<TextView>(R.id.blocked_title).text =
             service.getString(R.string.blocked_title, screenLabel)
-        view.findViewById<TextView>(R.id.blocked_body).setText(bodyRes)
+        view.findViewById<TextView>(R.id.blocked_body).apply {
+            if (bodyText != null) text = bodyText else setText(bodyRes)
+        }
         bindRedirect(view)
         view.findViewById<Button>(R.id.blocked_go_back).setOnClickListener {
             // Dismiss first: the app underneath needs a frame to settle on the

@@ -13,6 +13,10 @@ import cat.doorman.app.limits.Limits
 import cat.doorman.app.limits.DayRecord
 import cat.doorman.app.limits.Journal
 import cat.doorman.app.limits.LimitsCodec
+import cat.doorman.app.gray.GrayCodec
+import cat.doorman.app.gray.GraySetting
+import cat.doorman.app.limits.ReelLedgerCodec
+import cat.doorman.app.limits.ReelWindow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.Json
@@ -44,6 +48,12 @@ class Prefs(private val context: Context) {
 
         /** Target id -> {"p":periodKey,"m":millis}: the allowance ledger. */
         val SPENT = stringPreferencesKey("spent")
+
+        /** Screen id -> where its reel quota stands. See ReelLedgerCodec. */
+        val REEL_BOOKS = stringPreferencesKey("reel_books")
+
+        /** Target id -> {"w":[hours]}: where the screen goes grey. See GrayCodec. */
+        val GRAYSCALE = stringPreferencesKey("grayscale")
 
         /** One row per day of what actually happened. See [Journal]. */
         val JOURNAL = stringPreferencesKey("journal")
@@ -142,6 +152,36 @@ class Prefs(private val context: Context) {
     /** Time already spent, per target. */
     val spent: Flow<Map<String, Allowances.Spent>> =
         context.dataStore.data.map { prefs -> decodeSpent(prefs[Keys.SPENT]) }
+
+    /**
+     * Where each screen stands inside its reel quota. Written when a reel is
+     * counted rather than on a timer, so a service that is killed mid-session
+     * does not hand back the reels already watched.
+     */
+    val reelBooks: Flow<Map<String, ReelWindow>> =
+        context.dataStore.data.map { prefs -> ReelLedgerCodec.decode(prefs[Keys.REEL_BOOKS]) }
+
+    /** Where the screen goes grey: target id to its setting. A target not here is in colour. */
+    val grayscale: Flow<Map<String, GraySetting>> =
+        context.dataStore.data.map { prefs -> GrayCodec.decode(prefs[Keys.GRAYSCALE]) }
+
+    /** Sets grey for one target; null puts that target back in colour. */
+    suspend fun setGrayscale(targetId: String, setting: GraySetting?) {
+        context.dataStore.edit { prefs ->
+            val all = GrayCodec.decode(prefs[Keys.GRAYSCALE])
+            prefs[Keys.GRAYSCALE] = GrayCodec.encode(
+                if (setting == null) all - targetId else all + (targetId to setting),
+            )
+        }
+    }
+
+    suspend fun setReelBook(screenId: String, window: ReelWindow) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.REEL_BOOKS] = ReelLedgerCodec.encode(
+                ReelLedgerCodec.decode(prefs[Keys.REEL_BOOKS]) + (screenId to window),
+            )
+        }
+    }
 
     suspend fun setLimits(targetId: String, limits: Limits) {
         context.dataStore.edit { prefs ->

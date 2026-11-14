@@ -99,9 +99,33 @@ There is no store listing yet. Grab the APK from Releases, allow your browser to
 install unknown apps when Android asks, then open Doorman and follow the prompt
 to grant accessibility access.
 
-Doorman asks for one permission and nothing else. It has no network permission
-at all, so nothing it reads can leave the phone even in principle. No ads, no
-subscription, no accounts, no analytics.
+Doorman needs accessibility access and nothing else to do its job. It has no
+network permission at all, so nothing it reads can leave the phone even in
+principle. No ads, no subscription, no accounts, no analytics.
+
+Two features ask for a little more, and both are optional:
+
+- **Usage access**, offered from the weekly report, for Android's own screen-time
+  figures.
+- **Grayscale**, which turns the screen grey while you are on a screen you pick
+  (grey on the reels, in colour in your messages, only at the hours you choose).
+  Android lets an app desaturate the display only through its colour correction,
+  a protected setting, so it needs one permission granted from a computer, once:
+
+  ```
+  adb shell pm grant cat.doorman.app android.permission.WRITE_SECURE_SETTINGS
+  ```
+
+  Doorman shows this command, with a copy button, in Settings → Grayscale. It
+  uses the permission for the two colour-correction settings and nothing else,
+  and puts them back exactly as they were when grey comes off. Without the
+  grant, everything else works and the grayscale switches say what is missing.
+
+### Reel allowance
+
+A screen that is an endless run of short videos (Reels, Shorts, TikTok's feed,
+Spotlight) can also be limited by count: *N reels every X minutes*. When the
+reels are spent, the screen closes and says when it opens again.
 
 ### When it stops working
 
@@ -226,7 +250,7 @@ and `./tools/compare-dumps.py dumps/**/*.json`.
 See [CONTRIBUTING.md](CONTRIBUTING.md). Fixing a broken rule is a JSON edit and
 needs no Kotlin.
 
-Translations are welcome. English and Catalan ship today; every user-facing
+Translations are welcome. English, Catalan and Spanish ship today; every user-facing
 string lives in `res/values/strings.xml`, and nothing in the blocking rules
 depends on language.
 

@@ -146,6 +146,17 @@ data class ScreenRule(
      */
     val endless: Boolean = false,
     /**
+     * Whether this screen is a pager of single videos -- Reels, Shorts, the For
+     * You feed, Spotlight -- where a swipe is one reel and so a reel quota can
+     * be counted.
+     *
+     * Not the same as [endless]. A home timeline never ends too, but a swipe
+     * there is a scroll, not an item, and "ten reels an hour" has no meaning on
+     * it. Data rather than a guess from the screen's name, so adding an app
+     * says outright which of its screens count.
+     */
+    val countsReels: Boolean = false,
+    /**
      * "BLOCK" covers the screen outright. "ALLOW_ONCE" lets it be watched and
      * blocks only once the user moves past [budget] items -- which is how a reel
      * someone sent you stays watchable without becoming a feed.

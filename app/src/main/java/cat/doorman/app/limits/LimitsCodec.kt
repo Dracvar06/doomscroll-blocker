@@ -36,10 +36,17 @@ object LimitsCodec {
     )
 
     @Serializable
+    private data class StoredReels(
+        @SerialName("n") val reels: Int,
+        @SerialName("m") val minutes: Int,
+    )
+
+    @Serializable
     private data class Stored(
         val blocked: Boolean = false,
         val allow: List<StoredAllowance> = emptyList(),
         val windows: List<StoredWindow> = emptyList(),
+        val reels: StoredReels? = null,
     )
 
     fun encode(limits: Limits): String = json.encodeToString(
@@ -51,6 +58,7 @@ object LimitsCodec {
             windows = limits.windows.map {
                 StoredWindow(it.fromMinute, it.toMinute, it.days.mask)
             },
+            reels = limits.reels?.let { StoredReels(it.reels, it.minutes) },
         ),
     )
 
@@ -80,6 +88,10 @@ object LimitsCodec {
                     }
                     Window(entry.from, entry.to, daysOf(entry.days))
                 },
+                // A quota that reads as nonsense is dropped, not guessed at.
+                reels = stored.reels
+                    ?.takeIf { it.reels > 0 && it.minutes > 0 }
+                    ?.let { ReelQuota(it.reels, it.minutes) },
             )
         }.getOrNull()
     }

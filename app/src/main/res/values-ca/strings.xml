@@ -312,4 +312,38 @@
     <string name="redirect_save">Desa</string>
     <string name="redirect_button_app">Ves a %1$s</string>
     <string name="redirect_button_chat">Escriu a %1$s</string>
+    <string name="blocked_body_reels_spent">Ja has vist els reels que t\'havies reservat. Tornen a les %1$s.</string>
+    <string name="limits_reels_heading">Reels</string>
+    <string name="limits_reels_hint">Quants reels pots mirar abans que la pantalla es tanqui. Es reobre quan s\'acaba el temps.</string>
+    <string name="limits_add_reels">Limita els reels</string>
+    <string name="limits_reels_label">Reels</string>
+    <string name="limits_reels_every_label">Cada</string>
+    <string name="limits_reels_more">Més</string>
+    <string name="limits_reels_fewer">Menys</string>
+    <string name="limits_reels_longer">Més temps</string>
+    <string name="limits_reels_shorter">Menys temps</string>
+    <plurals name="mode_reels">
+        <item quantity="one">%1$d reel cada %2$s</item>
+        <item quantity="many">%1$d de reels cada %2$s</item>
+        <item quantity="other">%1$d reels cada %2$s</item>
+    </plurals>
+    <string name="gray_title">Escala de grisos</string>
+    <string name="gray_explainer">Posa la pantalla en gris mentre ets en una pantalla que triïs. Un flux és molt menys atractiu sense color, i el color torna en el moment que en surts.</string>
+    <string name="gray_ready">A punt. Doorman pot posar la pantalla en gris.</string>
+    <string name="gray_needs_permission">Android només deixa que una aplicació canviï els colors de la pantalla si té un permís, donat des d\'un ordinador. Amb el telèfon connectat i la depuració USB activada, executa això una sola vegada:</string>
+    <string name="gray_copy_command">Copia l\'ordre</string>
+    <string name="gray_command_copied">Copiat</string>
+    <string name="gray_row_off">En color</string>
+    <string name="gray_row_always">Gris</string>
+    <string name="gray_choice_colour">En color</string>
+    <string name="gray_choice_grey">Gris</string>
+    <string name="gray_editor_help">El gris segueix la pantalla on ets, no només l\'aplicació: gris als reels, en color als missatges.</string>
+    <string name="gray_hours_heading">Només en aquestes hores</string>
+    <string name="gray_hours_hint">Deixa-ho buit per tenir gris tot el dia. Amb hores, la pantalla és grisa només dins d\'aquestes.</string>
+    <string name="gray_add_hours">Afegeix hores</string>
+    <plurals name="gray_on_count">
+        <item quantity="one">Gris a %1$d pantalla</item>
+        <item quantity="many">Gris a %1$d de pantalles</item>
+        <item quantity="other">Gris a %1$d pantalles</item>
+    </plurals>
 </resources>

@@ -56,6 +56,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,6 +68,9 @@ import cat.doorman.app.report.UsageAccess
 import cat.doorman.app.report.WatchedUse
 import cat.doorman.app.report.WeeklyReportNotifier
 import cat.doorman.app.data.Prefs
+import cat.doorman.app.gray.GrayPolicy
+import cat.doorman.app.gray.GraySetting
+import cat.doorman.app.gray.GrayscaleController
 import cat.doorman.app.limits.Allowances
 import cat.doorman.app.limits.Limits
 import cat.doorman.app.limits.isLoosening
@@ -119,6 +123,9 @@ private sealed interface PendingChange {
     data class Mode(val id: String, val limits: Limits) : PendingChange
     data class Preset(val ids: Set<String>) : PendingChange
 
+    /** Grey switched off or cut back for a screen or app; null is "in colour". */
+    data class Gray(val id: String, val setting: GraySetting?) : PendingChange
+
     /**
      * Shortening the wait is itself a way of weakening the app, and the most
      * direct one: set it to Immediate and every other switch becomes instant.
@@ -163,6 +170,10 @@ class MainActivity : ComponentActivity() {
     private var journal by mutableStateOf(emptyList<cat.doorman.app.limits.DayRecord>())
     private var weeklyReport by mutableStateOf(true)
     private var redirect by mutableStateOf<cat.doorman.app.data.Redirect?>(null)
+    private var graySettings by mutableStateOf(emptyMap<String, GraySetting>())
+
+    /** Whether Doorman has been given the permission grayscale needs. */
+    private var grayCanWrite by mutableStateOf(false)
 
     private var watchedUse by mutableStateOf<WatchedUse?>(null)
 
@@ -218,6 +229,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch { prefs.tutorialSeen.collectLatest { tutorialSeen = it } }
         lifecycleScope.launch { prefs.coffeeNudgedOn.collectLatest { coffeeNudgedOn = it } }
         lifecycleScope.launch { prefs.redirect.collectLatest { redirect = it } }
+        lifecycleScope.launch { prefs.grayscale.collectLatest { graySettings = it } }
         lifecycleScope.launch {
             prefs.weeklyReport.collectLatest { on ->
                 weeklyReport = on
@@ -276,12 +288,17 @@ class MainActivity : ComponentActivity() {
                     PendingChangeDialog(
                         seconds = pendingSeconds,
                         isDelayChange = pendingChange is PendingChange.Delay,
-                        targetLabel = (pendingChange as? PendingChange.Mode)?.let { change ->
-                            labelKeyFor(change.id).let(::labelFor)
+                        targetLabel = when (val change = pendingChange) {
+                            is PendingChange.Mode -> labelKeyFor(change.id).let(::labelFor)
                                 .ifEmpty { appLabelFor(change.id) }
+                            is PendingChange.Gray -> grayTargetLabel(change.id)
+                            else -> null
                         },
-                        modeLabel = (pendingChange as? PendingChange.Mode)
-                            ?.let { change -> summaryText(change.limits) },
+                        modeLabel = when (val change = pendingChange) {
+                            is PendingChange.Mode -> summaryText(change.limits)
+                            is PendingChange.Gray -> graySummaryText(resources, change.setting)
+                            else -> null
+                        },
                         onCancel = { cancelPendingChange() },
                     )
                     // System Back on the pass screen goes back to Doorman, the
@@ -616,6 +633,25 @@ class MainActivity : ComponentActivity() {
             )
         }
 
+        // Grey is another thing a feed can be made to feel like, so it sits with
+        // the behaviour group and not with the app's own settings.
+        SurfaceCard {
+            GrayscaleSection(
+                rules = rules,
+                settings = graySettings,
+                canWrite = grayCanWrite,
+                suggestions = remember(screenLimits, appLimits, graySettings) {
+                    (
+                        screenLimits.values.flatMap { it.windows } +
+                            appLimits.values.flatMap { it.windows } +
+                            graySettings.values.flatMap { it.windows }
+                        ).distinct()
+                },
+                labelFor = ::labelFor,
+                onChange = { id, setting -> requestGrayChange(id, setting) },
+            )
+        }
+
         // The app itself: which language it speaks and what to do when a rule
         // stops matching. Neither is about anybody's phone habits.
         SectionHeader(stringResource(R.string.section_about))
@@ -678,6 +714,32 @@ class MainActivity : ComponentActivity() {
             return
         }
         startPending(PendingChange.Mode(targetId, limits))
+    }
+
+    /**
+     * Grey on, or more of it, applies at once; grey off, or less of it, waits
+     * like any other block being loosened.
+     */
+    private fun requestGrayChange(targetId: String, setting: GraySetting?) {
+        val loosening = GrayPolicy.isLoosening(graySettings[targetId], setting)
+        if (!loosening || changeDelaySeconds <= 0) {
+            lifecycleScope.launch {
+                prefs.setGrayscale(targetId, setting)
+                if (loosening) prefs.recordToday(loosenings = 1)
+            }
+            return
+        }
+        startPending(PendingChange.Gray(targetId, setting))
+    }
+
+    /** What a grey setting's target is called: its screen's label, or its app's. */
+    private fun grayTargetLabel(targetId: String): String {
+        val screenLabel = labelKeyFor(targetId).let(::labelFor)
+        return if (screenLabel.isNotEmpty() && screenLabel != targetId) {
+            screenLabel
+        } else {
+            rules.apps[targetId]?.labelKey?.let(::labelFor) ?: appLabelFor(targetId)
+        }
     }
 
     private fun requestPreset(ids: Set<String>) {
@@ -776,6 +838,11 @@ class MainActivity : ComponentActivity() {
             is PendingChange.Preset ->
                 lifecycleScope.launch {
                     prefs.setEnabledScreens(change.ids, screenDefaults.keys)
+                    prefs.recordToday(loosenings = 1)
+                }
+            is PendingChange.Gray ->
+                lifecycleScope.launch {
+                    prefs.setGrayscale(change.id, change.setting)
                     prefs.recordToday(loosenings = 1)
                 }
             is PendingChange.Delay ->
@@ -1039,6 +1106,8 @@ class MainActivity : ComponentActivity() {
         // Doorman is the only moment it can have changed.
         refreshUsage()
         serviceEnabled = isAccessibilityServiceEnabled(this)
+        // Granted from a computer, so coming back to Doorman is when it shows.
+        grayCanWrite = GrayscaleController(this).canWrite
         lastSeen = DoormanAccessibilityService.instance?.lastSeen()
         watchServiceState()
         if (screen == Screen.UNLOCK && selectedPackage != null && secondsRemaining > 0) {

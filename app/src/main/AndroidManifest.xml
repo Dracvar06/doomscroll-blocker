@@ -36,6 +36,21 @@
         android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
 
+    <!--
+      Grayscale, and only grayscale.
+
+      Android gives an app no way to desaturate the screen except the phone's
+      own colour correction, and that setting is protected. Declared so that a
+      person can grant it once from a computer (`adb shell pm grant`, which
+      Doorman shows them); nothing asks for it at runtime and no dialog offers
+      it. Without the grant the grayscale switches say so and do nothing, and
+      everything else works exactly as before. It is used for two settings and
+      nothing else, and those are put back as they were when grey comes off.
+    -->
+    <uses-permission
+        android:name="android.permission.WRITE_SECURE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
+
     <queries>
         <!--
           Where a block that holds you can send you: a WhatsApp chat opens in

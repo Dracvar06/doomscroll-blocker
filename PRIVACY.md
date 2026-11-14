@@ -28,7 +28,10 @@ layout only; they never match on text.
 Everything below is stored on your phone, in the app's private storage, and
 nowhere else.
 
-- **Your decisions**: which screens are held, budgets, delays, language.
+- **Your decisions**: which screens are held, budgets, reel allowances, which
+  screens go grey and when, delays, language. A reel allowance also keeps a small
+  count per screen of the reels watched in the current window, so it knows when
+  the allowance is spent.
 - **A daily journal**: how many times Doorman stopped you, how much time was
   counted against a budget, how many limits you weakened, and how long each
   app you hold something in was in front of you — split by the screens
@@ -53,6 +56,16 @@ spent in the apps you hold. This permission is wide — Android grants it for
 every app — but Doorman reads it only for the apps you have chosen to hold,
 only while drawing the report, and stores none of it. The report works without
 it. Nothing else in the app changes if you decline.
+
+## Optional: grayscale
+
+If you turn on grayscale, Doorman needs the "write secure settings" permission,
+which Android only lets you grant from a computer (`adb shell pm grant`); Doorman
+never asks for it with a dialog. It uses it to switch the phone's colour
+correction to grayscale while you are on a screen you chose, and to put the two
+settings back as they were afterwards. It reads and changes nothing else.
+Without the permission the feature does nothing and the rest of the app is
+unaffected. You can remove the permission at any time by uninstalling Doorman.
 
 ## Notifications
 

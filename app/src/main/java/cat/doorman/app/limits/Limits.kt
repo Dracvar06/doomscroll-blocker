@@ -91,8 +91,14 @@ data class Limits(
     val blocked: Boolean = false,
     val allowances: List<Allowance> = emptyList(),
     val windows: List<Window> = emptyList(),
+    /**
+     * How many reels may be scrolled through in a stretch of minutes. Only
+     * meaningful on a screen the rules mark as counting reels; anywhere else it
+     * is never offered and never read.
+     */
+    val reels: ReelQuota? = null,
 ) {
-    val isOff: Boolean get() = !blocked && allowances.isEmpty() && windows.isEmpty()
+    val isOff: Boolean get() = !blocked && allowances.isEmpty() && windows.isEmpty() && reels == null
 
     /** The allowances in force on [day]; the others belong to other days. */
     fun allowancesOn(day: DayOfWeek): List<Allowance> = allowances.filter { day in it.days }
@@ -157,6 +163,10 @@ fun isLoosening(from: Limits, to: Limits): Boolean {
     val before = from.blockedMinutesOfWeek()
     val after = to.blockedMinutesOfWeek()
     for (i in before.indices) if (before[i] && !after[i]) return true
+
+    // Letting more reels through, or none counted at all, is loosening too --
+    // unless the screen is held outright, in which case no quota matters.
+    if (!to.blocked && ReelQuotas.isLooser(from.reels, to.reels)) return true
 
     // Every day has to keep at least as tight a budget as it had.
     DayOfWeek.entries.forEach { day ->

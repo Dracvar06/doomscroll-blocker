@@ -316,4 +316,38 @@
     <string name="redirect_save">Guardar</string>
     <string name="redirect_button_app">Ir a %1$s</string>
     <string name="redirect_button_chat">Escribir a %1$s</string>
+    <string name="blocked_body_reels_spent">Ya has visto los reels que te habías reservado. Vuelven a las %1$s.</string>
+    <string name="limits_reels_heading">Reels</string>
+    <string name="limits_reels_hint">Cuántos reels puedes ver antes de que la pantalla se cierre. Se vuelve a abrir cuando acaba el tiempo.</string>
+    <string name="limits_add_reels">Limitar los reels</string>
+    <string name="limits_reels_label">Reels</string>
+    <string name="limits_reels_every_label">Cada</string>
+    <string name="limits_reels_more">Más</string>
+    <string name="limits_reels_fewer">Menos</string>
+    <string name="limits_reels_longer">Más tiempo</string>
+    <string name="limits_reels_shorter">Menos tiempo</string>
+    <plurals name="mode_reels">
+        <item quantity="one">%1$d reel cada %2$s</item>
+        <item quantity="many">%1$d de reels cada %2$s</item>
+        <item quantity="other">%1$d reels cada %2$s</item>
+    </plurals>
+    <string name="gray_title">Escala de grises</string>
+    <string name="gray_explainer">Pone la pantalla en gris mientras estás en una pantalla que elijas. Un feed es mucho menos atractivo sin color, y el color vuelve en cuanto sales.</string>
+    <string name="gray_ready">Listo. Doorman puede poner la pantalla en gris.</string>
+    <string name="gray_needs_permission">Android solo deja que una aplicación cambie los colores de la pantalla si tiene un permiso, dado desde un ordenador. Con el teléfono conectado y la depuración USB activada, ejecuta esto una sola vez:</string>
+    <string name="gray_copy_command">Copiar el comando</string>
+    <string name="gray_command_copied">Copiado</string>
+    <string name="gray_row_off">En color</string>
+    <string name="gray_row_always">Gris</string>
+    <string name="gray_choice_colour">En color</string>
+    <string name="gray_choice_grey">Gris</string>
+    <string name="gray_editor_help">El gris sigue la pantalla en la que estás, no solo la aplicación: gris en los reels, en color en tus mensajes.</string>
+    <string name="gray_hours_heading">Solo en estas horas</string>
+    <string name="gray_hours_hint">Déjalo vacío para tener gris todo el día. Con horas, la pantalla es gris solo dentro de ellas.</string>
+    <string name="gray_add_hours">Añadir horas</string>
+    <plurals name="gray_on_count">
+        <item quantity="one">Gris en %1$d pantalla</item>
+        <item quantity="many">Gris en %1$d de pantallas</item>
+        <item quantity="other">Gris en %1$d pantallas</item>
+    </plurals>
 </resources>

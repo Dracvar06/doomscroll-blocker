@@ -213,6 +213,7 @@ fun BlockingSettings(
                                     onLimitsChosen = { onLimitsChosen(screen.id, it) },
                                     help = helpFor(screen.helpKey),
                                     suggestions = knownWindows,
+                                    reelsAllowed = screen.countsReels,
                                 )
                             } else {
                                 SwitchRow(

@@ -28,7 +28,12 @@ import cat.doorman.app.rules.ScreenEvaluator
 import cat.doorman.app.rules.OverlayBounds
 import cat.doorman.app.data.ScreenPreferences
 import cat.doorman.app.limits.Allowances
+import cat.doorman.app.gray.GrayPolicy
+import cat.doorman.app.gray.GraySetting
+import cat.doorman.app.gray.GrayscaleController
 import cat.doorman.app.limits.Limits
+import cat.doorman.app.limits.ReelQuota
+import cat.doorman.app.limits.ReelWindow
 import java.time.LocalDateTime
 import cat.doorman.app.R
 import kotlinx.coroutines.CoroutineScope
@@ -80,6 +85,10 @@ class DoormanAccessibilityService : AccessibilityService() {
     private var appLimits: Map<String, Limits> = emptyMap()
     private var ledger: Map<String, Allowances.Spent> = emptyMap()
 
+    /** Where the screen goes grey, by target. See [updateGrayscale]. */
+    private var graySettings: Map<String, GraySetting> = emptyMap()
+    private lateinit var grayscale: GrayscaleController
+
     /**
      * Counts time against whatever allowance is running.
      *
@@ -114,6 +123,10 @@ class DoormanAccessibilityService : AccessibilityService() {
         WeeklyReportNotifier.clearServiceOff(this)
         imePackage = currentImePackage()
         overlay = BlockOverlayController(this)
+        // Colour first: if the service died while the screen was grey, nothing
+        // else will ever put it back, and the evaluation that follows turns it
+        // grey again at once if it should be.
+        grayscale = GrayscaleController(this).also { it.restoreIfOurs() }
         overlay.onRedirectTapped = ::sendOnward
         rules = RuleLoader.load(this)
         val screenDefaults = RuleLoader.screenDefaults(rules)
@@ -148,6 +161,16 @@ class DoormanAccessibilityService : AccessibilityService() {
             }
         }
         serviceScope.launch { prefs.spent.collectLatest { ledger = it } }
+        serviceScope.launch {
+            prefs.grayscale.collectLatest {
+                graySettings = it
+                evaluateCurrentScreen()
+            }
+        }
+        // Read once, not followed: this service is the only thing that writes
+        // the reel books, and following them would let a slow echo of an older
+        // write put back a reel that has already been counted.
+        serviceScope.launch { reelCounter.load(prefs.reelBooks.first()) }
         serviceScope.launch {
             prefs.redirect.collectLatest {
                 redirect = it
@@ -280,7 +303,13 @@ class DoormanAccessibilityService : AccessibilityService() {
         presenceClock.stop()
         flushPresence()
         handler.removeCallbacks(presenceTick)
+        // Colour back before anything else: whatever else goes wrong in here,
+        // the phone must not be left grey.
+        if (::grayscale.isInitialized) grayscale.restoreIfOurs()
         scrollBudget.reset()
+        reelSwipes.reset()
+        reelCounter.reset()
+        clearReels()
         session = null
         held = null
         budgetBlock = null
@@ -1044,6 +1073,10 @@ class DoormanAccessibilityService : AccessibilityService() {
                     "to=${event.toIndex} of ${event.itemCount} src=${event.className}",
             )
         }
+        if (budgetKey == null && reelKey != null) {
+            onReelScroll(event)
+            return
+        }
         val key = budgetKey ?: return
         val spent = scrollBudget.onScroll(
             key = key,
@@ -1088,6 +1121,126 @@ class DoormanAccessibilityService : AccessibilityService() {
         viewportHeightPx = { resources.displayMetrics.heightPixels },
     )
     private var budgetKey: String? = null
+
+    // ---- reel quota --------------------------------------------------------
+    //
+    // A screen that counts reels and has a quota is open, and every swipe past
+    // a reel is counted against it. Kept apart from the single-reel budget
+    // above: that one is spent by the first swipe and ends a session, this one
+    // is spent by the Nth and lifts again by itself.
+
+    private val reelCounter = ReelCounter()
+
+    /** Spots a swipe on a counting screen. A budget of one, re-armed after each. */
+    private val reelSwipes = ScrollBudget(viewportHeightPx = { resources.displayMetrics.heightPixels })
+    private var reelKey: String? = null
+    private var reelPackage: String? = null
+    private var reelScreenId: String? = null
+    private var reelQuota: ReelQuota? = null
+    private var reelBlock: BudgetBlock? = null
+
+    /** Looks at the screen again when a closed quota is due to open. */
+    private val reelReopen = Runnable { evaluateCurrentScreen() }
+
+    private fun saveReelBook(screenId: String, window: ReelWindow) {
+        serviceScope.launch { Prefs(this@DoormanAccessibilityService).setReelBook(screenId, window) }
+    }
+
+    private fun clearReels() {
+        reelKey = null
+        reelPackage = null
+        reelScreenId = null
+        reelQuota = null
+        reelBlock = null
+        handler.removeCallbacks(reelReopen)
+    }
+
+    private fun reelsClosedText(untilMillis: Long): String = getString(
+        R.string.blocked_body_reels_spent,
+        android.text.format.DateFormat.getTimeFormat(this).format(java.util.Date(untilMillis)),
+    )
+
+    /**
+     * Counts the reel on a screen that has a quota, and puts the block up when
+     * the quota is spent. Returns true when it did, so the caller does not take
+     * the block down again straight after.
+     */
+    private fun applyReelQuota(
+        verdict: ScreenEvaluator.Verdict,
+        snapshot: cat.doorman.app.model.ScreenSnapshot?,
+        pkg: String,
+    ): Boolean {
+        val screenId = verdict.screenId
+        val rule = screenId?.let { id -> rules.appFor(pkg)?.screens?.firstOrNull { it.id == id } }
+        val quota = if (verdict.blocked && rule?.countsReels == true) {
+            screenLimits[screenId]?.reels
+        } else {
+            null
+        }
+        if (screenId == null || rule == null || quota == null || snapshot == null) {
+            clearReels()
+            return false
+        }
+        val now = System.currentTimeMillis()
+        val key = "${snapshot.packageName ?: pkg}/$screenId"
+        reelKey = key
+        reelPackage = rules.canonicalPackage(pkg) ?: pkg
+        reelScreenId = screenId
+        reelQuota = quota
+        // Ready before the swipe that closes the screen, for the same reason
+        // the single-reel block is: reading the tree mid-swipe is slow.
+        val band = bandFor(snapshot, screenId)
+        reelBlock = BudgetBlock(key, screenId, labelFor(rule.labelKey), band)
+        reelSwipes.begin(key, 1, now)
+        handler.removeCallbacks(reelReopen)
+
+        val state = reelCounter.onScreen(screenId, quota, now, ::saveReelBook)
+        Log.i(TAG, "reels: $screenId quota=${quota.reels}/${quota.minutes}min -> $state")
+        if (state !is ReelCounter.State.Closed) return false
+
+        if (stoppedTarget != screenId) {
+            stoppedTarget = screenId
+            serviceScope.launch { Prefs(this@DoormanAccessibilityService).recordToday(stops = 1) }
+        }
+        if (overlay.show(screenId, labelFor(rule.labelKey), band = band, bodyText = reelsClosedText(state.untilMillis))) {
+            blockLanded()
+        }
+        handler.postDelayed(reelReopen, (state.untilMillis - now).coerceAtLeast(0L) + 250)
+        return true
+    }
+
+    /** A swipe on a screen with a quota: counts it, and closes the screen on the one past the last. */
+    private fun onReelScroll(event: AccessibilityEvent) {
+        val key = reelKey ?: return
+        val screenId = reelScreenId ?: return
+        val quota = reelQuota ?: return
+        val eventPackage = event.packageName?.toString()
+        if (eventPackage != null && (rules.canonicalPackage(eventPackage) ?: eventPackage) != reelPackage) return
+        val now = System.currentTimeMillis()
+        val swiped = reelSwipes.onScroll(
+            key = key,
+            deltaX = event.scrollDeltaX,
+            deltaY = event.scrollDeltaY,
+            itemIndex = event.toIndex.takeIf { it >= 0 },
+            nowMillis = now,
+            scrolledViewHeightPx = scrolledViewHeight(event),
+        )
+        if (!swiped) return
+        // One swipe seen; look for the next from a clean start.
+        reelSwipes.reset()
+        reelSwipes.begin(key, 1, now)
+        val closed = reelCounter.onSwipe(screenId, quota, now, ::saveReelBook) ?: return
+        Log.i(TAG, "reels: quota spent on $screenId; blocking until ${closed.untilMillis}")
+        reelBlock?.takeIf { it.key == key }?.let { b ->
+            if (overlay.show(b.screenId, b.label, band = b.band, bodyText = reelsClosedText(closed.untilMillis))) {
+                blockLanded()
+            }
+        }
+        handler.removeCallbacks(reelReopen)
+        handler.postDelayed(reelReopen, (closed.untilMillis - now).coerceAtLeast(0L) + 250)
+        handler.removeCallbacks(evaluate)
+        handler.post(evaluate)
+    }
 
     /**
      * The last screen we ruled on inside a supported app. Arriving at a
@@ -1165,9 +1318,33 @@ class DoormanAccessibilityService : AccessibilityService() {
             tabCoverActive = false
             handler.removeCallbacks(tabCoverExpiry)
         }
+        updateGrayscale()
         // Whatever was decided -- blocked, allowed, not recognised -- is the
         // state the presence clock should be timing from here on.
         notePresence()
+    }
+
+    /**
+     * Grey while the screen in front is one the user chose, in colour the rest
+     * of the time. Judged from what the last evaluation recognised, so it
+     * follows the screen, not just the app: grey on the reels someone sent,
+     * colour in the conversation they came from.
+     *
+     * Colour whenever the phone is locked or the app is not one with rules, so
+     * the lock screen and the home screen are never grey on an app's account.
+     */
+    private fun updateGrayscale() {
+        if (!::grayscale.isInitialized) return
+        val want = graySettings.isNotEmpty() && !screenLocked() && grayDesired()
+        if (!grayscale.set(want) && want) {
+            Log.w(TAG, "grayscale wanted but Doorman has not been given WRITE_SECURE_SETTINGS")
+        }
+    }
+
+    private fun grayDesired(): Boolean {
+        val pkg = lastPackage ?: return false
+        val app = rules.canonicalPackage(pkg) ?: return false
+        return GrayPolicy.shouldBeGray(graySettings, app, lastRecognisedScreenId, LocalDateTime.now())
     }
 
     private fun evaluateCurrentScreenNow() {
@@ -1242,6 +1419,20 @@ class DoormanAccessibilityService : AccessibilityService() {
             held = null
             budgetKey = null
             budgetBlock = null
+            // A pass lifts blocks, not grey, so the screen still has to be
+            // named for it.
+            lastRecognisedScreenId = snapshot?.let {
+                ScreenEvaluator.recognise(
+                    it,
+                    rules,
+                    cat.doorman.app.rules.Arrival.isFromAnotherApp(
+                        previous = arrivedFromPackage,
+                        current = pkg,
+                        launcherPackages = launcherPackages,
+                        self = packageName,
+                    ),
+                )
+            }
             if (overlay.isShowing) overlay.hide()
             overlay.hideEntryCovers()
             return
@@ -1389,12 +1580,24 @@ class DoormanAccessibilityService : AccessibilityService() {
         // different question: a rule can match and the screen still be open
         // because there is time left on it.
         Log.i(TAG, "decision: $outcome targets=${targets.map { it.id to it.limits }}")
+        // A screen the time rules let through can still have a reel quota, and
+        // that is what may close it. Counted here, once the rules have spoken,
+        // so a screen held by a schedule or a spent time allowance never also
+        // spends a reel.
+        val reelsClosed = if (outcome is Allowances.Outcome.Block) {
+            clearReels()
+            false
+        } else {
+            applyReelQuota(verdict, snapshot, pkg)
+        }
         when (outcome) {
             is Allowances.Outcome.Allow -> {
                 stopClock()
-                stoppedTarget = null
-                if (blockedWhenLeft == canonical) blockedWhenLeft = null
-                if (overlay.isShowing) overlay.hide()
+                if (!reelsClosed) {
+                    stoppedTarget = null
+                    if (blockedWhenLeft == canonical) blockedWhenLeft = null
+                    if (overlay.isShowing) overlay.hide()
+                }
             }
 
             is Allowances.Outcome.Block -> {
@@ -1413,9 +1616,11 @@ class DoormanAccessibilityService : AccessibilityService() {
             }
 
             is Allowances.Outcome.OnTheClock -> {
-                stoppedTarget = null
-                if (blockedWhenLeft == canonical) blockedWhenLeft = null
-                if (overlay.isShowing) overlay.hide()
+                if (!reelsClosed) {
+                    stoppedTarget = null
+                    if (blockedWhenLeft == canonical) blockedWhenLeft = null
+                    if (overlay.isShowing) overlay.hide()
+                }
                 startClock(outcome)
             }
         }
