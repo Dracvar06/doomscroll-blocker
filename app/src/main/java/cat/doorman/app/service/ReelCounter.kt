@@ -70,9 +70,10 @@ class ReelCounter(
             here!!.leftAt = null
             val window = books[screenId]
             ReelQuotas.closedUntil(window, quota, nowMillis)?.let { return State.Closed(it) }
-            // A block that has just lifted while somebody sat on it: what is on
-            // screen now is the first reel of a new stretch, and counts as one.
-            if (window?.over == true && ReelQuotas.current(window, quota, nowMillis) == null) {
+            // A block that has just lifted while somebody sat on it, because the
+            // stretch ran out or the quota was raised: what is on screen now is
+            // a reel that was never counted, and counts as one.
+            if (window?.over == true) {
                 return enter(screenId, quota, nowMillis, persist)
             }
             return State.Open(ReelQuotas.remaining(window, quota, nowMillis))
@@ -147,6 +148,12 @@ class ReelCounter(
 
     /** Where a screen stands, without counting anything. */
     fun window(screenId: String): ReelWindow? = books[screenId]
+
+    /** For the log: the count, the quota and when the stretch ends. No screen content. */
+    fun countText(screenId: String, quota: ReelQuota): String {
+        val window = books[screenId] ?: return "count=0/${quota.reels}"
+        return "count=${window.count}/${quota.reels} over=${window.over} until=${ReelQuotas.opensAt(window, quota)}"
+    }
 
     /** The visit is over: the service is stopping, or nothing on screen has a quota. */
     fun reset() {

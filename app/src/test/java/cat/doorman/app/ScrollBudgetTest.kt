@@ -167,6 +167,19 @@ class ScrollBudgetTest {
         b.begin(key, budget = 1, nowMillis = 10 * 60 * 1000)
         assertTrue("a new reel opened later deserves its own budget", b.hasBudget(key, 10 * 60 * 1000))
     }
+
+    @Test
+    fun `indices from two different views are not a page turn`() {
+        val b = budget()
+        b.begin(key, budget = 1, nowMillis = 0)
+        // A feed under the pager reports 4, then the pager reports 0, and so on.
+        assertFalse(b.onScroll(key, 0, 0, 4, 10, source = "RecyclerView"))
+        assertFalse(b.onScroll(key, 0, 0, 0, 20, source = "ViewPager"))
+        assertFalse(b.onScroll(key, 0, 0, 4, 30, source = "RecyclerView"))
+        assertTrue(b.hasBudget(key, 40))
+        // The pager's own index moving is.
+        assertTrue(b.onScroll(key, 0, 0, 1, 50, source = "ViewPager"))
+    }
 }
 
 class NavigationTrackerTest {
@@ -216,4 +229,5 @@ class NavigationTrackerTest {
             t.entryFor("com.instagram.android", "ig_shared_reel"),
         )
     }
+
 }

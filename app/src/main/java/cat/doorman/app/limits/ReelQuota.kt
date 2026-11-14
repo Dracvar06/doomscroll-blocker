@@ -83,10 +83,13 @@ object ReelQuotas {
     fun enter(window: ReelWindow?, quota: ReelQuota, nowMillis: Long): Entry {
         val open = current(window, quota, nowMillis)
             ?: return Entry.Allowed(ReelWindow(nowMillis, 1))
-        if (open.over || open.count >= quota.reels) {
+        // The count alone decides. A stretch marked over whose quota has since
+        // been raised above the count is open again: the reel it lands on is
+        // counted, and the mark comes off.
+        if (open.count >= quota.reels) {
             return Entry.Closed(opensAt(open, quota))
         }
-        return Entry.Allowed(open.copy(count = open.count + 1))
+        return Entry.Allowed(open.copy(count = open.count + 1, over = false))
     }
 
     /** Somebody has swiped to the next reel. */
@@ -95,26 +98,28 @@ object ReelQuotas {
         // next one, and the reel it lands on is its first.
         val open = current(window, quota, nowMillis)
             ?: return Swipe.Next(ReelWindow(nowMillis, 1))
-        if (open.over || open.count >= quota.reels) {
+        if (open.count >= quota.reels) {
             val closed = open.copy(over = true)
             return Swipe.Closed(closed, opensAt(open, quota))
         }
-        return Swipe.Next(open.copy(count = open.count + 1))
+        return Swipe.Next(open.copy(count = open.count + 1, over = false))
     }
 
     /**
      * When a screen that was closed by a swipe opens again, or null while it is
      * open. What a re-check of the screen asks, so the block stays up under it.
+     * Judged against the quota as it is now: raised past the reels already
+     * counted, the block lifts at once; lowered, nothing changes until a swipe.
      */
     fun closedUntil(window: ReelWindow?, quota: ReelQuota, nowMillis: Long): Long? {
         val open = current(window, quota, nowMillis) ?: return null
-        return if (open.over) opensAt(open, quota) else null
+        return if (open.over && open.count >= quota.reels) opensAt(open, quota) else null
     }
 
     /** Reels the stretch still has, for saying so; zero once it is spent. */
     fun remaining(window: ReelWindow?, quota: ReelQuota, nowMillis: Long): Int {
         val open = current(window, quota, nowMillis) ?: return quota.reels
-        return if (open.over) 0 else (quota.reels - open.count).coerceAtLeast(0)
+        return if (open.over && open.count >= quota.reels) 0 else (quota.reels - open.count).coerceAtLeast(0)
     }
 
     /**

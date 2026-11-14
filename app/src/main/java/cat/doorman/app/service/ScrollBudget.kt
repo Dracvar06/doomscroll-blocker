@@ -22,7 +22,7 @@ class ScrollBudget(
         val key: String,
         var remaining: Int,
         var accumulatedY: Int,
-        var lastItemIndex: Int?,
+        val lastItemIndex: MutableMap<String?, Int> = mutableMapOf(),
         var lastSeenAt: Long,
         val startedAt: Long,
         val allowMillis: Long?,
@@ -43,7 +43,7 @@ class ScrollBudget(
             current.lastSeenAt = nowMillis
             return
         }
-        state = State(key, budget, 0, null, nowMillis, nowMillis, allowMillis)
+        state = State(key, budget, 0, mutableMapOf(), nowMillis, nowMillis, allowMillis)
     }
 
     fun hasBudget(key: String, nowMillis: Long): Boolean {
@@ -73,8 +73,11 @@ class ScrollBudget(
     /**
      * Feeds a scroll event in. [itemIndex] is the pager's current position when
      * it reports one, and [scrolledViewHeightPx] the height of the view that
-     * actually scrolled, when the event names one. Returns true when the budget
-     * has just run out.
+     * actually scrolled, when the event names one. [source] names the view that
+     * raised it, because indices are only comparable within one view: a screen
+     * with a feed under its pager reports both, and an index that jumps from the
+     * one's position to the other's is not a page turn. Returns true when the
+     * budget has just run out.
      */
     fun onScroll(
         key: String,
@@ -83,6 +86,7 @@ class ScrollBudget(
         itemIndex: Int?,
         nowMillis: Long,
         scrolledViewHeightPx: Int? = null,
+        source: String? = null,
     ): Boolean {
         val current = state ?: return false
         if (current.key != key) return false
@@ -94,9 +98,9 @@ class ScrollBudget(
 
         var moved = false
         if (itemIndex != null) {
-            val previous = current.lastItemIndex
+            val previous = current.lastItemIndex[source]
             if (previous != null && itemIndex != previous) moved = true
-            current.lastItemIndex = itemIndex
+            current.lastItemIndex[source] = itemIndex
         }
 
         current.accumulatedY += kotlin.math.abs(deltaY)

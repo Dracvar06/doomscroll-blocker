@@ -185,4 +185,66 @@ class ReelCounterTest {
         second.onScreen("ig_reels", tenAnHour, 30 * minute, persist)
         assertEquals(3, saved["ig_reels"]!!.count)
     }
+
+    @Test
+    fun `an allowance of two shows two reels and blocks the swipe to a third`() {
+        val two = ReelQuota(2, 45)
+        val counter = counter()
+        // Arriving shows reel 1.
+        assertEquals(State.Open(1), counter.onScreen("ig_reels", two, 0L, persist))
+        // The swipe to reel 2 is allowed, and reel 2 stays watchable.
+        assertNull(counter.onSwipe("ig_reels", two, 5_000L, persist))
+        assertEquals(State.Open(0), counter.onScreen("ig_reels", two, 60_000L, persist))
+        assertEquals(2, saved["ig_reels"]!!.count)
+        // The swipe that would show reel 3 is the one that closes.
+        assertTrue(counter.onSwipe("ig_reels", two, 70_000L, persist) != null)
+    }
+
+    @Test
+    fun `raising the quota lifts a block at once and counts the reel on screen`() {
+        val counter = counter()
+        val two = ReelQuota(2, 45)
+        val three = ReelQuota(3, 45)
+        counter.onScreen("ig_reels", two, 0L, persist)
+        counter.onSwipe("ig_reels", two, 1_000L, persist)
+        assertTrue(counter.onSwipe("ig_reels", two, 2_000L, persist) != null)
+        assertTrue(counter.onScreen("ig_reels", two, 3_000L, persist) is State.Closed)
+
+        assertEquals(State.Open(0), counter.onScreen("ig_reels", three, 4_000L, persist))
+        assertEquals(3, saved["ig_reels"]!!.count)
+        assertEquals(false, saved["ig_reels"]!!.over)
+        // The third reel is the last: the next swipe closes again.
+        assertTrue(counter.onSwipe("ig_reels", three, 90_000L, persist) != null)
+    }
+
+    @Test
+    fun `raising the quota lifts a block on a return after a break too`() {
+        val counter = counter()
+        val one = ReelQuota(1, 45)
+        counter.onScreen("ig_reels", one, 0L, persist)
+        assertTrue(counter.onSwipe("ig_reels", one, 1_000L, persist) != null)
+        counter.onLeft(2_000L)
+        val state = counter.onScreen("ig_reels", ReelQuota(2, 45), 10 * minute, persist)
+        assertEquals(State.Open(0), state)
+    }
+
+    @Test
+    fun `a raise that still leaves the count at the quota keeps the block`() {
+        val counter = counter()
+        counter.onScreen("ig_reels", ReelQuota(2, 45), 0L, persist)
+        counter.onSwipe("ig_reels", ReelQuota(2, 45), 1_000L, persist)
+        counter.onSwipe("ig_reels", ReelQuota(2, 45), 2_000L, persist)
+        assertTrue(counter.onScreen("ig_reels", ReelQuota(2, 45), 3_000L, persist) is State.Closed)
+    }
+
+    @Test
+    fun `lowering the quota closes nothing until the next swipe`() {
+        val counter = counter()
+        val three = ReelQuota(3, 45)
+        val one = ReelQuota(1, 45)
+        counter.onScreen("ig_reels", three, 0L, persist)
+        counter.onSwipe("ig_reels", three, 1_000L, persist)
+        assertEquals(State.Open(0), counter.onScreen("ig_reels", one, 2_000L, persist))
+        assertTrue(counter.onSwipe("ig_reels", one, 3_000L, persist) != null)
+    }
 }

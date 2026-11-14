@@ -1280,7 +1280,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         handler.removeCallbacks(reelReopen)
 
         val state = reelCounter.onScreen(screenId, quota, now, ::saveReelBook)
-        Log.i(TAG, "reels: $screenId quota=${quota.reels}/${quota.minutes}min -> $state")
+        Log.i(TAG, "reels: $screenId quota=${quota.reels}/${quota.minutes}min ${reelCounter.countText(screenId, quota)} -> $state")
         if (state !is ReelCounter.State.Closed) return false
 
         if (stoppedTarget != screenId) {
@@ -1317,12 +1317,15 @@ class DoormanAccessibilityService : AccessibilityService() {
             itemIndex = event.toIndex.takeIf { it >= 0 },
             nowMillis = now,
             scrolledViewHeightPx = scrolledViewHeight(event),
+            source = event.className?.toString(),
         )
         if (!swiped) return
         // One swipe seen; look for the next from a clean start.
         reelSwipes.reset()
         reelSwipes.begin(key, 1, now)
-        val closed = reelCounter.onSwipe(screenId, quota, now, ::saveReelBook) ?: return
+        val closed = reelCounter.onSwipe(screenId, quota, now, ::saveReelBook)
+        Log.i(TAG, "reels: swipe on $screenId ${reelCounter.countText(screenId, quota)}${if (closed != null) " -> closed" else ""}")
+        if (closed == null) return
         Log.i(TAG, "reels: quota spent on $screenId; blocking until ${closed.untilMillis}")
         reelBlock?.takeIf { it.key == key }?.let { b ->
             if (overlay.show(b.screenId, b.label, band = b.band, bodyText = reelsClosedText(closed.untilMillis))) {
