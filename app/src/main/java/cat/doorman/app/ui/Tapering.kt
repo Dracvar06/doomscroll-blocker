@@ -69,7 +69,7 @@ internal fun Allowance.restartedAt(minutes: Int, today: LocalDate): Allowance {
 }
 
 /** How fast a limit lowers, as a share of the level it is at. */
-private enum class Pace(val percent: Int, val label: Int) {
+enum class Pace(val percent: Int, val label: Int) {
     GENTLE(5, R.string.taper_pace_gentle),
     STEADY(10, R.string.taper_pace_steady),
     QUICK(20, R.string.taper_pace_quick),

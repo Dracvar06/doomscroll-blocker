@@ -76,7 +76,7 @@ object ScreenEvaluator {
         val rule = app.screens.firstOrNull { rule ->
             // A rule with no matcher at all is a switch that modifies another
             // block, not a screen; it must never block anything on its own.
-            rule.id in enabledScreenIds &&
+            !rule.messages && rule.id in enabledScreenIds &&
                 rule.matchers.any { matches(snapshot, it, arrivedFromAnotherApp) }
         } ?: return Verdict.ALLOW
         val outcome =

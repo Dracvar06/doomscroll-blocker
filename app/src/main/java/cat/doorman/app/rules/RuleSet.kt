@@ -146,6 +146,16 @@ data class ScreenRule(
      */
     val endless: Boolean = false,
     /**
+     * Whether this screen is ticked by default when its app joins a plan's
+     * shared budget.
+     *
+     * Separate from [defaultEnabled], which says what a fresh install blocks:
+     * a screen can be off on its own and still be the sort of thing a shared
+     * time budget should count, such as watching a video. Data rather than a
+     * list in the code, so adding a screen says outright which way it leans.
+     */
+    val planDefault: Boolean = false,
+    /**
      * Whether this screen is a pager of single videos -- Reels, Shorts, the For
      * You feed, Spotlight -- where a swipe is one reel and so a reel quota can
      * be counted.
@@ -156,6 +166,15 @@ data class ScreenRule(
      * says outright which of its screens count.
      */
     val countsReels: Boolean = false,
+    /**
+     * True for a screen that is only *recognised*, never held: the message
+     * inbox and a conversation. Doorman counts an app's time except here, so it
+     * has to know where messages are, and a messages screen must never be
+     * covered -- the way to somebody's messages is the one thing this app must
+     * not stand in front of. Such a rule is always off by default, and
+     * [ScreenEvaluator.evaluate] skips it even if something switches it on.
+     */
+    val messages: Boolean = false,
     /**
      * "BLOCK" covers the screen outright. "ALLOW_ONCE" lets it be watched and
      * blocks only once the user moves past [budget] items -- which is how a reel

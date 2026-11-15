@@ -16,7 +16,9 @@ object TabTargets {
     fun screensFor(app: AppRules, viewId: String): List<String> {
         val id = viewId.substringAfter("id/")
         return app.screens
-            .filter { screen -> screen.matchers.any { id in it.selectedViewId.orEmpty() } }
+            // The inbox is a tab too, but a messages screen is only recognised,
+            // never covered, so tapping it leads nowhere blocked.
+            .filter { screen -> !screen.messages && screen.matchers.any { id in it.selectedViewId.orEmpty() } }
             .map { it.id }
     }
 }

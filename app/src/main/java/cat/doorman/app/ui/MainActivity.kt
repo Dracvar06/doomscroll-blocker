@@ -96,7 +96,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
-private enum class Screen { HOME, UNLOCK }
+private enum class Screen { HOME, UNLOCK, PLAN }
 
 /**
  * The three things Doorman is for, one tab each.
@@ -134,8 +134,20 @@ private sealed interface PendingChange {
     /** [from] is kept for the dialog to say what is being left behind. */
     data class Mode(val id: String, val from: Limits, val limits: Limits) : PendingChange
 
-    /** [name] is the preset's own, for the dialog and for the note once it lands. */
-    data class Preset(val name: String, val ids: Set<String>) : PendingChange
+    /**
+     * A whole plan from the wizard, as one countdown: the limits and grey that
+     * change, and the wait and the report if those were changed with them.
+     * Judged as a whole, not per piece. If anything in it loosens, nothing in
+     * it lands early -- a plan that took the wait down at once would have
+     * made the wait for everything else pointless.
+     */
+    data class Plan(
+        val limits: List<LimitChange>,
+        val gray: List<GrayChange>,
+        val delaySeconds: Int?,
+        val weeklyReport: Boolean?,
+        val loosens: Boolean,
+    ) : PendingChange
 
     /** Grey switched off or cut back for a screen or app; null is "in colour". */
     data class Gray(val id: String, val from: GraySetting?, val setting: GraySetting?) :
@@ -210,6 +222,12 @@ class MainActivity : ComponentActivity() {
 
     /** The Grayscale page on the Blocks tab, likewise. */
     private var showGrayscale by mutableStateOf(false)
+
+    /** The plan wizard while it is open, and what Android said about use for it. */
+    private var planWizard by mutableStateOf<PlanWizardState?>(null)
+    private var planUsage by mutableStateOf(PlanUsage())
+    private var lastPlanOn by mutableStateOf<String?>(null)
+    private var planNudgedOn by mutableStateOf<String?>(null)
     private var journal by mutableStateOf(emptyList<cat.doorman.app.limits.DayRecord>())
     private var weeklyReport by mutableStateOf(true)
     private var redirect by mutableStateOf<cat.doorman.app.data.Redirect?>(null)
@@ -286,6 +304,8 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch { prefs.tutorialSeen.collectLatest { tutorialSeen = it } }
         lifecycleScope.launch { prefs.setupStage.collectLatest { setupStage = it } }
         lifecycleScope.launch { prefs.coffeeNudgedOn.collectLatest { coffeeNudgedOn = it } }
+        lifecycleScope.launch { prefs.lastPlanOn.collectLatest { lastPlanOn = it } }
+        lifecycleScope.launch { prefs.planNudgedOn.collectLatest { planNudgedOn = it } }
         lifecycleScope.launch { prefs.redirect.collectLatest { redirect = it } }
         lifecycleScope.launch { prefs.grayscale.collectLatest { graySettings = it } }
         lifecycleScope.launch {
@@ -437,6 +457,32 @@ class MainActivity : ComponentActivity() {
                                         if (onPage) Page(content = body) else Page(listScroll, body)
                                     }
                                 }
+                                Screen.PLAN -> Page {
+                                    planWizard?.let { wizard ->
+                                        val today = java.time.LocalDate.now()
+                                        val lookBack = remember(journal, appLimits, hardTimes) {
+                                            PlanMath.lookBack(
+                                                journal, rules.apps.keys.toList(), rules, appLimits, hardTimes, today,
+                                            )
+                                        }
+                                        PlanWizard(
+                                            state = wizard,
+                                            rules = rules,
+                                            icons = appIcons,
+                                            installedPackages = installedPackages,
+                                            usage = planUsage,
+                                            lookBack = lookBack,
+                                            hard = hardTimes,
+                                            grayCanWrite = grayCanWrite,
+                                            onAllowUsage = { askForUsageAccess() },
+                                            onStart = { plan, extras -> requestPlan(plan, extras) },
+                                            onShare = { text -> sharePlan(text) },
+                                            onClose = { closePlan() },
+                                            labelFor = ::labelFor,
+                                            briefLabelFor = ::briefLabelFor,
+                                        )
+                                    }
+                                }
                                 Screen.UNLOCK -> Page {
                                     UnlockScreen(
                                         rules = rules,
@@ -542,11 +588,6 @@ class MainActivity : ComponentActivity() {
                 Box(modifier = Modifier.weight(1f, fill = false)) {
                     StatusChip(onFix = { showDisclosure = true })
                 }
-                QuickSettingsMenu(
-                    rules = rules,
-                    screenLimits = screenLimits,
-                    onPreset = { name, ids -> requestPreset(name, ids) },
-                )
             }
         }
 
@@ -562,13 +603,11 @@ class MainActivity : ComponentActivity() {
         }
         if (setupOpen) {
             SetupCard(
-                rules = rules,
-                screenLimits = screenLimits,
                 serviceOn = serviceEnabled,
                 stage = setupStage,
                 notificationsOn = notificationsGranted,
                 onEnable = { showDisclosure = true },
-                onPickLevel = { name, ids -> requestPreset(name, ids) },
+                onMakePlan = { openPlan() },
                 onNotify = {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                         notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
@@ -634,6 +673,18 @@ class MainActivity : ComponentActivity() {
                 state = rightNow(heldTargets(), spent, java.time.LocalDateTime.now(), hardTimes),
                 onGetPass = { openUnlock() },
                 actions = {
+                    RethinkActions(
+                        nudge = PlanMath.nudgeDue(
+                            journal,
+                            hardTimes,
+                            java.time.LocalDate.now(),
+                            planNudgedOn?.let { runCatching { java.time.LocalDate.parse(it) }.getOrNull() },
+                        ),
+                        onRethink = { openPlan() },
+                        onDismissNudge = {
+                            lifecycleScope.launch { prefs.setPlanNudgedOn(java.time.LocalDate.now().toString()) }
+                        },
+                    )
                     HardTimeActions(
                         targets = heldTargets(),
                         hard = hardTimes,
@@ -937,25 +988,107 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Ticks the setup card's second item. Recorded where a preset lands rather
-     * than where it is tapped, so one that is still waiting out the change delay
-     * has not been chosen yet.
+     * Ticks the setup card's second item. Recorded where a plan lands rather
+     * than where it is started, so one that is still waiting out the change
+     * delay has not been made yet.
      */
     private suspend fun noteLevelChosen() {
         if (setupStage == SetupStage.OPEN) prefs.setSetupStage(SetupStage.LEVEL_CHOSEN)
     }
 
-    private fun requestPreset(name: String, ids: Set<String>) {
-        val weakens = screenLimits.any { (id, limits) -> !limits.isOff && id !in ids }
-        if (!weakens || changeDelaySeconds <= 0) {
-            lifecycleScope.launch {
-                prefs.setEnabledScreens(ids, screenDefaults.keys)
-                if (weakens) prefs.recordToday(loosenings = 1)
-                noteLevelChosen()
-            }
+    private fun openPlan() {
+        refreshPlanUsage()
+        planWizard = PlanWizardState(
+            rerun = lastPlanOn != null,
+            existing = screenLimits + appLimits,
+            // A first plan starts with a short wait, so that the limits it sets
+            // cannot be undone on the spot; anyone with a longer one keeps it.
+            delaySeconds = if (lastPlanOn == null) {
+                maxOf(PlanMath.FIRST_DELAY_SECONDS, changeDelaySeconds)
+            } else {
+                changeDelaySeconds
+            },
+            weeklyReport = weeklyReport,
+            preselected = PlanMath.heldApps(rules, screenLimits + appLimits, graySettings, installedPackages),
+        )
+        screen = Screen.PLAN
+    }
+
+    private fun closePlan() {
+        planWizard = null
+        screen = Screen.HOME
+    }
+
+    /**
+     * Everything a plan changes, judged the way separate saves would be but
+     * landing together. Tightening only lands at once; anything that loosens
+     * -- a limit, grey, or a shorter wait -- puts the whole plan behind one
+     * countdown.
+     */
+    private fun requestPlan(plan: Plan, extras: PlanExtras) {
+        val today = java.time.LocalDate.now()
+        val current = screenLimits + appLimits
+        val application = PlanMath.application(plan, extras, rules, today, current)
+        val change = PendingChange.Plan(
+            limits = PlanMath.limitChanges(application.limits, current, hardTimes, today),
+            gray = PlanMath.grayChanges(application.gray, graySettings),
+            delaySeconds = application.delaySeconds?.takeIf { it != changeDelaySeconds },
+            weeklyReport = application.weeklyReport?.takeIf { it != weeklyReport },
+            loosens = false,
+        ).let { it.copy(loosens = planLoosens(it)) }
+        if (!change.loosens || changeDelaySeconds <= 0) {
+            applyPlan(change)
             return
         }
-        startPending(PendingChange.Preset(name, ids))
+        startPending(change)
+    }
+
+    private fun planLoosens(change: PendingChange.Plan): Boolean =
+        change.limits.any { it.loosens } ||
+            change.gray.any { it.loosens } ||
+            (change.delaySeconds != null && change.delaySeconds < changeDelaySeconds)
+
+    private fun applyPlan(change: PendingChange.Plan) {
+        lifecycleScope.launch {
+            change.limits.forEach { prefs.setLimits(it.id, it.to) }
+            change.gray.forEach { prefs.setGrayscale(it.id, it.to) }
+            change.delaySeconds?.let { prefs.setChangeDelaySeconds(it) }
+            // One loosening for the plan, as one preset was: it is one decision,
+            // and a report that counted every screen it touched would call a
+            // careful rethink a run of weakened limits.
+            if (change.loosens) prefs.recordToday(loosenings = 1)
+            change.weeklyReport?.let { on ->
+                if (on) askToNotify()
+                prefs.setWeeklyReport(on)
+            }
+            prefs.setLastPlanOn(java.time.LocalDate.now().toString())
+            noteLevelChosen()
+        }
+    }
+
+    private fun sharePlan(text: String) {
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, text)
+        }
+        startActivity(Intent.createChooser(send, getString(R.string.plan_share)))
+    }
+
+    /**
+     * Android's own figures for the apps with rules, summed under each app's
+     * main package so a regional build does not split one app in two. Read when
+     * the wizard opens and again when Doorman is back from Android's settings.
+     */
+    private fun refreshPlanUsage() {
+        val today = java.time.LocalDate.now()
+        val raw = UsageAccess.recentDailyAverage(this, rules.supportedPackages, today)
+        planUsage = PlanUsage(
+            granted = UsageAccess.granted(this),
+            averages = raw.orEmpty().entries
+                .groupBy({ rules.canonicalPackage(it.key) ?: it.key }, { it.value })
+                .mapValues { (_, millis) -> millis.sum() },
+            days = UsageAccess.recentDays(this, today),
+        )
     }
 
     /**
@@ -1040,12 +1173,7 @@ class MainActivity : ComponentActivity() {
                     prefs.setLimits(change.id, change.limits)
                     prefs.recordToday(loosenings = 1)
                 }
-            is PendingChange.Preset ->
-                lifecycleScope.launch {
-                    prefs.setEnabledScreens(change.ids, screenDefaults.keys)
-                    prefs.recordToday(loosenings = 1)
-                    noteLevelChosen()
-                }
+            is PendingChange.Plan -> applyPlan(change)
             is PendingChange.Both ->
                 lifecycleScope.launch {
                     prefs.setLimits(change.id, change.limits)
@@ -1076,7 +1204,7 @@ class MainActivity : ComponentActivity() {
         is PendingChange.Mode -> getString(R.string.pending_change_screen, targetLabelFor(change.id), seconds)
         is PendingChange.Gray -> getString(R.string.pending_change_screen, targetLabelFor(change.id), seconds)
         is PendingChange.Both -> getString(R.string.pending_change_screen, targetLabelFor(change.id), seconds)
-        is PendingChange.Preset -> getString(R.string.preset_applying, change.name, seconds)
+        is PendingChange.Plan -> getString(R.string.plan_pending_title, seconds)
         is PendingChange.Delay -> getString(R.string.pending_change_delay, seconds)
     }
 
@@ -1088,8 +1216,25 @@ class MainActivity : ComponentActivity() {
             limitsFromTo(change.fromLimits, change.limits),
             grayFromTo(change.fromGray, change.setting),
         )
-        is PendingChange.Preset, is PendingChange.Delay -> emptyList()
+        is PendingChange.Plan -> planDetails(change)
+        is PendingChange.Delay -> emptyList()
     }
+
+    /** Only what weakens: tightening needs no explaining while a wait runs. */
+    private fun planDetails(change: PendingChange.Plan): List<String> =
+        change.limits.filter { it.loosens }.map {
+            getString(R.string.plan_pending_item, targetLabelFor(it.id), limitsFromTo(it.from, it.to))
+        } + change.gray.filter { it.loosens }.map {
+            getString(R.string.plan_pending_item, targetLabelFor(it.id), grayFromTo(it.from, it.to))
+        } + listOfNotNull(
+            change.delaySeconds?.takeIf { it < changeDelaySeconds }?.let {
+                getString(
+                    R.string.plan_pending_delay,
+                    delayText(resources, changeDelaySeconds),
+                    delayText(resources, it),
+                )
+            },
+        )
 
     private fun limitsFromTo(from: Limits, to: Limits): String =
         getString(R.string.pending_change_from_to, summaryText(from), summaryText(to))
@@ -1105,7 +1250,7 @@ class MainActivity : ComponentActivity() {
         is PendingChange.Mode -> targetLabelFor(change.id)
         is PendingChange.Gray -> targetLabelFor(change.id)
         is PendingChange.Both -> targetLabelFor(change.id)
-        is PendingChange.Preset -> change.name
+        is PendingChange.Plan -> getString(R.string.plan_pending_name)
         is PendingChange.Delay -> getString(R.string.section_change_delay)
     }
 
@@ -1124,7 +1269,7 @@ class MainActivity : ComponentActivity() {
         val screens = rules.apps.flatMap { (packageName, app) ->
             val appName = labelFor(app.labelKey)
             listOf(HeldTarget(packageName, appName, appLimits[packageName] ?: Limits.OFF)) +
-                app.screens.map {
+                app.screens.filterNot { it.messages }.map {
                     HeldTarget(
                         it.id,
                         "$appName · ${briefLabelFor(it.labelKey)}",
@@ -1387,6 +1532,7 @@ class MainActivity : ComponentActivity() {
         // Usage access is granted in Android's settings, so coming back to
         // Doorman is the only moment it can have changed.
         refreshUsage()
+        if (screen == Screen.PLAN) refreshPlanUsage()
         serviceEnabled = isAccessibilityServiceEnabled(this)
         notificationsGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==

@@ -1,13 +1,17 @@
 package cat.doorman.app.limits
 
+import android.util.Log
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import java.time.LocalDate
 
@@ -60,6 +64,9 @@ object LimitsCodec {
         val allow: List<StoredAllowance> = emptyList(),
         val windows: List<StoredWindow> = emptyList(),
         val reels: StoredReels? = null,
+        /** Raw JSON, so a damaged list costs the scope and not the whole limit. */
+        val onlyOn: JsonElement? = null,
+        val exceptOn: JsonElement? = null,
     )
 
     fun encode(limits: Limits): String = json.encodeToString(
@@ -72,6 +79,8 @@ object LimitsCodec {
                 StoredWindow(it.fromMinute, it.toMinute, it.days.mask)
             },
             reels = limits.reels?.let { StoredReels(it.reels, it.minutes) },
+            onlyOn = limits.onlyOn?.let { ids -> JsonArray(ids.sorted().map(::JsonPrimitive)) },
+            exceptOn = limits.exceptOn?.let { ids -> JsonArray(ids.sorted().map(::JsonPrimitive)) },
         ),
     )
 
@@ -85,6 +94,10 @@ object LimitsCodec {
         if (!raw.trimStart().startsWith("{")) return decodeLegacy(raw)
         return runCatching {
             val stored = json.decodeFromString<Stored>(raw)
+            val exceptOn = decodeIds(stored.exceptOn, "exceptOn")
+            // An exception list that cannot be read cannot say where messages
+            // are, so the limit is kept off every screen rather than risk them.
+            val onlyOn = if (exceptOn === UNREADABLE) emptySet() else decodeIds(stored.onlyOn, "onlyOn")
             Limits(
                 blocked = stored.blocked,
                 allowances = stored.allow.mapNotNull { entry ->
@@ -105,8 +118,29 @@ object LimitsCodec {
                 reels = stored.reels
                     ?.takeIf { it.reels > 0 && it.minutes > 0 }
                     ?.let { ReelQuota(it.reels, it.minutes) },
+                onlyOn = if (onlyOn === UNREADABLE) emptySet() else onlyOn,
+                exceptOn = if (exceptOn === UNREADABLE) null else exceptOn,
             )
         }.getOrNull()
+    }
+
+    /** Marks a list that was there and could not be read; compared by identity. */
+    private val UNREADABLE: Set<String> = HashSet()
+
+    /**
+     * Null when absent. One that cannot be read comes back as [UNREADABLE],
+     * and either way the limit then applies nowhere: widening it to messages
+     * would be the one wrong way to guess.
+     */
+    private fun decodeIds(raw: JsonElement?, name: String): Set<String>? {
+        if (raw == null || raw is JsonNull) return null
+        return runCatching {
+            raw.jsonArray.map { (it as JsonPrimitive).also { p -> require(p.isString) }.content }.toSet()
+        }.getOrElse {
+            // The log is Android's; on a plain JVM it throws, and that must not cost the limit.
+            runCatching { Log.w("Doorman", "unreadable $name, applying the limit nowhere: $raw") }
+            UNREADABLE
+        }
     }
 
     private fun encodeTaper(taper: Taper): JsonElement = JsonObject(

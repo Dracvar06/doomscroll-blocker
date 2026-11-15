@@ -32,12 +32,10 @@
     <string name="screen_yt_shorts" tools:ignore="UnusedResources">Shorts</string>
     <string name="screen_yt_home" tools:ignore="UnusedResources">Home feed</string>
     <string name="screen_yt_subscriptions" tools:ignore="UnusedResources">Subscriptions feed</string>
+    <string name="screen_yt_watch" tools:ignore="UnusedResources">Watching a video</string>
 
     <string name="section_blocking">What Doorman blocks</string>
     <string name="section_blocking_hint">Everything is your choice. Switch off anything you would rather keep.</string>
-    <string name="preset_strict">Strict</string>
-    <string name="preset_balanced">Balanced</string>
-    <string name="preset_nothing">Nothing</string>
 
     <string name="pass_explainer">Need in anyway? Wait a few seconds for a short pass.</string>
     <string name="action_get_pass">Get a pass</string>
@@ -58,6 +56,8 @@
     <string name="screen_ig_feed" tools:ignore="UnusedResources">Home feed</string>
     <string name="screen_ig_explore" tools:ignore="UnusedResources">Explore and search</string>
     <string name="screen_ig_single_reel" tools:ignore="UnusedResources">Scrolling on from a single reel</string>
+    <string name="screen_ig_dm_inbox" tools:ignore="UnusedResources">Messages</string>
+    <string name="screen_ig_dm_thread" tools:ignore="UnusedResources">A conversation</string>
     <string name="blocked_body_allowance_spent">Your time here is used up for now. It comes back on its own.</string>
     <string name="blocked_body_budget_spent">You have seen the one you opened. The rest is just the feed.</string>
     <string name="section_diagnostics">Something not working?</string>
@@ -87,6 +87,8 @@
     <string name="screen_sc_spotlight" tools:ignore="UnusedResources">Spotlight</string>
     <string name="screen_sc_stories" tools:ignore="UnusedResources">Stories and Discover</string>
     <string name="screen_sc_friends_story_row" tools:ignore="UnusedResources">Friends\' story row</string>
+    <string name="screen_sc_chat_list" tools:ignore="UnusedResources">Messages</string>
+    <string name="screen_sc_chat_thread" tools:ignore="UnusedResources">A conversation</string>
 
     <string name="app_linkedin" tools:ignore="UnusedResources">LinkedIn</string>
     <string name="screen_li_feed" tools:ignore="UnusedResources">The feed</string>
@@ -142,17 +144,22 @@
     <string name="help_yt_shorts" tools:ignore="UnusedResources">The Shorts player itself, wherever you reach it from: the Shorts tab, a link, a channel. Videos you search for and ordinary videos are untouched.</string>
     <string name="help_yt_home_feed" tools:ignore="UnusedResources">The recommendations on the YouTube home tab. Search, subscriptions and any video you open still work. A time limit here counts only the minutes on the home page, not the videos you open from it; to limit watching, use The whole app.</string>
     <string name="help_yt_subscriptions_feed" tools:ignore="UnusedResources">The Subscriptions tab, which lists new videos from channels you follow. Off by default: for most people this is the deliberate part of YouTube rather than the endless part.</string>
+    <string name="help_yt_watch" tools:ignore="UnusedResources">Time spent on a YouTube video page, with its description and comments. The Shorts player, the home and subscriptions feeds, search and the small player over them are not this. Off by default: watching what you chose is not the same as scrolling, so this is for a time limit you set yourself.</string>
     <string name="help_ig_single_reel" tools:ignore="UnusedResources">When someone sends you a reel, it plays. The block lands on the first swipe past it, so what a friend sent stays watchable without becoming a feed. Switch this off and a reel someone sent is blocked like any other.</string>
     <string name="help_ig_stories" tools:ignore="UnusedResources">Stories themselves, opened from anywhere: the home feed, a profile, a message. Off by default, because for many people stories are how friends talk to each other.</string>
     <string name="help_ig_reels" tools:ignore="UnusedResources">The Reels tab only. A reel opened from somewhere else — a message, a profile, a story — still plays. For those, use “Reels, wherever they open”.</string>
     <string name="help_ig_reel_viewer" tools:ignore="UnusedResources">Any reel playing full screen, no matter where you opened it from. Stricter than the Reels tab on its own. If “keep swiping from a reel someone sent” is also on, a reel sent to you still plays once before the block.</string>
     <string name="help_ig_feed" tools:ignore="UnusedResources">The scrolling posts on the home tab. The stories row along the top stays reachable unless you also block that, and messages, search and your profile are untouched.</string>
+    <string name="help_ig_dm_inbox" tools:ignore="UnusedResources">Instagram\'s message inbox, with its notes and requests. Recognised so it is never blocked or counted against a limit.</string>
+    <string name="help_ig_dm_thread" tools:ignore="UnusedResources">A single Instagram conversation. Recognised so it is never blocked or counted against a limit.</string>
     <string name="help_ig_explore" tools:ignore="UnusedResources">The Explore grid behind the search tab. The search bar itself stays usable, so you can still look people up.</string>
     <string name="help_tt_shared_video" tools:ignore="UnusedResources">When you open a TikTok link from another app, that video plays and the block lands on the first swipe. TikTok drops shared links straight into the For You feed, so without this there is no way to watch what someone sent you.</string>
     <string name="help_tt_feed" tools:ignore="UnusedResources">The scrolling video feed: For You, Following, all of it. Your inbox, your profile and search still work.</string>
     <string name="help_sc_spotlight" tools:ignore="UnusedResources">The Spotlight tab, Snapchat\'s endless video feed. Chats, snaps, the camera and the map are untouched.</string>
     <string name="help_sc_stories" tools:ignore="UnusedResources">The Discover grid of publisher content on the Stories tab. Your friends\' stories along the top stay reachable unless you also block that row.</string>
     <string name="help_sc_friends_story_row" tools:ignore="UnusedResources">Hides the row of friends\' stories at the top of the Stories tab, without blocking stories themselves.</string>
+    <string name="help_sc_chat_list" tools:ignore="UnusedResources">Snapchat\'s Chat tab with the list of conversations. Recognised so it is never blocked or counted against a limit.</string>
+    <string name="help_sc_chat_thread" tools:ignore="UnusedResources">A single Snapchat conversation. Recognised so it is never blocked or counted against a limit.</string>
     <string name="help_li_feed" tools:ignore="UnusedResources">LinkedIn\'s feed: the endless scroll of posts behind the home tab. Messages, notifications, jobs, your network and anything you search for are untouched.</string>
     <string name="help_x_home_timeline" tools:ignore="UnusedResources">The For You and Following timelines. Messages, notifications, search, profiles and a post you open stay exactly as they are.</string>
     <string name="help_rd_home_feed" tools:ignore="UnusedResources">Reddit\'s home feed, the one that opens with the app. A community you go to yourself, a post, its comments, search and your inbox are untouched.</string>
@@ -187,7 +194,6 @@
     <string name="dial_field_hours">hours</string>
     <string name="dial_field_minutes">minutes</string>
     <string name="dial_field_seconds">seconds</string>
-    <string name="preset_permissive">Permissive</string>
     <string name="tab_blocks">Blocks</string>
     <string name="tab_report">Report</string>
     <string name="tab_settings">Settings</string>
@@ -227,22 +233,8 @@
     <string name="tutorial_replay">Show the introduction again</string>
     <string name="setup_title">Set up Doorman</string>
     <string name="setup_step_enable_hint">Find Doorman in the list, switch it on, and accept.</string>
-    <string name="setup_step_level">Choose where to start</string>
-    <string name="setup_level_strict_example">Every feed, Reels and Shorts.</string>
-    <string name="setup_level_balanced_example">The main feeds and short videos.</string>
-    <string name="setup_level_permissive_example">Only the ones that never end.</string>
     <string name="setup_step_notify">Get a weekly note (optional)</string>
     <string name="setup_dismiss">Do not show this again</string>
-    <string name="preset_custom">Custom</string>
-    <string name="quick_settings">Quick settings</string>
-    <string name="quick_settings_heading">Quick settings: set every screen at once</string>
-    <string name="preset_allow_everything">Allow everything</string>
-    <string name="quick_settings_confirm_title">Apply %1$s?</string>
-    <plurals name="quick_settings_confirm_body">
-        <item quantity="one">%1$d screen will change.</item>
-        <item quantity="other">%1$d screens will change.</item>
-    </plurals>
-    <string name="quick_settings_confirm_button">Apply</string>
     <string name="report_delta_down">↓ %1$s</string>
     <string name="report_delta_up">↑ %1$s</string>
     <string name="report_delta_against">vs the week before</string>
@@ -288,7 +280,7 @@
     <string name="notify_week_top_app">Most of it in %1$s: %2$s.</string>
     <string name="screen_ig_stories_brief">Stories</string>
     <string name="screen_ig_single_reel_brief">A single reel</string>
-    <string name="screen_ig_reel_viewer_brief">Reels</string>
+    <string name="screen_ig_reel_viewer_brief">Reels opened from a post or profile</string>
     <string name="screen_ig_explore_brief">Explore</string>
     <string name="screen_yt_single_short_brief">A single Short</string>
     <string name="screen_tt_feed_brief">The feed</string>
@@ -306,6 +298,7 @@
     <string name="screen_rn_following" tools:ignore="UnusedResources">Following</string>
     <string name="screen_rn_market" tools:ignore="UnusedResources">Market</string>
     <string name="screen_rn_video_feed" tools:ignore="UnusedResources">Scrolling on from a video you opened</string>
+    <string name="screen_rn_video_pager" tools:ignore="UnusedResources">Video feed</string>
     <string name="screen_rn_explore_brief">Explore</string>
     <string name="screen_rn_nearby_brief">Nearby</string>
     <string name="screen_rn_following_brief">Following</string>
@@ -316,6 +309,7 @@
     <string name="help_rn_following" tools:ignore="UnusedResources">Posts from the people you follow. Off to begin with, because you chose them; switch it on if it has become a feed of its own.</string>
     <string name="help_rn_market" tools:ignore="UnusedResources">The shopping grid behind the Market tab. Off to begin with.</string>
     <string name="help_rn_video_feed" tools:ignore="UnusedResources">Opening a video on RedNote drops you into a feed you can keep swiping through. The video you opened plays, and the block lands on the first swipe past it. Its comments stay open while it does.</string>
+    <string name="help_rn_video_pager" tools:ignore="UnusedResources">The full-screen video viewer on RedNote, where a swipe moves to the next video: time in it joins a shared budget, or videos can be counted instead of minutes. A video someone sends you from another app still plays once, and the grids you open it from are their own switches. Off by default: for a limit you set yourself.</string>
 
     <!-- Where a block that holds you sends you -->
     <string name="redirect_title">The way out of a block</string>
@@ -380,7 +374,6 @@
     <string name="pending_change_from_to">From %1$s to %2$s</string>
     <string name="pending_cancelled_left">The change was cancelled because you left Doorman.</string>
     <string name="pending_applied">Changed: %1$s</string>
-    <string name="preset_applying">Applying %1$s in %2$d s</string>
     <string name="colour_heading">Colour</string>
     <string name="colour_normal">Normal</string>
     <string name="colour_grey">Grey</string>
@@ -460,4 +453,104 @@
     <string name="report_taper_lowered">%1$s: %2$s this week (was %3$s)</string>
     <string name="report_taper_held_day">%1$s stays at %2$s: last week had a hard day.</string>
     <string name="report_taper_held_week">%1$s stays at %2$s: last week was part of a hard week.</string>
+    <string name="plan_next">Next</string>
+    <string name="plan_step_of">Step %1$d of %2$d</string>
+    <string name="plan_title_apps">What pulls you in?</string>
+    <string name="plan_title_now">Your time now</string>
+    <string name="plan_title_goal">Where do you want to get to?</string>
+    <string name="plan_title_pace">How fast?</string>
+    <string name="plan_title_hold">Hold yourself to it</string>
+    <string name="plan_title_plan">Your plan</string>
+    <string name="plan_apps_intro">Pick the apps you would like to spend less time in. You can change this any time.</string>
+    <string name="plan_apps_none">None of the apps Doorman knows is on this phone yet.</string>
+    <string name="plan_quick">Just block the endless parts</string>
+    <string name="plan_quick_hint">Holds Reels, Shorts and the other feeds that never end in the apps you picked, and nothing else. No more questions.</string>
+    <string name="plan_usage_title">Let Doorman see how long you use each app</string>
+    <string name="plan_usage_body">Android keeps a count of the time spent in each app. With your permission Doorman reads it once, here, for the apps you picked. It keeps none of it and has no way to send it anywhere.</string>
+    <string name="plan_usage_allow">Allow</string>
+    <string name="plan_usage_estimate">I will estimate</string>
+    <string name="plan_usage_average">About %1$s a day, from Android\'s own figures.</string>
+    <plurals name="plan_usage_days">
+        <item quantity="one">Average over %1$d day</item>
+        <item quantity="other">Average over %1$d days</item>
+    </plurals>
+    <string name="plan_estimate_label">About %1$s a day</string>
+    <string name="plan_estimate_slider">Estimated daily time in %1$s</string>
+    <string name="plan_usage_messages">That includes time in messages, which never counts toward your plan.</string>
+    <string name="plan_lookback_title">How the last weeks went</string>
+    <string name="plan_lookback_none">Doorman has no record of the last weeks yet, so here are Android\'s figures.</string>
+    <string name="plan_lookback_app">%1$s: %2$s a day on average.</string>
+    <string name="plan_lookback_app_limit">%1$s: %2$s a day on average, against a limit of %3$s.</string>
+    <plurals name="plan_lookback_ran_out">
+        <item quantity="one">The limit ran out on %1$d day.</item>
+        <item quantity="other">The limit ran out on %1$d days.</item>
+    </plurals>
+    <string name="plan_suggest_keep">It ran out on most days and you took hard days. Keeping this level, or easing the pace, is a fair choice.</string>
+    <string name="plan_suggest_lower">You stayed well under. A lower target is within reach.</string>
+    <string name="plan_lookback_totals">Hard days taken: %1$d. Limits weakened: %2$d.</string>
+    <string name="plan_goal_now">Now about %1$s a day</string>
+    <string name="plan_goal_bit">A bit less (-%1$d%%)</string>
+    <string name="plan_goal_half">Half</string>
+    <string name="plan_goal_custom">Other</string>
+    <string name="plan_goal_label">A day</string>
+    <string name="plan_goal_aim">Aim: %1$s</string>
+    <string name="plan_goal_counts">Counts all your time in %1$s.</string>
+    <string name="plan_goal_counts_except">Counts all your time in %1$s except %2$s.</string>
+    <string name="plan_goal_blocked">Blocked all day: %1$s.</string>
+    <string name="plan_item_messages">messages</string>
+    <string name="plan_parts_title">Each part</string>
+    <string name="plan_parts_everything">Everything counts</string>
+    <string name="plan_parts_hint">Reels-style feeds are where time slips away fastest; blocking them or counting videos helps.</string>
+    <string name="plan_parts_blocked">Blocked: %1$s.</string>
+    <string name="plan_parts_free">Free: %1$s.</string>
+    <string name="plan_parts_videos">Counted in videos: %1$s.</string>
+    <string name="plan_part_videos_item">%1$s (%2$s)</string>
+    <string name="plan_part_choose">Change</string>
+    <string name="plan_choice_counts">Counts</string>
+    <string name="plan_choice_blocked">Blocked</string>
+    <string name="plan_choice_free">Free</string>
+    <string name="plan_choice_videos">Videos</string>
+    <string name="plan_pace_now">From tomorrow</string>
+    <string name="plan_pace_now_body">The new limit applies straight away.</string>
+    <string name="plan_pace_steps">Step by step</string>
+    <string name="plan_pace_steps_body">Start close to what you use now and come down a little each Monday, unless you took a hard day that week.</string>
+    <string name="plan_pace_nothing">Nothing to step down from: your aim is already close to what you use now.</string>
+    <string name="plan_pace_line">%1$s: %2$s.</string>
+    <string name="plan_pace_reaches">Reaches %1$s on %2$s at the earliest.</string>
+    <string name="plan_wait_title">Wait before weakening a limit</string>
+    <string name="plan_wait_hint">Weakening a limit later waits this long, so a rough moment cannot undo a decision you took calmly.</string>
+    <string name="plan_gray_switch">Grey in the evening for these apps</string>
+    <string name="plan_gray_help">From 21:00 to 07:00 the screen turns grey while you are in these apps. You can change the hours later, under Grayscale.</string>
+    <string name="plan_gray_unavailable">Grey in the evening needs a one-time setup. You can find how on the Grayscale page, in the Blocks tab.</string>
+    <string name="plan_weekly_title">Weekly report</string>
+    <string name="plan_weekly_help">A short note each Monday on how the week went</string>
+    <string name="plan_hard_note">A hard day gives you about a quarter more on daily limits, up to twice a week, and a limit that is lowering stays where it is that week.</string>
+    <string name="plan_line_flat">%1$s: %2$s a day from tomorrow (you use about %3$s).</string>
+    <string name="plan_line_taper">%1$s: %2$s a day to start (you use about %3$s), down to %4$s by %5$s.</string>
+    <string name="plan_line_messages">Messages never count.</string>
+    <string name="plan_line_blocked">%1$s: the parts that never end are blocked.</string>
+    <string name="plan_summary_wait">Wait before weakening a limit: %1$s.</string>
+    <string name="plan_summary_gray">Grey from 21:00 to 07:00 in these apps.</string>
+    <string name="plan_summary_pace">%1$s: lowers by %2$s each Monday, unless you took a hard day that week.</string>
+    <string name="plan_summary_report">Weekly report: a short note each Monday.</string>
+    <string name="plan_start">Start my plan</string>
+    <string name="plan_share">Share my plan</string>
+    <string name="plan_share_intro">I am cutting down on scrolling with Doorman. My plan:</string>
+    <string name="plan_share_outro">Would you ask me how it is going in a few weeks?</string>
+    <string name="plan_done_title">Your plan is in place</string>
+    <string name="plan_done_body">Doorman now holds what you chose. Anything that weakens a limit waits first, as you set it. You can rethink it any time from the home page.</string>
+    <string name="plan_done_button">Done</string>
+    <string name="plan_leave_title">Leave without saving?</string>
+    <string name="plan_leave_body">Nothing has been changed yet. What you chose here will be lost.</string>
+    <string name="plan_leave">Leave</string>
+    <string name="plan_stay">Keep going</string>
+    <string name="plan_pending_title">Your plan starts in %1$d s</string>
+    <string name="plan_pending_name">Your plan</string>
+    <string name="plan_pending_item">%1$s: %2$s</string>
+    <string name="plan_pending_delay">Wait before weakening: from %1$s to %2$s</string>
+    <string name="plan_rethink_title">Rethink my limits</string>
+    <string name="plan_rethink_hint">Look back at the last weeks and set them again.</string>
+    <string name="plan_nudge">Your limits seem hard to keep. Rethink them?</string>
+    <string name="setup_step_plan">Make your plan</string>
+    <string name="setup_step_plan_hint">Choose what to cut down on, and how fast.</string>
 </resources>

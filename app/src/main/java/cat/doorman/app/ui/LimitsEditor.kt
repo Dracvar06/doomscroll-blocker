@@ -197,7 +197,7 @@ private fun windowText(res: Resources, window: Window): String {
     return withDays(res, res.getString(R.string.mode_blocked_hours, hours), window.days)
 }
 
-private fun reelsText(res: Resources, quota: ReelQuota): String = res.getQuantityString(
+internal fun reelsText(res: Resources, quota: ReelQuota): String = res.getQuantityString(
     R.plurals.mode_reels,
     quota.reels,
     quota.reels,
@@ -695,6 +695,46 @@ private val REEL_STRETCHES = listOf(5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240
 private const val MAX_REELS = 50
 
 /**
+ * The two steppers of a reel quota. [endPadding] leaves room for a control laid
+ * over the corner, as the editor's card does for its bin.
+ */
+@Composable
+internal fun ReelQuotaSteppers(
+    quota: ReelQuota,
+    onChange: (ReelQuota) -> Unit,
+    endPadding: androidx.compose.ui.unit.Dp = 48.dp,
+) {
+    val res = LocalResources.current
+    // The nearest stretch to whatever is stored, so a value from outside the
+    // list still has somewhere to step from.
+    val stretchIndex = REEL_STRETCHES.indices.minByOrNull {
+        kotlin.math.abs(REEL_STRETCHES[it] - quota.minutes)
+    } ?: 0
+    Stepper(
+        label = stringResource(R.string.limits_reels_label),
+        value = quota.reels.toString(),
+        lessDescription = stringResource(R.string.limits_reels_fewer),
+        moreDescription = stringResource(R.string.limits_reels_more),
+        canLess = quota.reels > 1,
+        canMore = quota.reels < MAX_REELS,
+        onLess = { onChange(quota.copy(reels = quota.reels - 1)) },
+        onMore = { onChange(quota.copy(reels = quota.reels + 1)) },
+        endPadding = endPadding,
+    )
+    Stepper(
+        label = stringResource(R.string.limits_reels_every_label),
+        value = durationText(res, REEL_STRETCHES[stretchIndex]),
+        lessDescription = stringResource(R.string.limits_reels_shorter),
+        moreDescription = stringResource(R.string.limits_reels_longer),
+        canLess = stretchIndex > 0,
+        canMore = stretchIndex < REEL_STRETCHES.lastIndex,
+        onLess = { onChange(quota.copy(minutes = REEL_STRETCHES[stretchIndex - 1])) },
+        onMore = { onChange(quota.copy(minutes = REEL_STRETCHES[stretchIndex + 1])) },
+        endPadding = endPadding,
+    )
+}
+
+/**
  * "__ reels every __": two steppers rather than a dial. A reel count and a
  * handful of stretches are small numbers a person steps through, and a dial
  * would make "one reel every fifteen minutes" a matter of aim.
@@ -705,38 +745,13 @@ private fun ReelQuotaRow(
     onChange: (ReelQuota) -> Unit,
     onRemove: () -> Unit,
 ) {
-    val res = LocalResources.current
-    // The nearest stretch to whatever is stored, so a value from outside the
-    // list still has somewhere to step from.
-    val stretchIndex = REEL_STRETCHES.indices.minByOrNull {
-        kotlin.math.abs(REEL_STRETCHES[it] - quota.minutes)
-    } ?: 0
     SurfaceCard {
         Box(modifier = Modifier.fillMaxWidth()) {
             Column(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Stepper(
-                    label = stringResource(R.string.limits_reels_label),
-                    value = quota.reels.toString(),
-                    lessDescription = stringResource(R.string.limits_reels_fewer),
-                    moreDescription = stringResource(R.string.limits_reels_more),
-                    canLess = quota.reels > 1,
-                    canMore = quota.reels < MAX_REELS,
-                    onLess = { onChange(quota.copy(reels = quota.reels - 1)) },
-                    onMore = { onChange(quota.copy(reels = quota.reels + 1)) },
-                )
-                Stepper(
-                    label = stringResource(R.string.limits_reels_every_label),
-                    value = durationText(res, REEL_STRETCHES[stretchIndex]),
-                    lessDescription = stringResource(R.string.limits_reels_shorter),
-                    moreDescription = stringResource(R.string.limits_reels_longer),
-                    canLess = stretchIndex > 0,
-                    canMore = stretchIndex < REEL_STRETCHES.lastIndex,
-                    onLess = { onChange(quota.copy(minutes = REEL_STRETCHES[stretchIndex - 1])) },
-                    onMore = { onChange(quota.copy(minutes = REEL_STRETCHES[stretchIndex + 1])) },
-                )
+                ReelQuotaSteppers(quota, onChange)
             }
             Box(modifier = Modifier.align(Alignment.TopEnd).padding(4.dp)) {
                 RemoveButton(onRemove)

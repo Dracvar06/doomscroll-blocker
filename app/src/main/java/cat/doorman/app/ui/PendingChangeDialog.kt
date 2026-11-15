@@ -3,6 +3,8 @@ package cat.doorman.app.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -45,7 +47,12 @@ fun PendingChangeDialog(
         onDismissRequest = { },
         title = { Text(text = title, style = MaterialTheme.typography.titleMedium) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Scrolls: a plan can list a dozen things that weaken, and in a large
+            // font the dialog would otherwise run off the screen.
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 // The bar empties as the wait runs out, so how long is left
                 // can be seen from across the room rather than read.
                 val left = stringResource(R.string.pending_progress_desc, seconds)

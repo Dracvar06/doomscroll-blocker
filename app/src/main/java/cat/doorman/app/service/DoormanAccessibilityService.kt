@@ -172,7 +172,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         serviceScope.launch {
             prefs.screenLimits(screenDefaults).collectLatest {
                 screenLimits = it
-                enabledScreenIds = ScreenPreferences.activeScreenIds(it)
+                enabledScreenIds = ScreenPreferences.activeScreenIds(it, appLimits)
                 Log.i(TAG, "blocking set changed: $enabledScreenIds")
                 evaluateCurrentScreen()
             }
@@ -180,6 +180,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         serviceScope.launch {
             prefs.appLimits.collectLatest {
                 appLimits = it
+                enabledScreenIds = ScreenPreferences.activeScreenIds(screenLimits, it)
                 evaluateCurrentScreen()
             }
         }
@@ -744,6 +745,15 @@ class DoormanAccessibilityService : AccessibilityService() {
         }
     }
 
+    /**
+     * Whether the screen is held by a limit of its own. [enabledScreenIds] also
+     * holds the screens only an app's shared budget is scoped to, which the
+     * rules have to recognise but which are never covered, budgeted or
+     * silenced on their own account: only the app's budget can close them.
+     */
+    private fun heldByOwnLimit(screenId: String?): Boolean =
+        screenId != null && screenLimits[screenId]?.isOff == false
+
     private fun screenBlockedNow(
         screenId: String,
         spent: Map<String, Allowances.Spent>,
@@ -886,14 +896,16 @@ class DoormanAccessibilityService : AccessibilityService() {
         }
         val canonical = rules.canonicalPackage(floating.packageName) ?: floating.packageName!!
         val appLimit = appLimits[canonical] ?: Limits.OFF
-        val appOutcome = if (appLimit.isOff) {
+        // No screen is known for a floating window, so a limit scoped to some
+        // screens leaves it alone.
+        val appOutcome = if (appLimit.isOff || !appLimit.appliesOn(null)) {
             null
         } else {
             Allowances.decide(
                 listOf(Allowances.Target(canonical, appLimit, ledgerNow())),
                 LocalDateTime.now(),
                 hardTimes,
-            )
+            ).takeUnless { it is Allowances.Outcome.Block && !appLimit.coversOn(null) }
         }
         when (val action = PipPolicy.decide(blockedWhenLeft == canonical, appOutcome)) {
             PipPolicy.Action.Cover -> {
@@ -1611,6 +1623,10 @@ class DoormanAccessibilityService : AccessibilityService() {
             // someone sent stay open, comments on the one past it do not.
             if (singleVideoClosedByTime(pkg, verdict.screenId, snapshot)) return
             budgetKey = null
+            if (!heldByOwnLimit(verdict.screenId)) {
+                if (overlay.isShowing) overlay.hide()
+                return
+            }
             val key = "${pkg}/${verdict.screenId}"
             if (scrollBudget.hasBudget(key, System.currentTimeMillis())) {
                 if (overlay.isShowing) overlay.hide()
@@ -1629,6 +1645,13 @@ class DoormanAccessibilityService : AccessibilityService() {
             verdict.screenId != null && snapshot != null
         ) {
             if (singleVideoClosedByTime(pkg, verdict.screenId, snapshot)) return
+            if (!heldByOwnLimit(verdict.screenId)) {
+                budgetKey = null
+                budgetBlock = null
+                if (blockedWhenLeft == (rules.canonicalPackage(pkg) ?: pkg)) blockedWhenLeft = null
+                if (overlay.isShowing) overlay.hide()
+                return
+            }
             val key = "${snapshot.packageName}/${verdict.screenId}"
             val arrivedFromElsewhere = ScrollSession.startsFresh(
                 session, snapshot.packageName ?: pkg, verdict.screenId,
@@ -1680,7 +1703,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         val appLimit = appLimits[canonical] ?: Limits.OFF
         val spent = ledgerNow()
         val targets = buildList {
-            if (!appLimit.isOff) add(Allowances.Target(canonical, appLimit, spent))
+            if (!appLimit.isOff && appLimit.appliesOn(lastRecognisedScreenId)) add(Allowances.Target(canonical, appLimit, spent))
             val screenId = verdict.screenId
             if (screenId != null && verdict.blocked) {
                 val limit = screenLimits[screenId] ?: Limits.BLOCKED
@@ -1688,7 +1711,18 @@ class DoormanAccessibilityService : AccessibilityService() {
             }
         }
 
-        val outcome = Allowances.decide(targets, LocalDateTime.now(), hardTimes)
+        val decided = Allowances.decide(targets, LocalDateTime.now(), hardTimes)
+        // An app budget that ran out covers what it may cover. Where it may not
+        // -- an unrecognised screen under an exception list, which could be a
+        // conversation the rules failed to read -- the screen is judged on
+        // whatever else holds it, as if the app had no budget.
+        val outcome = if (decided is Allowances.Outcome.Block && decided.targetId == canonical &&
+            !appLimit.coversOn(lastRecognisedScreenId)
+        ) {
+            Allowances.decide(targets.filter { it.id != canonical }, LocalDateTime.now(), hardTimes)
+        } else {
+            decided
+        }
         screenBlockedNow = if (outcome is Allowances.Outcome.Block) verdict.screenId else null
         // The line above logs what the *rules* made of the screen. This logs
         // what actually happens to it, which since allowances arrived is a
@@ -1763,8 +1797,22 @@ class DoormanAccessibilityService : AccessibilityService() {
             Allowances.Reason.SCHEDULE -> R.string.blocked_body_schedule
             Allowances.Reason.ALWAYS -> R.string.blocked_body
         }
-        val wholeApp = outcome.targetId == rules.canonicalPackage(pkg) ?: pkg ||
-            outcome.targetId.contains('.')
+        val canonical = rules.canonicalPackage(pkg) ?: pkg
+        val wholeApp = outcome.targetId == canonical || outcome.targetId.contains('.')
+        // An app whose time leaves its messages free is covered screen by
+        // screen, each with its own band, so the way to the messages stays
+        // open even when the time has run out on the screen the app opens on.
+        val screen = lastRecognisedScreenId
+        if (wholeApp && snapshot != null && screen != null && appLimits[canonical]?.exceptOn != null) {
+            val shown = overlay.show(
+                outcome.targetId,
+                appLabelFor(canonical),
+                band = bandFor(snapshot, screen),
+                bodyRes = body,
+            )
+            if (shown) blockLanded()
+            return
+        }
         if (wholeApp || snapshot == null) {
             if (overlay.show(outcome.targetId, appLabelFor(outcome.targetId), bodyRes = body)) {
                 blockLanded()
@@ -1840,11 +1888,12 @@ class DoormanAccessibilityService : AccessibilityService() {
         val screenLimit = screenLimits[screenId] ?: Limits.OFF
         val spent = ledgerNow()
         val counted = buildList {
-            if (!appLimit.isOff) add(Allowances.Target(canonical, appLimit, spent))
+            if (!appLimit.isOff && appLimit.appliesOn(screenId)) add(Allowances.Target(canonical, appLimit, spent))
             if (screenLimit.allowances.isNotEmpty()) add(Allowances.Target(screenId, screenLimit, spent))
         }
         val origin = ClockPlan.originOf(
             navigation.entryFor(pkg, lastRecognisedScreenId), enabledScreenIds, screenLimits, spent,
+            canonical, appLimit,
         )
         val now = LocalDateTime.now()
         when (val plan = ClockPlan.onSingleVideo(origin, counted, now, hardTimes)) {
@@ -1909,7 +1958,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         if (pkg !in watchedPackages() || screenLocked()) return false
         val canonical = rules.canonicalPackage(pkg) ?: pkg
         val limits = buildList {
-            appLimits[canonical]?.let(::add)
+            appLimits[canonical]?.takeIf { it.appliesOn(lastRecognisedScreenId) }?.let(::add)
             rules.apps[canonical]?.screens?.forEach { screen ->
                 if (screen.id in enabledScreenIds) screenLimits[screen.id]?.let(::add)
             }
@@ -2194,7 +2243,7 @@ class DoormanAccessibilityService : AccessibilityService() {
         val top = OverlayBounds.topPlanFor(
             rule = rule,
             appLevelAnchors = app?.keepVisibleTopViewIds.orEmpty(),
-            enabledScreenIds = enabledScreenIds,
+            enabledScreenIds = enabledScreenIds.filterTo(mutableSetOf(), ::heldByOwnLimit),
             blockedScreenIds = if (followed != null &&
                 screenBlockedNow(followed, ledgerNow(), LocalDateTime.now())
             ) {

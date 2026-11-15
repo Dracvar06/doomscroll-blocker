@@ -99,4 +99,26 @@ class RuleSetPackagesTest {
     fun `an unknown package resolves to nothing rather than the first app`() {
         assertNull(withAliases().appFor("com.example.other"))
     }
+
+    @Test
+    fun `planDefault is read from a screen and is false when absent`() {
+        val rules: RuleSet = json.decodeFromString(
+            """
+            {
+              "apps": {
+                "com.example": {
+                  "labelKey": "app_example",
+                  "screens": [
+                    { "id": "a", "labelKey": "x", "planDefault": true },
+                    { "id": "b", "labelKey": "y" }
+                  ]
+                }
+              }
+            }
+            """.trimIndent()
+        )
+        val screens = rules.apps.getValue("com.example").screens.associateBy { it.id }
+        assertTrue(screens.getValue("a").planDefault)
+        assertEquals(false, screens.getValue("b").planDefault)
+    }
 }

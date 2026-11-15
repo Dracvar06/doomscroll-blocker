@@ -84,6 +84,12 @@ class Prefs(private val context: Context) {
         /** Where the first-run setup card stands, as a [SetupStage] name. */
         val SETUP = stringPreferencesKey("setup")
 
+        /** ISO date a plan was last started from the wizard. */
+        val LAST_PLAN_ON = stringPreferencesKey("last_plan_on")
+
+        /** ISO date the "rethink your limits" line was last waved away. */
+        val PLAN_NUDGED_ON = stringPreferencesKey("plan_nudged_on")
+
         /** ISO date the coffee reminder was last shown or dismissed. */
         val COFFEE_NUDGED_ON = stringPreferencesKey("coffee_nudged_on")
 
@@ -271,6 +277,25 @@ class Prefs(private val context: Context) {
         context.dataStore.edit { it[Keys.COFFEE_NUDGED_ON] = isoDate }
     }
 
+    /**
+     * When the plan wizard last put a plan in place, or null if it never has.
+     * Decides whether the wizard is a first run or a rethink: the second looks
+     * back at how the first went.
+     */
+    val lastPlanOn: Flow<String?> =
+        context.dataStore.data.map { it[Keys.LAST_PLAN_ON] }
+
+    suspend fun setLastPlanOn(isoDate: String) {
+        context.dataStore.edit { it[Keys.LAST_PLAN_ON] = isoDate }
+    }
+
+    val planNudgedOn: Flow<String?> =
+        context.dataStore.data.map { it[Keys.PLAN_NUDGED_ON] }
+
+    suspend fun setPlanNudgedOn(isoDate: String) {
+        context.dataStore.edit { it[Keys.PLAN_NUDGED_ON] = isoDate }
+    }
+
     suspend fun setTutorialSeen(seen: Boolean) {
         context.dataStore.edit { it[Keys.TUTORIAL_SEEN] = seen }
     }
@@ -430,24 +455,6 @@ class Prefs(private val context: Context) {
             prefs[Keys.DECIDED_SCREENS] = decidedIn(prefs) + screenId
             prefs[Keys.ENABLED_SCREENS] =
                 if (enabled) currentlyEnabled + screenId else currentlyEnabled - screenId
-        }
-    }
-
-    /**
-     * A preset is a decision about every screen at once.
-     *
-     * It has to write modes as well as the old on/off sets. A stored mode wins
-     * over everything else when the effective mode is worked out, so a preset
-     * that only touched the old sets would appear to do nothing on any screen
-     * the user had already given an allowance.
-     */
-    suspend fun setEnabledScreens(screenIds: Set<String>, allScreenIds: Set<String>) {
-        context.dataStore.edit { prefs ->
-            prefs[Keys.DECIDED_SCREENS] = allScreenIds
-            prefs[Keys.ENABLED_SCREENS] = screenIds
-            prefs[Keys.MODES] = encodeModes(
-                ScreenPreferences.presetLimits(screenIds, allScreenIds, decodeModes(prefs[Keys.MODES])),
-            )
         }
     }
 

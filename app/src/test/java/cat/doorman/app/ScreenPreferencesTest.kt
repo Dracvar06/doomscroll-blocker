@@ -4,7 +4,6 @@ import cat.doorman.app.data.ScreenPreferences
 import cat.doorman.app.limits.Allowance
 import cat.doorman.app.limits.Limits
 import cat.doorman.app.limits.Period
-import cat.doorman.app.limits.ReelQuota
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -97,20 +96,12 @@ class ScreenPreferencesTest {
     }
 
     @Test
-    fun `a preset keeps the limit of a screen it turns on`() {
-        val allowance = Limits(allowances = listOf(Allowance(5, Period.DAY)))
-        val reels = Limits(reels = ReelQuota(10, 60))
-        val modes = ScreenPreferences.presetLimits(
-            screenIds = setOf("a", "b", "c"),
-            allScreenIds = setOf("a", "b", "c", "d"),
-            stored = mapOf("a" to allowance, "b" to reels, "c" to Limits.OFF, "d" to allowance, "x" to reels),
+    fun `a screen an app budget is scoped to is recognised though its own limit is off`() {
+        val budget = Limits(allowances = listOf(Allowance(5, Period.DAY)), onlyOn = setOf("ig_reels", "ig_feed"))
+        val active = ScreenPreferences.activeScreenIds(
+            limits = mapOf("ig_reels" to Limits.OFF, "yt_shorts" to Limits.BLOCKED),
+            appLimits = mapOf("com.instagram.android" to budget, "com.other" to Limits.OFF),
         )
-        assertEquals(allowance, modes["a"])
-        assertEquals(reels, modes["b"])
-        // Nothing set before: the preset's own meaning.
-        assertEquals(Limits.BLOCKED, modes["c"])
-        // Turned off, and a screen the preset does not know is left alone.
-        assertEquals(Limits.OFF, modes["d"])
-        assertEquals(reels, modes["x"])
+        assertEquals(setOf("yt_shorts", "ig_reels", "ig_feed"), active)
     }
 }

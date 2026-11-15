@@ -1,17 +1,32 @@
 package cat.doorman.app
 
+import cat.doorman.app.limits.Allowance
+import cat.doorman.app.limits.Allowances
+import cat.doorman.app.limits.Limits
+import cat.doorman.app.limits.Period
+import cat.doorman.app.limits.ReelQuota
 import cat.doorman.app.model.ScreenSnapshot
 import cat.doorman.app.rules.OverlayBounds
 import cat.doorman.app.rules.RuleSet
 import cat.doorman.app.rules.ScreenEvaluator
+import cat.doorman.app.service.ClockPlan
 import cat.doorman.app.service.CoverMemory
+import cat.doorman.app.service.NavigationTracker
 import cat.doorman.app.service.ScrollSession
+import cat.doorman.app.ui.AppChoice
+import cat.doorman.app.ui.PartChoice
+import cat.doorman.app.ui.Plan
+import cat.doorman.app.ui.PlanMath
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.LocalDate
+import java.time.LocalDateTime
 
 /**
  * RedNote (Xiaohongshu), against screens captured from version 9.51 on a
@@ -128,7 +143,7 @@ class RedNoteRulesTest {
         for ((name, at) in listOf("rednote-video-feed" to 0L, "rednote-video-comments" to 2_000L)) {
             val s = fixture(name)
             val step = CoverMemory.step(
-                held, "com.xingin.xhs", ScreenEvaluator.evaluate(s, rules, all),
+                held, "com.xingin.xhs", ScreenEvaluator.evaluate(s, rules, all - "rn_video_pager"),
                 ScreenEvaluator.recognise(s, rules), s, app.coverViewIds, at,
             )
             held = step.held
@@ -147,6 +162,127 @@ class RedNoteRulesTest {
             val s = fixture(screen)
             assertFalse(screen, app.coverViewIds.any { id -> s.nodes.any { it.viewIdMatches(id) } })
         }
+    }
+
+    // ------------------------------------------------- the video, counted
+
+    private val pager = "rn_video_pager"
+    private val withoutPager = all - pager
+
+    /**
+     * The viewer is two screens with one set of markers, told apart by the
+     * switches and by how the app was reached: the one-video pass-through when
+     * the pager is off (a fresh install), the countable screen when it is on.
+     */
+    @Test
+    fun `the viewer is the pager once it is switched on, and a single video before`() {
+        val on = verdict("rednote-video-feed")
+        assertEquals(pager, on.screenId)
+        assertEquals(ScreenEvaluator.Outcome.BLOCK, on.outcome)
+
+        val off = verdict("rednote-video-feed", withoutPager)
+        assertEquals("rn_video_feed", off.screenId)
+        assertEquals(ScreenEvaluator.Outcome.ALLOW_ONCE, off.outcome)
+        assertFalse(pager in defaults)
+    }
+
+    /** A video somebody sent from another app plays once, whatever the plan says. */
+    @Test
+    fun `a video reached from another app keeps its pass-through with the pager on`() {
+        val v = ScreenEvaluator.evaluate(fixture("rednote-video-feed"), rules, all, arrivedFromAnotherApp = true)
+        assertEquals("rn_video_feed", v.screenId)
+        assertEquals(ScreenEvaluator.Outcome.ALLOW_ONCE, v.outcome)
+    }
+
+    @Test
+    fun `the viewer is named the pager whether or not it is held`() {
+        assertEquals(pager, ScreenEvaluator.recognise(fixture("rednote-video-feed"), rules))
+        assertEquals(
+            "rn_video_feed",
+            ScreenEvaluator.recognise(fixture("rednote-video-feed"), rules, arrivedFromAnotherApp = true),
+        )
+    }
+
+    /** Explore still reads as Explore with the pager on, and nothing else becomes the pager. */
+    @Test
+    fun `only the viewer is the pager`() {
+        assertEquals("rn_explore", verdict("rednote-explore").screenId)
+        assertEquals("rn_explore", ScreenEvaluator.recognise(fixture("rednote-explore"), rules))
+        for (screen in listOf(
+            "rednote-explore", "rednote-nearby", "rednote-following", "rednote-market",
+            "rednote-messages", "rednote-me", "rednote-profile", "rednote-search",
+            "rednote-search-results", "rednote-note", "rednote-note-comments",
+            "rednote-video-comments",
+        )) {
+            assertNotEquals(screen, pager, verdict(screen).screenId)
+            assertNotEquals(screen, pager, ScreenEvaluator.recognise(fixture(screen), rules))
+        }
+    }
+
+    @Test
+    fun `the comments over the pager are the pager`() {
+        var held: CoverMemory.Held? = null
+        for ((name, at) in listOf("rednote-video-feed" to 0L, "rednote-video-comments" to 2_000L)) {
+            val s = fixture(name)
+            val step = CoverMemory.step(
+                held, "com.xingin.xhs", ScreenEvaluator.evaluate(s, rules, all),
+                ScreenEvaluator.recognise(s, rules), s, app.coverViewIds, at,
+            )
+            held = step.held
+            if (name == "rednote-video-comments") assertEquals(pager, step.verdict.screenId)
+        }
+    }
+
+    @Test
+    fun `the pager is offered to a plan, counts videos, and the pass-through is not offered`() {
+        val rule = app.screens.first { it.id == pager }
+        assertEquals("BLOCK", rule.verdict)
+        assertFalse(rule.defaultEnabled)
+        assertTrue(rule.planDefault)
+        assertTrue(rule.countsReels)
+        val parts = PlanMath.partScreens(app).map { it.id }
+        assertTrue(pager in parts)
+        assertFalse("rn_video_feed" in parts)
+
+        val quota = ReelQuota(10, 60)
+        val choice = AppChoice(
+            "com.xingin.xhs", usualMinutes = 60,
+            parts = mapOf(pager to PartChoice.Videos(quota), "rn_explore" to PartChoice.Free),
+        )
+        val limits = PlanMath.toLimits(Plan(listOf(choice)), rules, LocalDate.of(2026, 9, 7))
+        assertEquals(Limits(reels = quota), limits[pager])
+        assertEquals(Limits.OFF, limits["rn_explore"])
+        assertEquals(setOf("rn_explore"), limits.getValue("com.xingin.xhs").exceptOn)
+        assertFalse("rn_video_feed" in limits)
+    }
+
+    /**
+     * The viewer reached from a feed the user limits is that feed carrying on,
+     * through the pass-through screen as through any other single video.
+     */
+    @Test
+    fun `a video opened from explore carries the explore limit when the pager is off`() {
+        val noon = LocalDateTime.of(2026, 9, 7, 12, 0)
+        val own = Limits(allowances = listOf(Allowance(10, Period.DAY)))
+        val spent = mapOf(
+            "rn_explore|DAY" to Allowances.Spent(Allowances.periodKey(Period.DAY, noon), 10 * 60_000L),
+        )
+        val fromExplore = NavigationTracker.Entry.From("rn_explore")
+        val origin = ClockPlan.originOf(fromExplore, setOf("rn_explore"), mapOf("rn_explore" to own), spent)
+        assertEquals("rn_explore", origin?.id)
+        assertTrue(ClockPlan.onSingleVideo(origin, emptyList(), noon) is ClockPlan.SingleVideo.Closed)
+
+        // Opened from search or a profile it was found, not browsed to.
+        val found = NavigationTracker.Entry.From("rn_search")
+        assertNull(ClockPlan.originOf(found, setOf("rn_explore"), mapOf("rn_explore" to own), spent))
+
+        // The shared budget over Explore carries on as well.
+        val shared = Limits(allowances = listOf(Allowance(10, Period.DAY)), onlyOn = setOf("rn_explore"))
+        val sharedOrigin = ClockPlan.originOf(
+            fromExplore, setOf("rn_explore"), mapOf("rn_explore" to Limits.OFF), spent,
+            "com.xingin.xhs", shared,
+        )
+        assertEquals("com.xingin.xhs", sharedOrigin?.id)
     }
 
     // ------------------------------------------------------------- the band

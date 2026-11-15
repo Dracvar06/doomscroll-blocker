@@ -174,6 +174,7 @@ fun SwitchRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     help: String? = null,
+    supporting: String? = null,
 ) {
     // The whole row is the switch, not just the thumb: a 56dp row is a target
     // a thumb finds without looking, and a screen reader reads it as one
@@ -186,21 +187,19 @@ fun SwitchRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // The label and its info button take what is left after the switch,
-        // rather than the switch taking what is left after them: a long label
-        // was pushing the button underneath the toggle.
-        Row(
-            modifier = Modifier.weight(1f),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.weight(1f, fill = false),
-            )
-            HelpButton(label, help)
+        // The label takes the width, wrapping on its own; the info button and
+        // the switch sit together at the end of the row.
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = label, style = MaterialTheme.typography.bodyLarge)
+            if (supporting != null) {
+                Text(
+                    text = supporting,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
-        Spacer(Modifier.width(8.dp))
+        HelpButton(label, help)
         Switch(checked = checked, onCheckedChange = null)
     }
 }

@@ -67,6 +67,72 @@ object UsageAccess {
     }
 
     /**
+     * How long each of [packages] is in front of the user on an ordinary day,
+     * averaged over the last seven complete days Android still has.
+     *
+     * Asked for by the plan wizard, once, so that "half of what you use now"
+     * can be a number rather than a guess. Foreground time includes messages:
+     * Android does not know a feed from a conversation, and the wizard says so.
+     * Null without permission, and never stored. See [recentDays] for how many
+     * days the figure rests on.
+     */
+    fun recentDailyAverage(
+        context: Context,
+        packages: Set<String>,
+        today: LocalDate,
+    ): Map<String, Long>? {
+        if (packages.isEmpty() || !granted(context)) return null
+        val usage = context.getSystemService(UsageStatsManager::class.java) ?: return null
+        return runCatching { dailyAverages(buckets(usage, today), packages) }.getOrNull()
+    }
+
+    /** How many of the last seven days Android returned figures for; 0 without permission. */
+    fun recentDays(context: Context, today: LocalDate): Int {
+        if (!granted(context)) return 0
+        val usage = context.getSystemService(UsageStatsManager::class.java) ?: return 0
+        return runCatching { daysCovered(buckets(usage, today)) }.getOrDefault(0)
+    }
+
+    /** One app's foreground time on one day, as Android's daily bucket reports it. */
+    data class Bucket(val packageName: String, val day: LocalDate, val millis: Long)
+
+    private const val RECENT_DAYS = 7L
+
+    private fun buckets(usage: UsageStatsManager, today: LocalDate): List<Bucket> {
+        val zone = ZoneId.systemDefault()
+        val first = today.minusDays(RECENT_DAYS)
+        val from = first.atStartOfDay(zone).toInstant().toEpochMilli()
+        val to = today.atStartOfDay(zone).toInstant().toEpochMilli()
+        // Today is left out: a day not yet over would pull every average down.
+        return usage.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, from, to)
+            ?.filter { it.firstTimeStamp in from until to }
+            ?.map {
+                Bucket(
+                    it.packageName,
+                    java.time.Instant.ofEpochMilli(it.firstTimeStamp).atZone(zone).toLocalDate(),
+                    it.totalTimeInForeground,
+                )
+            }
+            .orEmpty()
+    }
+
+    /**
+     * The days any app has a bucket for, which is the days there is data for.
+     * An app absent from a day it was not opened on counts as zero for that
+     * day rather than being left out of its own average.
+     */
+    internal fun daysCovered(buckets: List<Bucket>): Int = buckets.map { it.day }.toSet().size
+
+    internal fun dailyAverages(buckets: List<Bucket>, packages: Set<String>): Map<String, Long>? {
+        val days = daysCovered(buckets)
+        if (days == 0) return null
+        val wanted = buckets.filter { it.packageName in packages }
+        return packages.associateWith { pkg ->
+            wanted.filter { it.packageName == pkg }.sumOf { it.millis } / days
+        }
+    }
+
+    /**
      * Null when Android has kept nothing for that week.
      *
      * Daily buckets, summed by hand, rather than queryAndAggregateUsageStats.

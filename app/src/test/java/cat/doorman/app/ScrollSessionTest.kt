@@ -92,7 +92,8 @@ class ScrollSessionTest {
     @Test
     fun `the conversation ends the session even though the rules do not name it`() {
         val thread = fixture("instagram-dm-thread")
-        assertNull(ScreenEvaluator.recognise(thread, rules, false))
+        // Named now, but as a messages screen: never one the session continues on.
+        assertEquals("ig_dm_thread", ScreenEvaluator.recognise(thread, rules, false))
         assertFalse(
             ScrollSession.continues(
                 reel, "com.instagram.android", null, thread, ends("ig_single_reel", "com.instagram.android"),

@@ -55,19 +55,32 @@ object ClockPlan {
      * -- the failure to avoid is a block over something nobody limited.
      *
      * A screen held outright is not an origin: the user cannot have been on it.
+     *
+     * An app-level limit scoped to some screens ([Limits.onlyOn]) is an origin
+     * too when the video was opened from one of them: it is the shared budget
+     * carrying on. A screen's own limit comes first when it has one.
      */
     fun originOf(
         entry: NavigationTracker.Entry,
         enabledScreenIds: Set<String>,
         screenLimits: Map<String, Limits>,
         spent: Map<String, Allowances.Spent>,
+        appId: String? = null,
+        appLimits: Limits? = null,
     ): Allowances.Target? {
         val from = (entry as? NavigationTracker.Entry.From)?.screenId ?: return null
-        if (from !in enabledScreenIds) return null
-        val limits = screenLimits[from] ?: return null
-        if (limits.blocked || (limits.allowances.isEmpty() && limits.windows.isEmpty())) return null
-        return Allowances.Target(from, limits, spent)
+        val screen = screenLimits[from]
+        if (from in enabledScreenIds && screen != null && timed(screen)) {
+            return Allowances.Target(from, screen, spent)
+        }
+        if (appId != null && appLimits?.onlyOn != null && from in appLimits.onlyOn && timed(appLimits)) {
+            return Allowances.Target(appId, appLimits, spent)
+        }
+        return null
     }
+
+    private fun timed(limits: Limits): Boolean =
+        !limits.blocked && (limits.allowances.isNotEmpty() || limits.windows.isNotEmpty())
 
     /**
      * A single video is let through however the app's own limit stands; that

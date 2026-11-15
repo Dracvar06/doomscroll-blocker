@@ -79,8 +79,7 @@ Reddit and RedNote.** Everything below is an individual switch; nothing is all-o
   like Instagram's home feed on the way to your messages, never sends you
   anywhere. Off until you choose somewhere.
 
-Every screen is an individual switch in the app, with Strict / Balanced /
-Permissive / Nothing presets. Switching a block **off** waits a configurable delay (30 s by
+Every screen is an individual switch in the app. Switching a block **off** waits a configurable delay (30 s by
 default) and is cancelled if you leave the app; switching one **on** is
 immediate, because friction belongs on the decision you would regret. To get into a blocked screen you open Doorman, wait out a
 countdown that restarts if you walk away, and take a short timed pass.
@@ -105,8 +104,8 @@ principle. No ads, no subscription, no accounts, no analytics.
 
 Two features ask for a little more, and both are optional:
 
-- **Usage access**, offered from the weekly report, for Android's own screen-time
-  figures.
+- **Usage access**, offered from the weekly report and from the plan, for
+  Android's own screen-time figures.
 - **Grayscale**, which turns the screen grey while you are on a screen you pick
   (grey on the reels, in colour in your messages, only at the hours you choose).
   Android lets an app desaturate the display only through its colour correction,
@@ -120,6 +119,30 @@ Two features ask for a little more, and both are optional:
   uses the permission for the two colour-correction settings and nothing else,
   and puts them back exactly as they were when grey comes off. Without the
   grant, everything else works and the grayscale switches say what is missing.
+
+### Making a plan
+
+Setting limits one screen at a time is slow, and it cannot say "less time", so
+the app opens a short guided plan: **Make your plan** the first time, **Rethink
+my limits** whenever the limits are not working. It asks which apps pull you in
+and how much time they take now, from Android's own usage figures if you allow
+them or from your own estimate if you would rather not. Then you pick where you
+want to get to, and whether to get there all at once from tomorrow or step by
+step, lowering a little each week. It also asks how long to wait before a limit
+can be weakened, whether you want the weekly report, and whether the apps in the
+plan should go grey in the evening. A "just block the endless parts" shortcut
+skips the time questions. The plan ends in plain sentences you can read, start,
+or share. Sharing opens Android's share sheet with a short text and only
+happens when you tap Share. Making a plan tightens limits at once; anything
+that weakens one waits out the usual delay, in one countdown for the whole plan.
+
+### One budget per app
+
+A plan gives each app one daily time that its feeds and reels share: a minute on
+the feed and a minute on Reels come out of the same budget, and when it is gone
+both close. Messages are never counted and stay free, and so does any screen
+the plan does not name. Where Doorman cannot tell a screen it leaves it alone
+rather than risk blocking something you need.
 
 ### Reel allowance
 

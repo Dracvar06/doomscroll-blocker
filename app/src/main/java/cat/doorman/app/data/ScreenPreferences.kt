@@ -57,19 +57,12 @@ object ScreenPreferences {
         limits.filterValues { !it.isOff }.keys
 
     /**
-     * The stored modes after a preset puts [screenIds] on and the rest of
-     * [allScreenIds] off. A screen the preset turns on keeps whatever limit it
-     * already has -- allowances, hours, a reel allowance -- since the preset
-     * only says the screen should be held, not that the care somebody took
-     * over how should go; one with nothing set becomes blocked. A screen it
-     * turns off goes off.
+     * As above, plus the screens an app-level limit is scoped to. A plan's
+     * shared budget sits on the app and leaves its screens switched off on
+     * their own account, so without these the rules would never name the
+     * screen and the budget would be charged nowhere.
      */
-    fun presetLimits(
-        screenIds: Set<String>,
-        allScreenIds: Set<String>,
-        stored: Map<String, Limits>,
-    ): Map<String, Limits> =
-        stored.filterKeys { it !in allScreenIds } + allScreenIds.associateWith { id ->
-            if (id in screenIds) stored[id]?.takeUnless { it.isOff } ?: Limits.BLOCKED else Limits.OFF
-        }
+    fun activeScreenIds(limits: Map<String, Limits>, appLimits: Map<String, Limits>): Set<String> =
+        activeScreenIds(limits) +
+            appLimits.values.filter { !it.isOff }.flatMap { it.onlyOn.orEmpty() }
 }

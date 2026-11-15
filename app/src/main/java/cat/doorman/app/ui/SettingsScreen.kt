@@ -109,7 +109,7 @@ fun AppList(
             // is the one worth naming.
             val targets = listOf(
                 Triple(packageName, stringResource(R.string.whole_app_row), appLimits[packageName]),
-            ) + app.screens.map {
+            ) + app.screens.filterNot { it.messages }.map {
                 Triple(it.id, labelFor(it.labelKey), screenLimits[it.id])
             }
             val wholeGray = graySettings[packageName]
@@ -456,7 +456,7 @@ fun AppDetail(
                 modifier = Modifier.padding(bottom = 8.dp),
             )
             if (app != null) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            app?.screens?.forEach { screen ->
+            app?.screens?.filterNot { it.messages }?.forEach { screen ->
                 LimitRow(
                     label = labelFor(screen.labelKey),
                     limits = screenLimits[screen.id] ?: Limits.OFF,

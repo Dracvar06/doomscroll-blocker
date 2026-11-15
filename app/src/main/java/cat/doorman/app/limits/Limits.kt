@@ -117,8 +117,49 @@ data class Limits(
      * is never offered and never read.
      */
     val reels: ReelQuota? = null,
+    /**
+     * Only meaningful on an app-level limit. Null means every screen of the
+     * app; a set means the limit applies, and is charged, only while one of
+     * those screens is in front. Anywhere else -- messages, a screen nobody
+     * recognised, no screen known at all -- the app is left alone: this fails
+     * open. An empty set therefore applies nowhere.
+     */
+    val onlyOn: Set<String>? = null,
+    /**
+     * Only meaningful on an app-level limit: screens the limit leaves alone,
+     * however the rest of the app is held. This is the shape a plan gives an
+     * app with messages in it -- every minute in Instagram counts except the
+     * ones spent in a conversation, and whatever part the user chose to free.
+     *
+     * Counting all the rest, screens nobody recognised included, is what
+     * keeps time from leaking out through a screen the rules never named. But
+     * covering an unrecognised screen is another matter: it could be a
+     * conversation the rules failed to read, and a blocked conversation is the
+     * one failure this app exists to avoid. So under an exception list an
+     * unrecognised screen is counted and never covered ([coversOn]).
+     */
+    val exceptOn: Set<String>? = null,
 ) {
     val isOff: Boolean get() = !blocked && allowances.isEmpty() && windows.isEmpty() && reels == null
+
+    /**
+     * Whether an app-level limit is in force, and charged, with [screenId] in
+     * front. A screen nobody could name (null) is outside any [onlyOn] set,
+     * and inside the rest of the app under [exceptOn].
+     */
+    fun appliesOn(screenId: String?): Boolean {
+        if (onlyOn != null && (screenId == null || screenId !in onlyOn)) return false
+        if (exceptOn != null && screenId != null && screenId in exceptOn) return false
+        return true
+    }
+
+    /**
+     * Whether an app-level limit that has run out may cover [screenId]. The
+     * same as [appliesOn], except that with an exception list a screen nobody
+     * could name is left uncovered: see [exceptOn].
+     */
+    fun coversOn(screenId: String?): Boolean =
+        appliesOn(screenId) && !(exceptOn != null && screenId == null)
 
     /** The allowances in force on [day]; the others belong to other days. */
     fun allowancesOn(day: DayOfWeek): List<Allowance> = allowances.filter { day in it.days }
@@ -203,6 +244,13 @@ fun isLoosening(
     // unless the screen is held outright, in which case no quota matters.
     if (!to.blocked && ReelQuotas.isLooser(from.reels, to.reels)) return true
 
+    // Null covers every screen, so a narrower scope lets more through: null to
+    // a set, or a set that has lost a screen. The other way round is tighter.
+    if (!from.isOff && scopeNarrowed(from.onlyOn, to.onlyOn)) return true
+    // An exception list works the other way round: every screen added to it is
+    // one more the limit no longer reaches.
+    if (!from.isOff && exceptionsWidened(from.exceptOn, to.exceptOn)) return true
+
     // Every day has to keep at least as tight a budget as it had.
     val nowFrom = from.atLevel(hard, today)
     val nowTo = to.atLevel(hard, today)
@@ -210,6 +258,19 @@ fun isLoosening(
         if (dailyBudget(nowTo, day, after) > dailyBudget(nowFrom, day, before)) return true
     }
     return false
+}
+
+private fun scopeNarrowed(from: Set<String>?, to: Set<String>?): Boolean = when {
+    to == null -> false
+    from == null -> true
+    else -> !to.containsAll(from)
+}
+
+/** Null means no exceptions, so any set at all frees something, as does a larger one. */
+private fun exceptionsWidened(from: Set<String>?, to: Set<String>?): Boolean = when {
+    to == null -> false
+    from == null -> to.isNotEmpty()
+    else -> !from.containsAll(to)
 }
 
 /**

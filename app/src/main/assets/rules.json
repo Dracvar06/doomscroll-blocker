@@ -37,7 +37,8 @@
           },
           "helpKey": "help_yt_shorts",
           "endless": true,
-          "countsReels": true
+          "countsReels": true,
+          "planDefault": true
         },
         {
           "id": "yt_home_feed",
@@ -54,7 +55,8 @@
               "search_query"
             ]
           },
-          "helpKey": "help_yt_home_feed"
+          "helpKey": "help_yt_home_feed",
+          "planDefault": true
         },
         {
           "id": "yt_subscriptions_feed",
@@ -72,6 +74,25 @@
             ]
           },
           "helpKey": "help_yt_subscriptions_feed"
+        },
+        {
+          "id": "yt_watch",
+          "labelKey": "screen_yt_watch",
+          "defaultEnabled": false,
+          "match": {
+            "visibleViewId": [
+              "watch_panel",
+              "watch_list"
+            ],
+            "noneViewId": [
+              "pivot_bar",
+              "reel_recycler",
+              "reel_player_page_container",
+              "search_query"
+            ]
+          },
+          "helpKey": "help_yt_watch",
+          "planDefault": true
         }
       ],
       "coverViewIds": [
@@ -87,6 +108,54 @@
     "com.instagram.android": {
       "labelKey": "app_instagram",
       "screens": [
+        {
+          "id": "ig_dm_inbox",
+          "labelKey": "screen_ig_dm_inbox",
+          "defaultEnabled": false,
+          "messages": true,
+          "match": {
+            "selectedViewId": [
+              "direct_tab"
+            ]
+          },
+          "matchAlso": [
+            {
+              "visibleViewId": [
+                "row_inbox_container",
+                "action_bar_new_title_container"
+              ]
+            }
+          ],
+          "helpKey": "help_ig_dm_inbox"
+        },
+        {
+          "id": "ig_dm_thread",
+          "labelKey": "screen_ig_dm_thread",
+          "defaultEnabled": false,
+          "messages": true,
+          "match": {
+            "visibleViewId": [
+              "thread_fragment_container"
+            ],
+            "noneViewId": [
+              "clips_viewer_view_pager",
+              "reel_viewer_root"
+            ]
+          },
+          "matchAlso": [
+            {
+              "visibleViewId": [
+                "message_list",
+                "message_composer_bar"
+              ],
+              "noneViewId": [
+                "clips_viewer_view_pager",
+                "reel_viewer_root"
+              ]
+            }
+          ],
+          "helpKey": "help_ig_dm_thread"
+        },
         {
           "id": "ig_single_reel",
           "labelKey": "screen_ig_single_reel",
@@ -134,7 +203,8 @@
           ],
           "helpKey": "help_ig_reels",
           "endless": true,
-          "countsReels": true
+          "countsReels": true,
+          "planDefault": true
         },
         {
           "id": "ig_reel_viewer",
@@ -168,7 +238,8 @@
             "outer_container"
           ],
           "keepVisibleTopFollows": "ig_stories",
-          "helpKey": "help_ig_feed"
+          "helpKey": "help_ig_feed",
+          "planDefault": true
         },
         {
           "id": "ig_explore",
@@ -183,7 +254,8 @@
             "action_bar_search_edit_text"
           ],
           "helpKey": "help_ig_explore",
-          "endless": true
+          "endless": true,
+          "planDefault": true
         }
       ],
       "coverViewIds": [
@@ -241,7 +313,8 @@
           },
           "helpKey": "help_tt_feed",
           "endless": true,
-          "countsReels": true
+          "countsReels": true,
+          "planDefault": true
         }
       ],
       "keepVisibleTopViewIds": [
@@ -254,6 +327,69 @@
     "com.snapchat.android": {
       "labelKey": "app_snapchat",
       "screens": [
+        {
+          "id": "sc_chat_list",
+          "labelKey": "screen_sc_chat_list",
+          "defaultEnabled": false,
+          "messages": true,
+          "match": {
+            "visibleViewId": [
+              "list-picker-edit-list"
+            ],
+            "noneViewId": [
+              "camera_capture_button",
+              "df_large_story",
+              "memories_grid",
+              "favorite"
+            ]
+          },
+          "matchAlso": [
+            {
+              "visibleViewId": [
+                "ff_item"
+              ],
+              "noneViewId": [
+                "camera_capture_button",
+                "df_large_story",
+                "memories_grid",
+                "favorite"
+              ]
+            }
+          ],
+          "helpKey": "help_sc_chat_list"
+        },
+        {
+          "id": "sc_chat_thread",
+          "labelKey": "screen_sc_chat_thread",
+          "defaultEnabled": false,
+          "messages": true,
+          "match": {
+            "visibleViewId": [
+              "chat_message_list"
+            ],
+            "noneViewId": [
+              "camera_capture_button",
+              "df_large_story",
+              "memories_grid",
+              "favorite"
+            ]
+          },
+          "matchAlso": [
+            {
+              "visibleViewId": [
+                "chat_input_text_field",
+                "chat_input_bar_camera"
+              ],
+              "noneViewId": [
+                "camera_capture_button",
+                "df_large_story",
+                "memories_grid",
+                "favorite"
+              ]
+            }
+          ],
+          "helpKey": "help_sc_chat_thread"
+        },
         {
           "id": "sc_spotlight",
           "labelKey": "screen_sc_spotlight",
@@ -277,7 +413,8 @@
           ],
           "helpKey": "help_sc_spotlight",
           "endless": true,
-          "countsReels": true
+          "countsReels": true,
+          "planDefault": true
         },
         {
           "id": "sc_stories",
@@ -325,7 +462,8 @@
             ]
           },
           "helpKey": "help_li_feed",
-          "endless": true
+          "endless": true,
+          "planDefault": true
         }
       ],
       "keepVisibleViewIds": [
@@ -348,7 +486,8 @@
             ]
           },
           "helpKey": "help_x_home_timeline",
-          "endless": true
+          "endless": true,
+          "planDefault": true
         }
       ],
       "keepVisibleTopViewIds": [
@@ -387,7 +526,8 @@
             ]
           },
           "helpKey": "help_rd_home_feed",
-          "endless": true
+          "endless": true,
+          "planDefault": true
         }
       ],
       "keepVisibleViewIds": [
@@ -400,6 +540,20 @@
     "com.xingin.xhs": {
       "labelKey": "app_rednote",
       "screens": [
+        {
+          "id": "rn_video_pager",
+          "labelKey": "screen_rn_video_pager",
+          "defaultEnabled": false,
+          "match": {
+            "visibleViewId": [
+              "matrix_video_feed_note_detail_list"
+            ],
+            "arrivedFromAnotherApp": false
+          },
+          "helpKey": "help_rn_video_pager",
+          "countsReels": true,
+          "planDefault": true
+        },
         {
           "id": "rn_video_feed",
           "labelKey": "screen_rn_video_feed",
@@ -432,7 +586,8 @@
             ]
           },
           "helpKey": "help_rn_explore",
-          "endless": true
+          "endless": true,
+          "planDefault": true
         },
         {
           "id": "rn_nearby",
@@ -447,7 +602,8 @@
             ]
           },
           "helpKey": "help_rn_nearby",
-          "endless": true
+          "endless": true,
+          "planDefault": true
         },
         {
           "id": "rn_following",

@@ -137,11 +137,58 @@ class ScreenEvaluatorTest {
 
     /**
      * Watching a video is not doomscrolling. This is the screen a link from a
-     * friend lands on, so blocking it would break the whole point of the app.
+     * friend lands on, so a fresh install must not block it: yt_watch exists
+     * only for a limit somebody sets on purpose and ships switched off.
      */
     @Test
-    fun `the watch page is never blocked`() {
-        assertFalse(ScreenEvaluator.evaluate(fixture("youtube-watch"), rules(), allScreens).blocked)
+    fun `the watch page is not blocked on a fresh install`() {
+        assertFalse(ScreenEvaluator.evaluate(fixture("youtube-watch"), rules(), defaults).blocked)
+        assertFalse(
+            ScreenEvaluator.evaluate(fixture("youtube-watch-player"), rules(), defaults).blocked,
+        )
+    }
+
+    @Test
+    fun `the video player page is yt_watch once somebody switches it on`() {
+        for (name in listOf("youtube-watch", "youtube-watch-player")) {
+            val verdict = ScreenEvaluator.evaluate(fixture(name), rules(), allScreens)
+            assertEquals(name, "yt_watch", verdict.screenId)
+        }
+    }
+
+    /**
+     * The small player that floats over the feed after Back is the feed, not a
+     * video page: the home feed rule owns it, and yt_watch must not claim it.
+     * Wrongly counting a feed as watching is the worse mistake here.
+     */
+    @Test
+    fun `the miniplayer over the feed is not watching a video`() {
+        val mini = fixture("youtube-miniplayer")
+        assertFalse(mini.nodes.any { it.visible && it.viewIdMatches("watch_panel") })
+        val verdict = ScreenEvaluator.evaluate(mini, rules(), allScreens)
+        assertFalse(verdict.screenId == "yt_watch")
+        assertFalse(
+            ScreenEvaluator.evaluate(mini, rules(), setOf("yt_watch")).blocked,
+        )
+    }
+
+    @Test
+    fun `shorts and the feeds are never taken for watching a video`() {
+        val onlyWatch = setOf("yt_watch")
+        for (name in listOf(
+            "youtube-shorts", "youtube-short-from-link", "youtube-short-comments",
+            "youtube-home", "youtube-subs", "youtube-you",
+        )) {
+            assertFalse(name, ScreenEvaluator.evaluate(fixture(name), rules(), onlyWatch).blocked)
+        }
+        assertEquals(
+            "yt_shorts",
+            ScreenEvaluator.evaluate(fixture("youtube-shorts"), rules(), allScreens).screenId,
+        )
+        assertEquals(
+            "yt_home_feed",
+            ScreenEvaluator.evaluate(fixture("youtube-home"), rules(), allScreens).screenId,
+        )
     }
 
     @Test

@@ -9,32 +9,19 @@ import org.junit.Test
 import java.io.File
 
 /**
- * The quick settings, and the gap that used to sit between them.
- *
- * They ran "everything", "the usual", "nothing", and anyone who found the
- * middle one too much had nowhere left to go but off entirely. Permissive is
- * that missing step, and what defines it is not a taste but a property: whether
- * the screen ever ends.
+ * Which screens never end, which is what the wizard's "just block the endless
+ * parts" holds. What defines them is not a taste but a property: whether the
+ * screen ever ends.
  */
-class PresetsTest {
+class EndlessScreensTest {
 
     private val rules: RuleSet = Json { ignoreUnknownKeys = true }
         .decodeFromString(File("src/main/assets/rules.json").readText())
 
     private val endless = RuleLoader.endlessScreenIds(rules)
-    private val balanced = RuleLoader.defaultEnabledScreenIds(rules)
-
-    @Test
-    fun `permissive is gentler than balanced, and both are gentler than everything`() {
-        val everything = rules.apps.values.flatMap { it.screens }.map { it.id }.toSet()
-        assertTrue("permissive should not hold anything balanced lets through",
-            balanced.containsAll(endless))
-        assertTrue(everything.containsAll(balanced))
-        assertTrue("permissive must actually be gentler", endless.size < balanced.size)
-    }
 
     /**
-     * The line is whether a screen ends. These do, and the gentlest setting has
+     * The line is whether a screen ends. These do, and the shortcut has
      * to leave them alone -- a home page you can reach the bottom of is not the
      * problem Doorman exists for.
      */
@@ -51,9 +38,9 @@ class PresetsTest {
             .forEach { assertTrue(it, it in endless) }
     }
 
-    /** Every app Doorman supports has something in the gentlest setting. */
+    /** Every app Doorman supports has something the shortcut holds. */
     @Test
-    fun `no app is left out of the gentlest setting`() {
+    fun `no app is left out of the shortcut`() {
         rules.apps.forEach { (packageName, app) ->
             assertTrue(packageName, app.screens.any { it.endless })
         }

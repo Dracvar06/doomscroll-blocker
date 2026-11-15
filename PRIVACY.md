@@ -57,12 +57,20 @@ in a picker. It no longer does, and deletes that list from older installs.
 
 ## Optional: Android's usage figures
 
-If you turn it on from the weekly report, Doorman can read Android's own
-screen-time figures (the "usage access" permission) to show how much time you
-spent in the apps you hold. This permission is wide — Android grants it for
-every app — but Doorman reads it only for the apps you have chosen to hold,
-only while drawing the report, and stores none of it. The report works without
-it. Nothing else in the app changes if you decline.
+If you turn it on from the weekly report or from the plan, Doorman can read
+Android's own screen-time figures (the "usage access" permission) to show how
+much time you spent in the apps you hold. This permission is wide — Android
+grants it for every app — but Doorman reads it only for the apps you have
+chosen to hold, only while drawing the report or while you are making a plan
+(and then only for the apps the plan shows), and stores none of it beyond the
+limits you choose. The report and the plan work without it. Nothing else in the
+app changes if you decline.
+
+## Sharing a plan
+
+The plan screen has a Share button. Nothing is shared unless you tap it, and
+then the text goes through Android's share sheet to whichever app you pick;
+Doorman itself still has no internet permission and sends nothing anywhere.
 
 ## Optional: grayscale
 

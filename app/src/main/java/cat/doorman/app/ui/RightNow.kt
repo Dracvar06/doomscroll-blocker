@@ -5,11 +5,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
@@ -180,4 +182,32 @@ fun RightNowCard(
         )
         actions()
     }
+}
+
+/**
+ * The way back into the plan wizard, for the bottom of the Right now card.
+ *
+ * [nudge] adds a quiet line above it when the last weeks suggest the limits
+ * are hard to keep. A line the person can wave away, not a banner, and never a
+ * notification: being told off by an app about a limit is the quickest way to
+ * stop opening it.
+ */
+@Composable
+fun RethinkActions(nudge: Boolean, onRethink: () -> Unit, onDismissNudge: () -> Unit) {
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    if (nudge) {
+        Column(
+            modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(stringResource(R.string.plan_nudge), style = MaterialTheme.typography.bodyMedium)
+            TextButton(onClick = onDismissNudge) { Text(stringResource(R.string.action_not_now)) }
+        }
+    }
+    NavRow(
+        icon = Icons.Outlined.Edit,
+        title = stringResource(R.string.plan_rethink_title),
+        supporting = stringResource(R.string.plan_rethink_hint),
+        onClick = onRethink,
+    )
 }
